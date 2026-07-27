@@ -1,0 +1,7 @@
+streamlit
+pandas
+openpyxl
+geopy
+numpy
+sqlalchemy
+psycopg2-binary
