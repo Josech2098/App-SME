@@ -92,21 +92,21 @@ export default function TablaProductos({
 
   const handleGuardarProducto = async (e) => {
     e.preventDefault();
-    if (!addNombre || !addPrecio) return alert('Por favor ingresa nombre y precio.');
+    if (!addNombre) return alert('Por favor ingresa al menos el nombre del producto.');
 
     const { error } = await supabase.from('productos').insert([
       {
-        pais: addPais || paisDestino,
+        codigo_hs: addCodigo || null, // <-- Usamos 'codigo_hs' en lugar de 'codigo'
         nombre: addNombre,
-        precio: parseFloat(addPrecio),
         categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General'),
-        codigo: addCodigo || null
+        descripcion: null // O le puedes pasar un valor si lo agregas al formulario
       }
     ]);
 
     if (error) {
       alert('Error al guardar el producto: ' + error.message);
     } else {
+      // Limpieza de estados y recarga
       setAddNombre('');
       setAddPrecio('');
       setAddCategoria('');
