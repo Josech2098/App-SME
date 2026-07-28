@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import TablaProductos from './TablaProductos';
+import TablaProductos from '../sistema-smi-frontend/src/components/TablaProductos';
+import TabCosto from '../sistema-smi-frontend/src/components/TabCosto';
+
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(1); // 1 = Costo (COST) como en tu captura
