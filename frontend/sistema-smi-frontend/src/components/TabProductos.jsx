@@ -173,6 +173,7 @@ export default function TablaProductos({
             ))
           ) : (
             <>
+              <option value="España">Esaña</option>
               <option value="Colombia">Colombia</option>
               <option value="Costa Rica">Costa Rica</option>
               <option value="México">México</option>
