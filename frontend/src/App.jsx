@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import TablaProductos from '../sistema-smi-frontend/src/components/TablaProductos';
-import TabCosto from '../sistema-smi-frontend/src/components/TabCosto';
-
+import TablaProductos from './components/TablaProductos';
+import TabCosto from './components/TabCosto';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState(1); // 1 = Costo (COST) como en tu captura
+  const [activeTab, setActiveTab] = useState(0); // 0 = Productos por defecto
+
+  // Estado global para el país de destino (compartido con TabCosto)
+  const [paisDestino, setPaisDestino] = useState('Colombia');
 
   // Filtros de la barra lateral
   const [categoria, setCategoria] = useState('Todos');
@@ -53,6 +55,7 @@ export default function App() {
               className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500"
             >
               <option value="Todos">Todos</option>
+              {/* Puedes iterar aquí tus categorías o dinámicamente si vienen de Supabase */}
             </select>
           </div>
 
@@ -125,7 +128,7 @@ export default function App() {
               }`}
             >
               {tabName}
-              {/* Indicador de pestaña activa (Línea roja) */}
+              {/* Indicador de pestaña activa */}
               {activeTab === index && (
                 <span className="absolute bottom-0 left-0 w-full h-[2px] bg-red-500"></span>
               )}
@@ -135,20 +138,33 @@ export default function App() {
 
         {/* Contenido Dinámico de la Pestaña Seleccionada */}
         <div>
-          {activeTab === 0 && <TablaProductos />}
+          {/* 📦 TAB 0: PRODUCTOS */}
+          {activeTab === 0 && (
+            <TablaProductos 
+              paisDestino={paisDestino} 
+              setPaisDestino={setPaisDestino}
+              categoria={categoria}
+              subcategoria={subcategoria}
+              searchNombre={searchNombre}
+              searchCodigo={searchCodigo}
+              searchSubcodigo={searchSubcodigo}
+            />
+          )}
 
+          {/* 💵 TAB 1: COSTO (COST) */}
           {activeTab === 1 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
-                1.Costo (COST) — Estandarización de criterios
+                1. Costo (COST) — Estandarización de criterios
               </h2>
-              <div className="bg-[#1c2c3d] border border-[#2b4259] text-[#71b1ea] px-4 py-3 rounded flex items-center gap-2 text-sm">
-                <span>ℹ️</span>
-                <span>No hay productos filtrados en la pestaña 'Productos'.</span>
-              </div>
+              <p className="text-xs text-emerald-400 font-medium">
+                País destino seleccionado: <span className="font-bold">{paisDestino}</span>
+              </p>
+              <TabCosto paisDestino={paisDestino} />
             </div>
           )}
 
+          {/* ⚙️ DEMÁS TABS EN DESARROLLO */}
           {activeTab > 1 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">

@@ -1,197 +1,404 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../src/supabaseClient';
+import { supabase } from '../supabaseClient';
 
-export default function TablaProductos() {
+export default function TablaProductos({
+  paisDestino,
+  setPaisDestino,
+  categoria,
+  subcategoria,
+  searchNombre,
+  searchCodigo,
+  searchSubcodigo
+}) {
+  // Estados para datos de Supabase
+  const [paises, setPaises] = useState([]);
   const [productos, setProductos] = useState([]);
-  const [selectedProd, setSelectedProd] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Campos del formulario alineados a la tabla 'productos'
-  const [codigoHs, setCodigoHs] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [categoria, setCategoria] = useState('');
-  const [descripcion, setDescripcion] = useState('');
+  // Estados para Acordeones CRUD
+  const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete'
 
+  // Form Añadir
+  const [addPais, setAddPais] = useState('');
+  const [addNombre, setAddNombre] = useState('');
+  const [addPrecio, setAddPrecio] = useState('');
+  const [addCategoria, setAddCategoria] = useState('');
+  const [addCodigo, setAddCodigo] = useState('');
+
+  // Form Editar
+  const [editId, setEditId] = useState('');
+  const [editPais, setEditPais] = useState('');
+  const [editNombre, setEditNombre] = useState('');
+  const [editPrecio, setEditPrecio] = useState('');
+
+  // Form Eliminar
+  const [deleteId, setDeleteId] = useState('');
+
+  // Cargar datos al montar el componente
   useEffect(() => {
-    fetchProductos();
+    cargarDatosIniciales();
   }, []);
 
-  // 1. Cargar productos desde Supabase
-  async function fetchProductos() {
+  async function cargarDatosIniciales() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('productos')
-      .select('*')
-      .order('id', { ascending: true });
 
-    if (error) {
-      console.error('Error al cargar productos:', error.message);
-    } else {
-      setProductos(data || []);
+    // 1. Cargar lista de países para el selector global
+    const { data: dataPaises, error: errPaises } = await supabase
+      .from('paises')
+      .select('*')
+      .order('nombre');
+
+    if (dataPaises) setPaises(dataPaises);
+
+    // 2. Cargar productos desde Supabase
+    const { data: dataProductos, error: errProductos } = await supabase
+      .from('productos')
+      .select('*');
+
+    if (dataProductos) {
+      setProductos(dataProductos);
     }
+
     setLoading(false);
   }
 
-  // 2. Guardar nuevo producto en la tabla 'productos'
-  async function handleGuardar(e) {
-    e.preventDefault();
-
-    if (!codigoHs.trim() || !nombre.trim()) {
-      return alert('El Código HS y el Nombre son obligatorios.');
+  // 🔍 Lógica de Filtrado Dinámico usando Props provenientes de App.jsx
+  const productosFiltrados = productos.filter((p) => {
+    // Filtro por Categoría
+    if (categoria && categoria !== 'Todos' && p.categoria !== categoria) {
+      return false;
+    }
+    // Filtro por Subcategoría
+    if (subcategoria && subcategoria !== 'Todos' && p.subcategoria !== subcategoria) {
+      return false;
+    }
+    // Filtro por Nombre
+    if (searchNombre && !p.nombre?.toLowerCase().includes(searchNombre.toLowerCase())) {
+      return false;
+    }
+    // Filtro por Código de Producto
+    if (searchCodigo && !p.codigo?.toString().startsWith(searchCodigo)) {
+      return false;
+    }
+    // Filtro por Subcódigo
+    if (searchSubcodigo && !p.subcodigo?.toString().includes(searchSubcodigo)) {
+      return false;
     }
 
-    const { data, error } = await supabase
-      .from('productos')
-      .insert([
-        {
-          codigo_hs: codigoHs.trim(),
-          nombre: nombre.trim(),
-          categoria: categoria.trim() || null,
-          descripcion: descripcion.trim() || null,
-        },
-      ])
-      .select();
+    return true;
+  });
+
+  // 📝 HANDLERS PARA OPERACIONES CRUD EN SUPABASE
+
+  const handleGuardarProducto = async (e) => {
+    e.preventDefault();
+    if (!addNombre || !addPrecio) return alert('Por favor ingresa nombre y precio.');
+
+    const { error } = await supabase.from('productos').insert([
+      {
+        pais: addPais || paisDestino,
+        nombre: addNombre,
+        precio: parseFloat(addPrecio),
+        categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General'),
+        codigo: addCodigo || null
+      }
+    ]);
 
     if (error) {
-      console.error('Error al insertar:', error);
-      if (error.code === '23505') {
-        alert(' Error: El Código HS ya existe en la base de datos.');
-      } else {
-        alert(`Error al guardar: ${error.message}`);
-      }
+      alert('Error al guardar el producto: ' + error.message);
     } else {
-      alert('¡Producto guardado correctamente en Supabase!');
-      // Limpiar formulario
-      setCodigoHs('');
-      setNombre('');
-      setCategoria('');
-      setDescripcion('');
-      // Recargar lista
-      fetchProductos();
+      setAddNombre('');
+      setAddPrecio('');
+      setAddCategoria('');
+      setAddCodigo('');
+      setAddPais('');
+      setActiveAccordion(null);
+      cargarDatosIniciales();
     }
-  }
+  };
+
+  const handleEditarProducto = async (e) => {
+    e.preventDefault();
+    if (!editId) return alert('Selecciona un producto para editar.');
+
+    const { error } = await supabase
+      .from('productos')
+      .update({
+        pais: editPais,
+        nombre: editNombre,
+        precio: parseFloat(editPrecio)
+      })
+      .eq('id', editId);
+
+    if (error) {
+      alert('Error al actualizar: ' + error.message);
+    } else {
+      setActiveAccordion(null);
+      cargarDatosIniciales();
+    }
+  };
+
+  const handleEliminarProducto = async (e) => {
+    e.preventDefault();
+    if (!deleteId) return alert('Selecciona un producto para eliminar.');
+
+    const { error } = await supabase.from('productos').delete().eq('id', deleteId);
+
+    if (error) {
+      alert('Error al eliminar: ' + error.message);
+    } else {
+      setActiveAccordion(null);
+      cargarDatosIniciales();
+    }
+  };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* Columna Izquierda: Selector de Producto para Análisis */}
-      <div className="lg:col-span-2 space-y-6">
-        <div>
-          <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-            <span className="text-blue-400">📊</span> Selección de Producto
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Selecciona un producto para cargar sus costos y métricas asociadas.
-          </p>
+    <div className="space-y-6 text-slate-100">
+      
+      {/* 🌍 SELECTOR UNIVERSAL DEL PAÍS DESTINO */}
+      <div className="bg-[#181a20] p-4 rounded-xl border border-slate-800 space-y-2 shadow-sm">
+        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+          Selecciona el país destino de importación
+        </label>
+        <select
+          value={paisDestino}
+          onChange={(e) => setPaisDestino(e.target.value)}
+          className="w-full bg-[#0e1117] border border-slate-700/80 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-red-500 transition-colors"
+        >
+          {paises.length > 0 ? (
+            paises.map((p) => (
+              <option key={p.id} value={p.nombre}>
+                {p.nombre}
+              </option>
+            ))
+          ) : (
+            <>
+              <option value="Colombia">Colombia</option>
+              <option value="Costa Rica">Costa Rica</option>
+              <option value="México">México</option>
+            </>
+          )}
+        </select>
+        <p className="text-xs text-emerald-400 font-medium">
+          ✓ País destino activo: <span className="font-bold">{paisDestino}</span>
+        </p>
+      </div>
+
+      {/* 🛠️ PANELS DE GESTIÓN DE DATOS (CRUD DESPLEGABLES) */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+          <span>🛠️</span> Gestión de Datos (Productos)
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <button
+            type="button"
+            onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
+            className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
+              activeAccordion === 'add'
+                ? 'bg-slate-800 border-red-500 text-white'
+                : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
+            }`}
+          >
+            <span>{activeAccordion === 'add' ? '▼' : '❯'}</span> Añadir producto
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
+            className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
+              activeAccordion === 'edit'
+                ? 'bg-slate-800 border-red-500 text-white'
+                : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
+            }`}
+          >
+            <span>{activeAccordion === 'edit' ? '▼' : '❯'}</span> Editar producto existente
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
+            className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
+              activeAccordion === 'delete'
+                ? 'bg-slate-800 border-red-500 text-white'
+                : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
+            }`}
+          >
+            <span>{activeAccordion === 'delete' ? '▼' : '❯'}</span> Eliminar producto existente
+          </button>
         </div>
 
-        <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800/80 shadow-inner space-y-3">
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Producto Activo ({productos.length} registrados)
-          </label>
-          
-          {loading ? (
-            <div className="text-xs text-slate-500 animate-pulse py-2">
-              Cargando catálogo desde PostgreSQL...
+        {/* Formulario: Añadir */}
+        {activeAccordion === 'add' && (
+          <form onSubmit={handleGuardarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
+            <h4 className="text-xs font-bold text-red-400 uppercase">Añadir Nuevo Producto</h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+              <input
+                type="text"
+                placeholder="Código (Ej. 01)"
+                value={addCodigo}
+                onChange={(e) => setAddCodigo(e.target.value)}
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+              />
+              <input
+                type="text"
+                placeholder="Nombre del Producto"
+                value={addNombre}
+                onChange={(e) => setAddNombre(e.target.value)}
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                required
+              />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Precio ($)"
+                value={addPrecio}
+                onChange={(e) => setAddPrecio(e.target.value)}
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                required
+              />
+              <input
+                type="text"
+                placeholder="País (Opcional)"
+                value={addPais}
+                onChange={(e) => setAddPais(e.target.value)}
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+              />
             </div>
-          ) : (
+            <button type="submit" className="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
+              Guardar nuevo producto
+            </button>
+          </form>
+        )}
+
+        {/* Formulario: Editar */}
+        {activeAccordion === 'edit' && (
+          <form onSubmit={handleEditarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
+            <h4 className="text-xs font-bold text-amber-400 uppercase">Editar Producto Existente</h4>
             <select
-              value={selectedProd}
-              onChange={(e) => setSelectedProd(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-4 py-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/80 transition-all cursor-pointer"
+              value={editId}
+              onChange={(e) => {
+                const sel = productos.find((p) => p.id.toString() === e.target.value);
+                setEditId(e.target.value);
+                if (sel) {
+                  setEditPais(sel.pais || '');
+                  setEditNombre(sel.nombre || '');
+                  setEditPrecio(sel.precio || '');
+                }
+              }}
+              className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
             >
-              <option value="">-- Selecciona un producto para la matriz --</option>
-              {productos.map((prod) => (
-                <option key={prod.id} value={prod.id}>
-                  [{prod.codigo_hs}] {prod.nombre} {prod.categoria ? `— (${prod.categoria})` : ''}
+              <option value="">-- Selecciona producto a editar --</option>
+              {productos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.codigo ? `[${p.codigo}] ` : ''}{p.nombre} (${p.pais || 'S/N'}) - ${p.precio}
                 </option>
               ))}
             </select>
-          )}
-        </div>
 
-        {/* Resumen del producto seleccionado */}
-        {selectedProd && (
-          <div className="bg-slate-900/80 p-5 rounded-xl border border-blue-900/40 text-xs space-y-2">
-            <span className="text-blue-400 font-semibold uppercase">Detalle del Producto Selección:</span>
-            {(() => {
-              const prod = productos.find((p) => p.id === parseInt(selectedProd));
-              return prod ? (
-                <div className="text-slate-300 space-y-1 pt-1">
-                  <p><strong className="text-slate-400">Código HS:</strong> {prod.codigo_hs}</p>
-                  <p><strong className="text-slate-400">Nombre:</strong> {prod.nombre}</p>
-                  <p><strong className="text-slate-400">Categoría:</strong> {prod.categoria || 'Sin categoría'}</p>
-                  <p><strong className="text-slate-400">Descripción:</strong> {prod.descripcion || 'Sin descripción'}</p>
-                </div>
-              ) : null;
-            })()}
-          </div>
+            {editId && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2">
+                <input
+                  type="text"
+                  value={editPais}
+                  onChange={(e) => setEditPais(e.target.value)}
+                  className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                />
+                <input
+                  type="text"
+                  value={editNombre}
+                  onChange={(e) => setEditNombre(e.target.value)}
+                  className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editPrecio}
+                  onChange={(e) => setEditPrecio(e.target.value)}
+                  className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                />
+              </div>
+            )}
+            <button type="submit" className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
+              Actualizar producto
+            </button>
+          </form>
+        )}
+
+        {/* Formulario: Eliminar */}
+        {activeAccordion === 'delete' && (
+          <form onSubmit={handleEliminarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
+            <h4 className="text-xs font-bold text-red-500 uppercase">Eliminar Producto</h4>
+            <select
+              value={deleteId}
+              onChange={(e) => setDeleteId(e.target.value)}
+              className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+            >
+              <option value="">-- Selecciona producto a eliminar --</option>
+              {productos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.codigo ? `[${p.codigo}] ` : ''}{p.nombre} (${p.pais || 'S/N'})
+                </option>
+              ))}
+            </select>
+            <button type="submit" className="bg-red-700 hover:bg-red-600 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
+              Eliminar producto definitivamente
+            </button>
+          </form>
         )}
       </div>
 
-      {/* Columna Derecha: Formulario de Registro */}
-      <div className="bg-slate-950/80 p-6 rounded-xl border border-slate-800/80 shadow-xl space-y-4">
-        <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-800 pb-3">
-          <span className="text-blue-400">➕</span> Registrar Producto
-        </h3>
+      {/* 📊 TABLA DE RESULTADOS DE BÚSQUEDA */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-white">
+            Productos por categoría y subcategoría
+          </h3>
+          <span className="text-xs text-slate-400 bg-[#181a20] px-3 py-1 rounded-full border border-slate-800">
+            Mostrando <strong className="text-white">{productosFiltrados.length}</strong> de {productos.length} registros
+          </span>
+        </div>
 
-        <form onSubmit={handleGuardar} className="space-y-3.5">
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
-              Código Arancelario (HS) <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Ej: 0901.11"
-              value={codigoHs}
-              onChange={(e) => setCodigoHs(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">
-              Nombre del Producto <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Ej: Café Orgánico en Grano"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Categoría</label>
-            <input
-              type="text"
-              placeholder="Ej: Agroindustria"
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Descripción</label>
-            <textarea
-              rows="2"
-              placeholder="Detalles adicionales..."
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/80 resize-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-all duration-200 shadow-lg shadow-blue-600/20 text-xs mt-2 cursor-pointer"
-          >
-            Guardar en Base de Datos
-          </button>
-        </form>
+        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-[#16181e] shadow-sm">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-[#1e2028] text-slate-400 border-b border-slate-800">
+              <tr>
+                <th className="p-3 font-semibold">Código</th>
+                <th className="p-3 font-semibold">Producto</th>
+                <th className="p-3 font-semibold">Categoría</th>
+                <th className="p-3 font-semibold">País</th>
+                <th className="p-3 font-semibold text-right">Precio ($)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="p-6 text-center text-slate-500 animate-pulse">
+                    Cargando productos desde base de datos Supabase...
+                  </td>
+                </tr>
+              ) : productosFiltrados.length > 0 ? (
+                productosFiltrados.map((item) => (
+                  <tr key={item.id} className="hover:bg-[#1f222d]/50 transition-colors">
+                    <td className="p-3 font-mono text-slate-400">{item.codigo || '—'}</td>
+                    <td className="p-3 text-white font-medium">{item.nombre || item.producto}</td>
+                    <td className="p-3 text-slate-400">{item.categoria || '—'}</td>
+                    <td className="p-3 font-medium text-slate-300">{item.pais || '—'}</td>
+                    <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
+                      ${typeof item.precio === 'number' ? item.precio.toFixed(2) : item.precio}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="p-6 text-center text-slate-500">
+                    No se encontraron productos que coincidan con los filtros activos de la barra lateral.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
