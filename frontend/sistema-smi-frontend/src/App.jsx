@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import TablaProductos from './components/TablaProductos';
+import TablaProductos from './components/TabProductos';
 import TabCosto from './components/TabCosto';
 
 export default function App() {
