@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../src/supabaseClient';
+import { supabase } from "../supabaseClient.js";
 
 export default function TabCosto() {
   const [paises, setPaises] = useState([]);
