@@ -43,7 +43,7 @@ export default function TablaProductos({
     setLoading(true);
 
     // 1. Cargar lista de países para el selector global
-    const { data: dataPaises, error: errPaises } = await supabase
+    const { data: dataPaises } = await supabase
       .from('paises')
       .select('*')
       .order('nombre');
@@ -51,7 +51,7 @@ export default function TablaProductos({
     if (dataPaises) setPaises(dataPaises);
 
     // 2. Cargar productos desde Supabase
-    const { data: dataProductos, error: errProductos } = await supabase
+    const { data: dataProductos } = await supabase
       .from('productos')
       .select('*');
 
@@ -62,7 +62,7 @@ export default function TablaProductos({
     setLoading(false);
   }
 
-  // 🔍 Lógica de Filtrado Dinámico usando Props provenientes de App.jsx
+  // 🔍 Lógica de Filtrado Dinámico
   const productosFiltrados = productos.filter((p) => {
     // Filtro por Categoría
     if (categoria && categoria !== 'Todos' && p.categoria !== categoria) {
@@ -76,8 +76,9 @@ export default function TablaProductos({
     if (searchNombre && !p.nombre?.toLowerCase().includes(searchNombre.toLowerCase())) {
       return false;
     }
-    // Filtro por Código de Producto
-    if (searchCodigo && !p.codigo?.toString().startsWith(searchCodigo)) {
+    // Filtro por Código de Producto (codigo_hs o codigo)
+    const codigoVal = p.codigo_hs || p.codigo;
+    if (searchCodigo && (!codigoVal || !codigoVal.toString().startsWith(searchCodigo))) {
       return false;
     }
     // Filtro por Subcódigo
@@ -94,20 +95,22 @@ export default function TablaProductos({
     e.preventDefault();
     if (!addNombre) return alert('Por favor ingresa al menos el nombre del producto.');
 
-    const { error } = await supabase.from('productos').insert([
-      {
-        codigo_hs: addCodigo || null, // <-- Usamos 'codigo_hs' en lugar de 'codigo'
-        nombre: addNombre,
-        categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General'),
-        Precio: parseFloat(addPrecio) || 0,
-        Pais: addPais || null
-      }
-    ]);
+    // Construimos el objeto dinámico para no fallar si algunas columnas no existen en Supabase
+    const payload = {
+      codigo_hs: addCodigo || null,
+      nombre: addNombre,
+      categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General')
+    };
+
+    // Si tu tabla soporta Pais o Precio, los incluimos
+    if (addPais) payload.pais = addPais;
+    if (addPrecio) payload.precio = parseFloat(addPrecio) || 0;
+
+    const { error } = await supabase.from('productos').insert([payload]);
 
     if (error) {
       alert('Error al guardar el producto: ' + error.message);
     } else {
-      // Limpieza de estados y recarga
       setAddNombre('');
       setAddPrecio('');
       setAddCategoria('');
@@ -127,7 +130,7 @@ export default function TablaProductos({
       .update({
         pais: editPais,
         nombre: editNombre,
-        precio: parseFloat(editPrecio)
+        precio: parseFloat(editPrecio) || 0
       })
       .eq('id', editId);
 
@@ -174,7 +177,7 @@ export default function TablaProductos({
             ))
           ) : (
             <>
-              <option value="España">Esaña</option>
+              <option value="España">España</option>
               <option value="Colombia">Colombia</option>
               <option value="Costa Rica">Costa Rica</option>
               <option value="México">México</option>
@@ -234,10 +237,10 @@ export default function TablaProductos({
         {activeAccordion === 'add' && (
           <form onSubmit={handleGuardarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-red-400 uppercase">Añadir Nuevo Producto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
               <input
                 type="text"
-                placeholder="Código (Ej. 01)"
+                placeholder="Código HS (Ej. 2020)"
                 value={addCodigo}
                 onChange={(e) => setAddCodigo(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
@@ -252,7 +255,7 @@ export default function TablaProductos({
               />
               <input
                 type="text"
-                placeholder="Categoria"
+                placeholder="Categoría"
                 value={addCategoria}
                 onChange={(e) => setAddCategoria(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
@@ -272,7 +275,6 @@ export default function TablaProductos({
                 value={addPrecio}
                 onChange={(e) => setAddPrecio(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                required
               />
             </div>
             <button type="submit" className="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
@@ -291,9 +293,9 @@ export default function TablaProductos({
                 const sel = productos.find((p) => p.id.toString() === e.target.value);
                 setEditId(e.target.value);
                 if (sel) {
-                  setEditPais(sel.pais || '');
+                  setEditPais(sel.pais || sel.Pais || '');
                   setEditNombre(sel.nombre || '');
-                  setEditPrecio(sel.precio || '');
+                  setEditPrecio(sel.precio || sel.Precio || '');
                 }
               }}
               className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
@@ -301,7 +303,7 @@ export default function TablaProductos({
               <option value="">-- Selecciona producto a editar --</option>
               {productos.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.codigo ? `[${p.codigo}] ` : ''}{p.nombre} (${p.pais || 'S/N'}) - ${p.precio}
+                  {p.codigo_hs || p.codigo ? `[${p.codigo_hs || p.codigo}] ` : ''}{p.nombre}
                 </option>
               ))}
             </select>
@@ -310,12 +312,14 @@ export default function TablaProductos({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2">
                 <input
                   type="text"
+                  placeholder="País"
                   value={editPais}
                   onChange={(e) => setEditPais(e.target.value)}
                   className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                 />
                 <input
                   type="text"
+                  placeholder="Nombre"
                   value={editNombre}
                   onChange={(e) => setEditNombre(e.target.value)}
                   className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
@@ -323,6 +327,7 @@ export default function TablaProductos({
                 <input
                   type="number"
                   step="0.01"
+                  placeholder="Precio"
                   value={editPrecio}
                   onChange={(e) => setEditPrecio(e.target.value)}
                   className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
@@ -347,7 +352,7 @@ export default function TablaProductos({
               <option value="">-- Selecciona producto a eliminar --</option>
               {productos.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.codigo ? `[${p.codigo}] ` : ''}{p.nombre} (${p.pais || 'S/N'})
+                  {p.codigo_hs || p.codigo ? `[${p.codigo_hs || p.codigo}] ` : ''}{p.nombre}
                 </option>
               ))}
             </select>
@@ -388,17 +393,33 @@ export default function TablaProductos({
                   </td>
                 </tr>
               ) : productosFiltrados.length > 0 ? (
-                productosFiltrados.map((item) => (
-                  <tr key={item.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                    <td className="p-3 font-mono text-slate-400">{item.codigo || '—'}</td>
-                    <td className="p-3 text-white font-medium">{item.nombre || item.producto}</td>
-                    <td className="p-3 text-slate-400">{item.categoria || '—'}</td>
-                    <td className="p-3 font-medium text-slate-300">{item.pais || '—'}</td>
-                    <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
-                      ${typeof item.precio === 'number' ? item.precio.toFixed(2) : item.precio}
-                    </td>
-                  </tr>
-                ))
+                productosFiltrados.map((item) => {
+                  const codigo = item.codigo_hs || item.codigo || '—';
+                  const nombre = item.nombre || item.producto || '—';
+                  const cat = item.categoria || '—';
+                  const paisVal = item.pais || item.Pais || paisDestino || '—';
+                  const precioRaw = item.precio ?? item.Precio;
+                  
+                  let precioFmt = '—';
+                  if (precioRaw !== undefined && precioRaw !== null && precioRaw !== '') {
+                    const num = Number(precioRaw);
+                    if (!isNaN(num)) {
+                      precioFmt = `$ ${num.toFixed(2)}`;
+                    }
+                  }
+
+                  return (
+                    <tr key={item.id} className="hover:bg-[#1f222d]/50 transition-colors">
+                      <td className="p-3 font-mono text-slate-400">{codigo}</td>
+                      <td className="p-3 text-white font-medium">{nombre}</td>
+                      <td className="p-3 text-slate-400">{cat}</td>
+                      <td className="p-3 font-medium text-slate-300">{paisVal}</td>
+                      <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
+                        {precioFmt}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500">
