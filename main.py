@@ -37,6 +37,8 @@ class ProductoCreate(BaseModel):
     codigo_hs: Optional[str] = None
     nombre: str
     categoria: Optional[str] = None
+    precio: Optional[float] = None
+    pais: Optional[str] = None
 
 
 # --- ENDPOINTS ---
@@ -62,14 +64,16 @@ def crear_producto(producto: ProductoCreate):
     
     try:
         query = text("""
-            INSERT INTO productos (codigo_hs, nombre, categoria)
-            VALUES (:codigo_hs, :nombre, :categoria);
+            INSERT INTO productos (codigo_hs, nombre, categoria, Precio, Pais)
+            VALUES (:codigo_hs, :nombre, :categoria, :precio, :pais);
         """)
         with engine.begin() as conn:
             conn.execute(query, {
                 "codigo_hs": producto.codigo_hs.strip() if producto.codigo_hs else None,
                 "nombre": producto.nombre.strip(),
-                "categoria": producto.categoria.strip() if producto.categoria else None
+                "categoria": producto.categoria.strip() if producto.categoria else None,
+                "precio": producto.precio.strip(),
+                "pais": producto.pais
             })
         return {"mensaje": f"Producto '{producto.nombre}' creado exitosamente"}
     except Exception as e:
