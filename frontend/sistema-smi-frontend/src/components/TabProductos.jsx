@@ -99,7 +99,8 @@ export default function TablaProductos({
         codigo_hs: addCodigo || null, // <-- Usamos 'codigo_hs' en lugar de 'codigo'
         nombre: addNombre,
         categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General'),
-        descripcion: null // O le puedes pasar un valor si lo agregas al formulario
+        precio: parseFloat(addPrecio) || 0,
+        pais: addPais || null
       }
     ]);
 
