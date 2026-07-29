@@ -252,7 +252,7 @@ export default function TablaProductos({
               <input
                 type="text"
                 placeholder="Categoria"
-                value={addNombre}
+                value={addCategoria}
                 onChange={(e) => setAddCategoria(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                 required
@@ -383,7 +383,7 @@ export default function TablaProductos({
               {loading ? (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500 animate-pulse">
-                    Cargando productos desde base de datos Supabase...
+                    Cargando productos desde base de datos...
                   </td>
                 </tr>
               ) : productosFiltrados.length > 0 ? (
