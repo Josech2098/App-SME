@@ -250,6 +250,21 @@ export default function TablaProductos({
                 required
               />
               <input
+                type="text"
+                placeholder="Categoria"
+                value={addNombre}
+                onChange={(e) => setAddCategoria(e.target.value)}
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                required
+              />
+              <input
+                type="text"
+                placeholder="País"
+                value={addPais}
+                onChange={(e) => setAddPais(e.target.value)}
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+              />
+              <input
                 type="number"
                 step="0.01"
                 placeholder="Precio ($)"
@@ -257,13 +272,6 @@ export default function TablaProductos({
                 onChange={(e) => setAddPrecio(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                 required
-              />
-              <input
-                type="text"
-                placeholder="País (Opcional)"
-                value={addPais}
-                onChange={(e) => setAddPais(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
               />
             </div>
             <button type="submit" className="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
