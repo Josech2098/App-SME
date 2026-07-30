@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function TablaProductos({
-  paisDestino,
-  setPaisDestino,
   categoria,
   subcategoria,
   searchNombre,
@@ -11,7 +9,6 @@ export default function TablaProductos({
   searchSubcodigo
 }) {
   // Estados para datos de Supabase
-  const [paises, setPaises] = useState([]);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,7 +16,6 @@ export default function TablaProductos({
   const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete'
 
   // Form Añadir
-  const [addPais, setAddPais] = useState('');
   const [addNombre, setAddNombre] = useState('');
   const [addPrecio, setAddPrecio] = useState('');
   const [addCategoria, setAddCategoria] = useState('');
@@ -27,7 +23,6 @@ export default function TablaProductos({
 
   // Form Editar
   const [editId, setEditId] = useState('');
-  const [editPais, setEditPais] = useState('');
   const [editNombre, setEditNombre] = useState('');
   const [editPrecio, setEditPrecio] = useState('');
 
@@ -42,15 +37,7 @@ export default function TablaProductos({
   async function cargarDatosIniciales() {
     setLoading(true);
 
-    // 1. Cargar lista de países para el selector global
-    const { data: dataPaises } = await supabase
-      .from('paises')
-      .select('*')
-      .order('nombre');
-
-    if (dataPaises) setPaises(dataPaises);
-
-    // 2. Cargar productos desde Supabase
+    // Cargar productos desde Supabase
     const { data: dataProductos } = await supabase
       .from('productos')
       .select('*');
@@ -101,7 +88,6 @@ export default function TablaProductos({
       categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General')
     };
 
-    if (addPais) payload.pais = addPais;
     if (addPrecio) payload.precio = addPrecio;
 
     const { error } = await supabase.from('productos').insert([payload]);
@@ -113,7 +99,6 @@ export default function TablaProductos({
       setAddPrecio('');
       setAddCategoria('');
       setAddCodigo('');
-      setAddPais('');
       setActiveAccordion(null);
       cargarDatosIniciales();
     }
@@ -126,7 +111,6 @@ export default function TablaProductos({
     const { error } = await supabase
       .from('productos')
       .update({
-        pais: editPais,
         nombre: editNombre,
         precio: editPrecio
       })
@@ -156,36 +140,6 @@ export default function TablaProductos({
 
   return (
     <div className="space-y-6 text-slate-100">
-      
-      {/* 🌍 SELECTOR UNIVERSAL DEL PAÍS DESTINO */}
-      <div className="bg-[#181a20] p-4 rounded-xl border border-slate-800 space-y-2 shadow-sm">
-        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Selecciona el país destino de importación
-        </label>
-        <select
-          value={paisDestino}
-          onChange={(e) => setPaisDestino(e.target.value)}
-          className="w-full bg-[#0e1117] border border-slate-700/80 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-red-500 transition-colors"
-        >
-          {paises.length > 0 ? (
-            paises.map((p) => (
-              <option key={p.id} value={p.nombre}>
-                {p.nombre}
-              </option>
-            ))
-          ) : (
-            <>
-              <option value="España">España</option>
-              <option value="Colombia">Colombia</option>
-              <option value="Costa Rica">Costa Rica</option>
-              <option value="México">México</option>
-            </>
-          )}
-        </select>
-        <p className="text-xs text-emerald-400 font-medium">
-          ✓ País destino activo: <span className="font-bold">{paisDestino}</span>
-        </p>
-      </div>
 
       {/* 🛠️ PANELS DE GESTIÓN DE DATOS (CRUD DESPLEGABLES) */}
       <div className="space-y-3">
@@ -235,7 +189,7 @@ export default function TablaProductos({
         {activeAccordion === 'add' && (
           <form onSubmit={handleGuardarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-red-400 uppercase">Añadir Nuevo Producto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
               <input
                 type="text"
                 placeholder="Código HS (Ej. 2020)"
@@ -261,13 +215,6 @@ export default function TablaProductos({
               />
               <input
                 type="text"
-                placeholder="País"
-                value={addPais}
-                onChange={(e) => setAddPais(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-              />
-              <input
-                type="text"
                 placeholder="Precio (Ej: 12,50 €)"
                 value={addPrecio}
                 onChange={(e) => setAddPrecio(e.target.value)}
@@ -290,7 +237,6 @@ export default function TablaProductos({
                 const sel = productos.find((p) => p.id.toString() === e.target.value);
                 setEditId(e.target.value);
                 if (sel) {
-                  setEditPais(sel.pais || sel.Pais || '');
                   setEditNombre(sel.nombre || '');
                   setEditPrecio(sel.precio || sel.Precio || '');
                 }
@@ -306,14 +252,7 @@ export default function TablaProductos({
             </select>
 
             {editId && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2">
-                <input
-                  type="text"
-                  placeholder="País"
-                  value={editPais}
-                  onChange={(e) => setEditPais(e.target.value)}
-                  className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2">
                 <input
                   type="text"
                   placeholder="Nombre"
@@ -375,7 +314,6 @@ export default function TablaProductos({
             <thead className="bg-[#1e2028] text-slate-400 border-b border-slate-800">
               <tr>
                 <th className="p-3 font-semibold">ID</th>
-                <th className="p-3 font-semibold">País</th>
                 <th className="p-3 font-semibold text-right">Precio (€)</th>
                 <th className="p-3 font-semibold">Producto</th>
               </tr>
@@ -383,14 +321,13 @@ export default function TablaProductos({
             <tbody className="divide-y divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="p-6 text-center text-slate-500 animate-pulse">
+                  <td colSpan="3" className="p-6 text-center text-slate-500 animate-pulse">
                     Cargando productos desde base de datos...
                   </td>
                 </tr>
               ) : productosFiltrados.length > 0 ? (
                 productosFiltrados.map((item) => {
                   const idVal = item.id || '—';
-                  const paisVal = item.pais || item.Pais || paisDestino || '—';
                   const nombre = item.nombre || item.producto || '—';
                   const precioRaw = item.precio ?? item.Precio;
                   
@@ -399,12 +336,10 @@ export default function TablaProductos({
                     if (typeof precioRaw === 'number') {
                       precioFmt = `${precioRaw.toFixed(2)} €`;
                     } else {
-                      // Si el valor de Supabase viene como string tipo "12,50 €" o "12.50 €"
                       const strVal = String(precioRaw).trim();
                       if (strVal.includes('€')) {
                         precioFmt = strVal;
                       } else {
-                        // Limpiamos comas por puntos por si es un string numérico tipo "12,50"
                         const num = Number(strVal.replace(',', '.'));
                         precioFmt = !isNaN(num) ? `${num.toFixed(2)} €` : strVal;
                       }
@@ -414,7 +349,6 @@ export default function TablaProductos({
                   return (
                     <tr key={item.id} className="hover:bg-[#1f222d]/50 transition-colors">
                       <td className="p-3 font-mono text-slate-400">{idVal}</td>
-                      <td className="p-3 font-medium text-slate-300">{paisVal}</td>
                       <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
                         {precioFmt}
                       </td>
@@ -424,7 +358,7 @@ export default function TablaProductos({
                 })
               ) : (
                 <tr>
-                  <td colSpan="4" className="p-6 text-center text-slate-500">
+                  <td colSpan="3" className="p-6 text-center text-slate-500">
                     No se encontraron productos que coincidan con los filtros activos.
                   </td>
                 </tr>
