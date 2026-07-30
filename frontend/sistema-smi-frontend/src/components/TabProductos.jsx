@@ -95,14 +95,12 @@ export default function TablaProductos({
     e.preventDefault();
     if (!addNombre) return alert('Por favor ingresa al menos el nombre del producto.');
 
-    // Construimos el objeto dinámico para no fallar si algunas columnas no existen en Supabase
     const payload = {
       codigo_hs: addCodigo || null,
       nombre: addNombre,
       categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General')
     };
 
-    // Si tu tabla soporta Pais o Precio, los incluimos
     if (addPais) payload.pais = addPais;
     if (addPrecio) payload.precio = parseFloat(addPrecio) || 0;
 
@@ -367,7 +365,7 @@ export default function TablaProductos({
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">
-            Productos por categoría y subcategoría
+            Listado de Productos
           </h3>
           <span className="text-xs text-slate-400 bg-[#181a20] px-3 py-1 rounded-full border border-slate-800">
             Mostrando <strong className="text-white">{productosFiltrados.length}</strong> de {productos.length} registros
@@ -378,26 +376,24 @@ export default function TablaProductos({
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-[#1e2028] text-slate-400 border-b border-slate-800">
               <tr>
-                <th className="p-3 font-semibold">Código</th>
-                <th className="p-3 font-semibold">Producto</th>
-                <th className="p-3 font-semibold">Categoría</th>
+                <th className="p-3 font-semibold">ID</th>
                 <th className="p-3 font-semibold">País</th>
                 <th className="p-3 font-semibold text-right">Precio ($)</th>
+                <th className="p-3 font-semibold">Producto</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500 animate-pulse">
+                  <td colSpan="4" className="p-6 text-center text-slate-500 animate-pulse">
                     Cargando productos desde base de datos...
                   </td>
                 </tr>
               ) : productosFiltrados.length > 0 ? (
                 productosFiltrados.map((item) => {
-                  const codigo = item.codigo_hs || item.codigo || '—';
-                  const nombre = item.nombre || item.producto || '—';
-                  const cat = item.categoria || '—';
+                  const idVal = item.id || '—';
                   const paisVal = item.pais || item.Pais || paisDestino || '—';
+                  const nombre = item.nombre || item.producto || '—';
                   const precioRaw = item.precio ?? item.Precio;
                   
                   let precioFmt = '—';
@@ -410,20 +406,19 @@ export default function TablaProductos({
 
                   return (
                     <tr key={item.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                      <td className="p-3 font-mono text-slate-400">{codigo}</td>
-                      <td className="p-3 text-white font-medium">{nombre}</td>
-                      <td className="p-3 text-slate-400">{cat}</td>
+                      <td className="p-3 font-mono text-slate-400">{idVal}</td>
                       <td className="p-3 font-medium text-slate-300">{paisVal}</td>
                       <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
                         {precioFmt}
                       </td>
+                      <td className="p-3 text-white font-medium">{nombre}</td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500">
-                    No se encontraron productos que coincidan con los filtros activos de la barra lateral.
+                  <td colSpan="4" className="p-6 text-center text-slate-500">
+                    No se encontraron productos que coincidan con los filtros activos.
                   </td>
                 </tr>
               )}
