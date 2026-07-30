@@ -55,23 +55,39 @@ export default function TablaProductos({
   // Helper para obtener la clave primaria en Supabase
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
-  // 🔍 Lógica de Filtrado Dinámico para la Tabla
+  // 🔍 Lógica de Filtrado Dinámico para la Tabla (CON CORRECCIÓN DE TIPOS Y NOMBRES)
   const productosFiltrados = productos.filter((p) => {
-    // Filtro Categoría
-    if (categoria && categoria !== 'Todos' && (p.categoria || p.categoria_codigo) !== categoria) return false;
+    // 1. Filtro Categoría
+    if (categoria && categoria !== 'Todos') {
+      const catProducto = String(p.categoria_codigo || p.categoria || p.codigo_hs || '').trim();
+      const catFiltro = String(categoria).trim();
+
+      const coincideExacto = catProducto === catFiltro;
+      const coincideEmpieza = catFiltro.startsWith(catProducto) || catProducto.startsWith(catFiltro);
+
+      if (!coincideExacto && !coincideEmpieza) return false;
+    }
     
-    // Filtro Subcategoría
-    if (subcategoria && subcategoria !== 'Todos' && (p.subcategoria || p.subcategoria_codigo) !== subcategoria) return false;
+    // 2. Filtro Subcategoría
+    if (subcategoria && subcategoria !== 'Todos') {
+      const subcatProducto = String(p.subcategoria_codigo || p.subcategoria || p.subcodigo || '').trim();
+      const subcatFiltro = String(subcategoria).trim();
+
+      const coincideSubExacto = subcatProducto === subcatFiltro;
+      const coincideSubEmpieza = subcatFiltro.startsWith(subcatProducto) || subcatProducto.startsWith(subcatFiltro);
+
+      if (!coincideSubExacto && !coincideSubEmpieza) return false;
+    }
     
-    // Búsqueda por Nombre (Producto)
+    // 3. Búsqueda por Nombre (Producto)
     const nombreVal = p.nombre || p.producto || '';
     if (searchNombre && !nombreVal.toLowerCase().includes(searchNombre.toLowerCase())) return false;
     
-    // Búsqueda por Código
+    // 4. Búsqueda por Código
     const codigoVal = p.codigo_hs || p.codigo || p.categoria_codigo;
     if (searchCodigo && (!codigoVal || !codigoVal.toString().startsWith(searchCodigo))) return false;
     
-    // Búsqueda por Subcódigo
+    // 5. Búsqueda por Subcódigo
     const subcodigoVal = p.subcodigo || p.subcategoria_codigo;
     if (searchSubcodigo && (!subcodigoVal || !subcodigoVal.toString().includes(searchSubcodigo))) return false;
 
