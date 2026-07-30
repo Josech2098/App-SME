@@ -11,14 +11,13 @@ export default function TablaProductos({
   searchSubcodigo
 }) {
   // Estados para datos de Supabase
-  const [paises, setPaises] = useState([]);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Estados para Acordeones CRUD
   const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete'
 
-  // Form Añadir (únicamente País, Producto y Precio)
+  // Form Añadir (País, Producto y Precio)
   const [addPais, setAddPais] = useState('');
   const [addNombre, setAddNombre] = useState('');
   const [addPrecio, setAddPrecio] = useState('');
@@ -58,13 +57,23 @@ export default function TablaProductos({
 
   // 🔍 Lógica de Filtrado Dinámico para la Tabla
   const productosFiltrados = productos.filter((p) => {
-    if (categoria && categoria !== 'Todos' && p.categoria !== categoria) return false;
-    if (subcategoria && subcategoria !== 'Todos' && p.subcategoria !== subcategoria) return false;
-    if (searchNombre && !p.nombre?.toLowerCase().includes(searchNombre.toLowerCase())) return false;
+    // Filtro Categoría
+    if (categoria && categoria !== 'Todos' && (p.categoria || p.categoria_codigo) !== categoria) return false;
     
-    const codigoVal = p.codigo_hs || p.codigo;
+    // Filtro Subcategoría
+    if (subcategoria && subcategoria !== 'Todos' && (p.subcategoria || p.subcategoria_codigo) !== subcategoria) return false;
+    
+    // Búsqueda por Nombre (Producto)
+    const nombreVal = p.nombre || p.producto || '';
+    if (searchNombre && !nombreVal.toLowerCase().includes(searchNombre.toLowerCase())) return false;
+    
+    // Búsqueda por Código
+    const codigoVal = p.codigo_hs || p.codigo || p.categoria_codigo;
     if (searchCodigo && (!codigoVal || !codigoVal.toString().startsWith(searchCodigo))) return false;
-    if (searchSubcodigo && !p.subcodigo?.toString().includes(searchSubcodigo)) return false;
+    
+    // Búsqueda por Subcódigo
+    const subcodigoVal = p.subcodigo || p.subcategoria_codigo;
+    if (searchSubcodigo && (!subcodigoVal || !subcodigoVal.toString().includes(searchSubcodigo))) return false;
 
     return true;
   });
@@ -77,7 +86,8 @@ export default function TablaProductos({
 
     const payload = {
       nombre: addNombre,
-      categoria: categoria && categoria !== 'Todos' ? categoria : 'General'
+      categoria_codigo: categoria && categoria !== 'Todos' ? categoria : null,
+      subcategoria_codigo: subcategoria && subcategoria !== 'Todos' ? subcategoria : null
     };
 
     if (addPais) payload.pais = addPais;
@@ -186,7 +196,7 @@ export default function TablaProductos({
           </button>
         </div>
 
-        {/* Formulario: Añadir (solo País, Producto y Precio) */}
+        {/* Formulario: Añadir */}
         {activeAccordion === 'add' && (
           <form onSubmit={handleGuardarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-red-400 uppercase">Añadir Nuevo Producto</h4>
@@ -196,22 +206,22 @@ export default function TablaProductos({
                 placeholder="País"
                 value={addPais}
                 onChange={(e) => setAddPais(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-red-500"
               />
               <input
                 type="text"
                 placeholder="Nombre del Producto"
                 value={addNombre}
                 onChange={(e) => setAddNombre(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-red-500"
                 required
               />
               <input
                 type="text"
-                placeholder="Precio (Ej: 12,50 €)"
+                placeholder="Precio (Ej: 12.50)"
                 value={addPrecio}
                 onChange={(e) => setAddPrecio(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-red-500"
               />
             </div>
             <button type="submit" className="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
@@ -243,7 +253,7 @@ export default function TablaProductos({
                     setEditPrecio('');
                   }
                 }}
-                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-amber-500"
               >
                 <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
@@ -269,7 +279,7 @@ export default function TablaProductos({
                     placeholder="País"
                     value={editPais}
                     onChange={(e) => setEditPais(e.target.value)}
-                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
                 <div>
@@ -279,7 +289,7 @@ export default function TablaProductos({
                     placeholder="Nombre"
                     value={editNombre}
                     onChange={(e) => setEditNombre(e.target.value)}
-                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
                 <div>
@@ -289,7 +299,7 @@ export default function TablaProductos({
                     placeholder="Precio"
                     value={editPrecio}
                     onChange={(e) => setEditPrecio(e.target.value)}
-                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
               </div>
@@ -311,7 +321,7 @@ export default function TablaProductos({
               <select
                 value={deleteId}
                 onChange={(e) => setDeleteId(e.target.value)}
-                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-red-500"
               >
                 <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
