@@ -38,16 +38,21 @@ export default function TablaProductos({
     setLoading(true);
 
     // Cargar productos desde Supabase
-    const { data: dataProductos } = await supabase
+    const { data: dataProductos, error } = await supabase
       .from('productos')
       .select('*');
 
-    if (dataProductos) {
+    if (error) {
+      console.error('Error cargando productos:', error);
+    } else if (dataProductos) {
       setProductos(dataProductos);
     }
 
     setLoading(false);
   }
+
+  // Helper para obtener el ID real del registro (por si la columna en Supabase se llama id, id_producto, etc.)
+  const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
   // 🔍 Lógica de Filtrado Dinámico
   const productosFiltrados = productos.filter((p) => {
@@ -120,6 +125,9 @@ export default function TablaProductos({
       alert('Error al actualizar: ' + error.message);
     } else {
       setActiveAccordion(null);
+      setEditId('');
+      setEditNombre('');
+      setEditPrecio('');
       cargarDatosIniciales();
     }
   };
@@ -128,12 +136,16 @@ export default function TablaProductos({
     e.preventDefault();
     if (!deleteId) return alert('Selecciona un producto para eliminar.');
 
-    const { error } = await supabase.from('productos').delete().eq('id', deleteId);
+    const { error } = await supabase
+      .from('productos')
+      .delete()
+      .eq('id', deleteId);
 
     if (error) {
       alert('Error al eliminar: ' + error.message);
     } else {
       setActiveAccordion(null);
+      setDeleteId('');
       cargarDatosIniciales();
     }
   };
@@ -234,21 +246,30 @@ export default function TablaProductos({
             <select
               value={editId}
               onChange={(e) => {
-                const sel = productos.find((p) => p.id.toString() === e.target.value);
-                setEditId(e.target.value);
+                const selectedVal = e.target.value;
+                setEditId(selectedVal);
+                const sel = productos.find((p) => String(getProductoId(p)) === String(selectedVal));
                 if (sel) {
-                  setEditNombre(sel.nombre || '');
+                  setEditNombre(sel.nombre || sel.producto || '');
                   setEditPrecio(sel.precio || sel.Precio || '');
+                } else {
+                  setEditNombre('');
+                  setEditPrecio('');
                 }
               }}
               className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
             >
               <option value="">-- Selecciona producto a editar --</option>
-              {productos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.codigo_hs || p.codigo ? `[${p.codigo_hs || p.codigo}] ` : ''}{p.nombre}
-                </option>
-              ))}
+              {productos.map((p) => {
+                const pId = getProductoId(p);
+                const pNombre = p.nombre || p.producto || 'Sin nombre';
+                const pCodigo = p.codigo_hs || p.codigo;
+                return (
+                  <option key={pId} value={pId}>
+                    {pCodigo ? `[${pCodigo}] ` : ''}{pNombre}
+                  </option>
+                );
+              })}
             </select>
 
             {editId && (
@@ -285,11 +306,16 @@ export default function TablaProductos({
               className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
             >
               <option value="">-- Selecciona producto a eliminar --</option>
-              {productos.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.codigo_hs || p.codigo ? `[${p.codigo_hs || p.codigo}] ` : ''}{p.nombre}
-                </option>
-              ))}
+              {productos.map((p) => {
+                const pId = getProductoId(p);
+                const pNombre = p.nombre || p.producto || 'Sin nombre';
+                const pCodigo = p.codigo_hs || p.codigo;
+                return (
+                  <option key={pId} value={pId}>
+                    {pCodigo ? `[${pCodigo}] ` : ''}{pNombre}
+                  </option>
+                );
+              })}
             </select>
             <button type="submit" className="bg-red-700 hover:bg-red-600 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
               Eliminar producto definitivamente
@@ -327,7 +353,7 @@ export default function TablaProductos({
                 </tr>
               ) : productosFiltrados.length > 0 ? (
                 productosFiltrados.map((item) => {
-                  const idVal = item.id || '—';
+                  const idVal = getProductoId(item) || '—';
                   const nombre = item.nombre || item.producto || '—';
                   const precioRaw = item.precio ?? item.Precio;
                   
@@ -347,7 +373,7 @@ export default function TablaProductos({
                   }
 
                   return (
-                    <tr key={item.id} className="hover:bg-[#1f222d]/50 transition-colors">
+                    <tr key={idVal} className="hover:bg-[#1f222d]/50 transition-colors">
                       <td className="p-3 font-mono text-slate-400">{idVal}</td>
                       <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
                         {precioFmt}
