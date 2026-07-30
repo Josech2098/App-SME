@@ -102,7 +102,7 @@ export default function TablaProductos({
     };
 
     if (addPais) payload.pais = addPais;
-    if (addPrecio) payload.precio = parseFloat(addPrecio) || 0;
+    if (addPrecio) payload.precio = addPrecio;
 
     const { error } = await supabase.from('productos').insert([payload]);
 
@@ -128,7 +128,7 @@ export default function TablaProductos({
       .update({
         pais: editPais,
         nombre: editNombre,
-        precio: parseFloat(editPrecio) || 0
+        precio: editPrecio
       })
       .eq('id', editId);
 
@@ -267,9 +267,8 @@ export default function TablaProductos({
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
               />
               <input
-                type="number"
-                step="0.01"
-                placeholder="Precio ($)"
+                type="text"
+                placeholder="Precio (Ej: 12,50 €)"
                 value={addPrecio}
                 onChange={(e) => setAddPrecio(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
@@ -323,8 +322,7 @@ export default function TablaProductos({
                   className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                 />
                 <input
-                  type="number"
-                  step="0.01"
+                  type="text"
                   placeholder="Precio"
                   value={editPrecio}
                   onChange={(e) => setEditPrecio(e.target.value)}
@@ -378,7 +376,7 @@ export default function TablaProductos({
               <tr>
                 <th className="p-3 font-semibold">ID</th>
                 <th className="p-3 font-semibold">País</th>
-                <th className="p-3 font-semibold text-right">Precio ($)</th>
+                <th className="p-3 font-semibold text-right">Precio (€)</th>
                 <th className="p-3 font-semibold">Producto</th>
               </tr>
             </thead>
@@ -398,9 +396,18 @@ export default function TablaProductos({
                   
                   let precioFmt = '—';
                   if (precioRaw !== undefined && precioRaw !== null && precioRaw !== '') {
-                    const num = Number(precioRaw);
-                    if (!isNaN(num)) {
-                      precioFmt = `$ ${num.toFixed(2)}`;
+                    if (typeof precioRaw === 'number') {
+                      precioFmt = `${precioRaw.toFixed(2)} €`;
+                    } else {
+                      // Si el valor de Supabase viene como string tipo "12,50 €" o "12.50 €"
+                      const strVal = String(precioRaw).trim();
+                      if (strVal.includes('€')) {
+                        precioFmt = strVal;
+                      } else {
+                        // Limpiamos comas por puntos por si es un string numérico tipo "12,50"
+                        const num = Number(strVal.replace(',', '.'));
+                        precioFmt = !isNaN(num) ? `${num.toFixed(2)} €` : strVal;
+                      }
                     }
                   }
 
