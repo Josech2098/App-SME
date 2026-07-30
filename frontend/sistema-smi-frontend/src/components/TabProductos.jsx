@@ -20,9 +20,11 @@ export default function TablaProductos({
   const [addPrecio, setAddPrecio] = useState('');
   const [addCategoria, setAddCategoria] = useState('');
   const [addCodigo, setAddCodigo] = useState('');
+  const [addPais, setAddPais] = useState('');
 
   // Form Editar
   const [editId, setEditId] = useState('');
+  const [editPais, setEditPais] = useState('');
   const [editNombre, setEditNombre] = useState('');
   const [editPrecio, setEditPrecio] = useState('');
 
@@ -37,7 +39,6 @@ export default function TablaProductos({
   async function cargarDatosIniciales() {
     setLoading(true);
 
-    // Cargar productos desde Supabase
     const { data: dataProductos, error } = await supabase
       .from('productos')
       .select('*');
@@ -51,37 +52,23 @@ export default function TablaProductos({
     setLoading(false);
   }
 
-  // Helper para obtener el ID real del registro (por si la columna en Supabase se llama id, id_producto, etc.)
+  // Helper para obtener el ID real
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
-  // 🔍 Lógica de Filtrado Dinámico
+  // 🔍 Lógica de Filtrado Dinámico para la Tabla
   const productosFiltrados = productos.filter((p) => {
-    // Filtro por Categoría
-    if (categoria && categoria !== 'Todos' && p.categoria !== categoria) {
-      return false;
-    }
-    // Filtro por Subcategoría
-    if (subcategoria && subcategoria !== 'Todos' && p.subcategoria !== subcategoria) {
-      return false;
-    }
-    // Filtro por Nombre
-    if (searchNombre && !p.nombre?.toLowerCase().includes(searchNombre.toLowerCase())) {
-      return false;
-    }
-    // Filtro por Código de Producto (codigo_hs o codigo)
+    if (categoria && categoria !== 'Todos' && p.categoria !== categoria) return false;
+    if (subcategoria && subcategoria !== 'Todos' && p.subcategoria !== subcategoria) return false;
+    if (searchNombre && !p.nombre?.toLowerCase().includes(searchNombre.toLowerCase())) return false;
+    
     const codigoVal = p.codigo_hs || p.codigo;
-    if (searchCodigo && (!codigoVal || !codigoVal.toString().startsWith(searchCodigo))) {
-      return false;
-    }
-    // Filtro por Subcódigo
-    if (searchSubcodigo && !p.subcodigo?.toString().includes(searchSubcodigo)) {
-      return false;
-    }
+    if (searchCodigo && (!codigoVal || !codigoVal.toString().startsWith(searchCodigo))) return false;
+    if (searchSubcodigo && !p.subcodigo?.toString().includes(searchSubcodigo)) return false;
 
     return true;
   });
 
-  // 📝 HANDLERS PARA OPERACIONES CRUD EN SUPABASE
+  // 📝 HANDLERS PARA OPERACIONES CRUD
 
   const handleGuardarProducto = async (e) => {
     e.preventDefault();
@@ -93,6 +80,7 @@ export default function TablaProductos({
       categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General')
     };
 
+    if (addPais) payload.pais = addPais;
     if (addPrecio) payload.precio = addPrecio;
 
     const { error } = await supabase.from('productos').insert([payload]);
@@ -104,6 +92,7 @@ export default function TablaProductos({
       setAddPrecio('');
       setAddCategoria('');
       setAddCodigo('');
+      setAddPais('');
       setActiveAccordion(null);
       cargarDatosIniciales();
     }
@@ -111,11 +100,12 @@ export default function TablaProductos({
 
   const handleEditarProducto = async (e) => {
     e.preventDefault();
-    if (!editId) return alert('Selecciona un producto para editar.');
+    if (!editId) return alert('Selecciona un registro para editar.');
 
     const { error } = await supabase
       .from('productos')
       .update({
+        pais: editPais,
         nombre: editNombre,
         precio: editPrecio
       })
@@ -126,6 +116,7 @@ export default function TablaProductos({
     } else {
       setActiveAccordion(null);
       setEditId('');
+      setEditPais('');
       setEditNombre('');
       setEditPrecio('');
       cargarDatosIniciales();
@@ -134,7 +125,7 @@ export default function TablaProductos({
 
   const handleEliminarProducto = async (e) => {
     e.preventDefault();
-    if (!deleteId) return alert('Selecciona un producto para eliminar.');
+    if (!deleteId) return alert('Selecciona un registro para eliminar.');
 
     const { error } = await supabase
       .from('productos')
@@ -153,7 +144,7 @@ export default function TablaProductos({
   return (
     <div className="space-y-6 text-slate-100">
 
-      {/* 🛠️ PANELS DE GESTIÓN DE DATOS (CRUD DESPLEGABLES) */}
+      {/* 🛠️ PANELS DE GESTIÓN DE DATOS */}
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
           <span>🛠️</span> Gestión de Datos (Productos)
@@ -201,7 +192,7 @@ export default function TablaProductos({
         {activeAccordion === 'add' && (
           <form onSubmit={handleGuardarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-red-400 uppercase">Añadir Nuevo Producto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
               <input
                 type="text"
                 placeholder="Código HS (Ej. 2020)"
@@ -227,6 +218,13 @@ export default function TablaProductos({
               />
               <input
                 type="text"
+                placeholder="País"
+                value={addPais}
+                onChange={(e) => setAddPais(e.target.value)}
+                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+              />
+              <input
+                type="text"
                 placeholder="Precio (Ej: 12,50 €)"
                 value={addPrecio}
                 onChange={(e) => setAddPrecio(e.target.value)}
@@ -243,53 +241,77 @@ export default function TablaProductos({
         {activeAccordion === 'edit' && (
           <form onSubmit={handleEditarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-amber-400 uppercase">Editar Producto Existente</h4>
-            <select
-              value={editId}
-              onChange={(e) => {
-                const selectedVal = e.target.value;
-                setEditId(selectedVal);
-                const sel = productos.find((p) => String(getProductoId(p)) === String(selectedVal));
-                if (sel) {
-                  setEditNombre(sel.nombre || sel.producto || '');
-                  setEditPrecio(sel.precio || sel.Precio || '');
-                } else {
-                  setEditNombre('');
-                  setEditPrecio('');
-                }
-              }}
-              className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
-            >
-              <option value="">-- Selecciona producto a editar --</option>
-              {productos.map((p) => {
-                const pId = getProductoId(p);
-                const pNombre = p.nombre || p.producto || 'Sin nombre';
-                const pCodigo = p.codigo_hs || p.codigo;
-                return (
-                  <option key={pId} value={pId}>
-                    {pCodigo ? `[${pCodigo}] ` : ''}{pNombre}
-                  </option>
-                );
-              })}
-            </select>
+            
+            <div className="space-y-1">
+              <label className="text-[11px] text-slate-400 font-medium">Selecciona el registro a modificar:</label>
+              <select
+                value={editId}
+                onChange={(e) => {
+                  const selectedVal = e.target.value;
+                  setEditId(selectedVal);
+                  const sel = productos.find((p) => String(getProductoId(p)) === String(selectedVal));
+                  if (sel) {
+                    setEditPais(sel.pais || sel.Pais || '');
+                    setEditNombre(sel.nombre || sel.producto || '');
+                    setEditPrecio(sel.precio || sel.Precio || '');
+                  } else {
+                    setEditPais('');
+                    setEditNombre('');
+                    setEditPrecio('');
+                  }
+                }}
+                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+              >
+                <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
+                {productos.map((p) => {
+                  const pId = getProductoId(p);
+                  const pPais = p.pais || p.Pais || 'Sin país';
+                  const pNombre = p.nombre || p.producto || 'Sin nombre';
+                  const pPrecio = p.precio || p.Precio || 'Sin precio';
+                  return (
+                    <option key={pId} value={pId}>
+                      [{pPais}] — {pNombre} — ({pPrecio})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
 
             {editId && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2">
-                <input
-                  type="text"
-                  placeholder="Nombre"
-                  value={editNombre}
-                  onChange={(e) => setEditNombre(e.target.value)}
-                  className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Precio"
-                  value={editPrecio}
-                  onChange={(e) => setEditPrecio(e.target.value)}
-                  className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2 border-t border-slate-800/80">
+                <div>
+                  <label className="block text-[10px] text-slate-400 uppercase mb-1">País</label>
+                  <input
+                    type="text"
+                    placeholder="País"
+                    value={editPais}
+                    onChange={(e) => setEditPais(e.target.value)}
+                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 uppercase mb-1">Nombre del Producto</label>
+                  <input
+                    type="text"
+                    placeholder="Nombre"
+                    value={editNombre}
+                    onChange={(e) => setEditNombre(e.target.value)}
+                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-400 uppercase mb-1">Precio</label>
+                  <input
+                    type="text"
+                    placeholder="Precio"
+                    value={editPrecio}
+                    onChange={(e) => setEditPrecio(e.target.value)}
+                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                  />
+                </div>
               </div>
             )}
+            
             <button type="submit" className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
               Actualizar producto
             </button>
@@ -300,23 +322,29 @@ export default function TablaProductos({
         {activeAccordion === 'delete' && (
           <form onSubmit={handleEliminarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-red-500 uppercase">Eliminar Producto</h4>
-            <select
-              value={deleteId}
-              onChange={(e) => setDeleteId(e.target.value)}
-              className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
-            >
-              <option value="">-- Selecciona producto a eliminar --</option>
-              {productos.map((p) => {
-                const pId = getProductoId(p);
-                const pNombre = p.nombre || p.producto || 'Sin nombre';
-                const pCodigo = p.codigo_hs || p.codigo;
-                return (
-                  <option key={pId} value={pId}>
-                    {pCodigo ? `[${pCodigo}] ` : ''}{pNombre}
-                  </option>
-                );
-              })}
-            </select>
+            
+            <div className="space-y-1">
+              <label className="text-[11px] text-slate-400 font-medium">Selecciona el registro a eliminar:</label>
+              <select
+                value={deleteId}
+                onChange={(e) => setDeleteId(e.target.value)}
+                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+              >
+                <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
+                {productos.map((p) => {
+                  const pId = getProductoId(p);
+                  const pPais = p.pais || p.Pais || 'Sin país';
+                  const pNombre = p.nombre || p.producto || 'Sin nombre';
+                  const pPrecio = p.precio || p.Precio || 'Sin precio';
+                  return (
+                    <option key={pId} value={pId}>
+                      [{pPais}] — {pNombre} — ({pPrecio})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
             <button type="submit" className="bg-red-700 hover:bg-red-600 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
               Eliminar producto definitivamente
             </button>
@@ -340,6 +368,7 @@ export default function TablaProductos({
             <thead className="bg-[#1e2028] text-slate-400 border-b border-slate-800">
               <tr>
                 <th className="p-3 font-semibold">ID</th>
+                <th className="p-3 font-semibold">País</th>
                 <th className="p-3 font-semibold text-right">Precio (€)</th>
                 <th className="p-3 font-semibold">Producto</th>
               </tr>
@@ -347,13 +376,14 @@ export default function TablaProductos({
             <tbody className="divide-y divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan="3" className="p-6 text-center text-slate-500 animate-pulse">
+                  <td colSpan="4" className="p-6 text-center text-slate-500 animate-pulse">
                     Cargando productos desde base de datos...
                   </td>
                 </tr>
               ) : productosFiltrados.length > 0 ? (
                 productosFiltrados.map((item) => {
                   const idVal = getProductoId(item) || '—';
+                  const paisVal = item.pais || item.Pais || '—';
                   const nombre = item.nombre || item.producto || '—';
                   const precioRaw = item.precio ?? item.Precio;
                   
@@ -375,6 +405,7 @@ export default function TablaProductos({
                   return (
                     <tr key={idVal} className="hover:bg-[#1f222d]/50 transition-colors">
                       <td className="p-3 font-mono text-slate-400">{idVal}</td>
+                      <td className="p-3 font-medium text-slate-300">{paisVal}</td>
                       <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
                         {precioFmt}
                       </td>
@@ -384,7 +415,7 @@ export default function TablaProductos({
                 })
               ) : (
                 <tr>
-                  <td colSpan="3" className="p-6 text-center text-slate-500">
+                  <td colSpan="4" className="p-6 text-center text-slate-500">
                     No se encontraron productos que coincidan con los filtros activos.
                   </td>
                 </tr>
