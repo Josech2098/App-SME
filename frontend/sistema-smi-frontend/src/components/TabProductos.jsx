@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function TablaProductos({
+  paisDestino,
+  setPaisDestino,
   categoria,
   subcategoria,
   searchNombre,
@@ -9,18 +11,17 @@ export default function TablaProductos({
   searchSubcodigo
 }) {
   // Estados para datos de Supabase
+  const [paises, setPaises] = useState([]);
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Estados para Acordeones CRUD
   const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete'
 
-  // Form Añadir
+  // Form Añadir (únicamente País, Producto y Precio)
+  const [addPais, setAddPais] = useState('');
   const [addNombre, setAddNombre] = useState('');
   const [addPrecio, setAddPrecio] = useState('');
-  const [addCategoria, setAddCategoria] = useState('');
-  const [addCodigo, setAddCodigo] = useState('');
-  const [addPais, setAddPais] = useState('');
 
   // Form Editar
   const [editId, setEditId] = useState('');
@@ -52,7 +53,7 @@ export default function TablaProductos({
     setLoading(false);
   }
 
-  // Helper para obtener el ID real
+  // Helper para obtener la clave primaria en Supabase
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
   // 🔍 Lógica de Filtrado Dinámico para la Tabla
@@ -75,9 +76,8 @@ export default function TablaProductos({
     if (!addNombre) return alert('Por favor ingresa al menos el nombre del producto.');
 
     const payload = {
-      codigo_hs: addCodigo || null,
       nombre: addNombre,
-      categoria: addCategoria || (categoria !== 'Todos' ? categoria : 'General')
+      categoria: categoria && categoria !== 'Todos' ? categoria : 'General'
     };
 
     if (addPais) payload.pais = addPais;
@@ -88,11 +88,9 @@ export default function TablaProductos({
     if (error) {
       alert('Error al guardar el producto: ' + error.message);
     } else {
+      setAddPais('');
       setAddNombre('');
       setAddPrecio('');
-      setAddCategoria('');
-      setAddCodigo('');
-      setAddPais('');
       setActiveAccordion(null);
       cargarDatosIniciales();
     }
@@ -188,16 +186,16 @@ export default function TablaProductos({
           </button>
         </div>
 
-        {/* Formulario: Añadir */}
+        {/* Formulario: Añadir (solo País, Producto y Precio) */}
         {activeAccordion === 'add' && (
           <form onSubmit={handleGuardarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
             <h4 className="text-xs font-bold text-red-400 uppercase">Añadir Nuevo Producto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <input
                 type="text"
-                placeholder="Código HS (Ej. 2020)"
-                value={addCodigo}
-                onChange={(e) => setAddCodigo(e.target.value)}
+                placeholder="País"
+                value={addPais}
+                onChange={(e) => setAddPais(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
               />
               <input
@@ -207,21 +205,6 @@ export default function TablaProductos({
                 onChange={(e) => setAddNombre(e.target.value)}
                 className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                 required
-              />
-              <input
-                type="text"
-                placeholder="Categoría"
-                value={addCategoria}
-                onChange={(e) => setAddCategoria(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                required
-              />
-              <input
-                type="text"
-                placeholder="País"
-                value={addPais}
-                onChange={(e) => setAddPais(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
               />
               <input
                 type="text"
