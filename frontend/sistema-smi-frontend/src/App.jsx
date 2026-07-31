@@ -4,7 +4,8 @@ import TablaProductos from './components/TabProductos';
 import TabCosto from './components/TabCosto';
 import TabLogistica from './components/TabLogistica';
 import TabComercial from './components/TabComercial';
-import TabEconomia from './components/TabEconomia'; // <--- 1. Importar la pestaña de economía
+import TabEconomia from './components/TabEconomia';
+import TabPolitica from './components/TabPolitica'; // <--- 1. Importar la pestaña de política
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -278,7 +279,6 @@ export default function App() {
             />
           )}
 
-          {/* --- RENDERIZAR LA PESTAÑA DE ECONOMÍA (ECON) --- */}
           {activeTab === 4 && (
             <TabEconomia 
               productoActivo={productoSeleccionado}
@@ -287,7 +287,16 @@ export default function App() {
             />
           )}
 
-          {activeTab > 4 && (
+          {/* --- RENDERIZAR LA PESTAÑA DE POLÍTICA (POLI) --- */}
+          {activeTab === 5 && (
+            <TabPolitica 
+              productoActivo={productoSeleccionado}
+              paisesDestino={paisesDestino}
+              paisOrigen={paisOrigen}
+            />
+          )}
+
+          {activeTab > 5 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
                 {tabList[activeTab]}
