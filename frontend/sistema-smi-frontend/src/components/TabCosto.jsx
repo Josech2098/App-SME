@@ -29,7 +29,7 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- Helper: Limpiar el formato del precio en la columna 'precio' ---
+// --- Helper: Limpiar el formato del precio (ej. "8,97 €" -> 8.97) ---
 function limpiarPrecio(val) {
   if (val === null || val === undefined) return 0;
   if (typeof val === 'number') return val;
@@ -37,7 +37,8 @@ function limpiarPrecio(val) {
   const str = String(val).trim();
   if (str.toLowerCase().includes('no encontrado') || str === '') return 0;
 
-  const limpio = str.replace(/[^\d,\.-]/g, '').replace(',', '.');
+  // Remueve letras, símbolos de moneda (€, $, etc.), espacios y cambia la coma por punto
+  const limpio = str.replace(/[^\d,.-]/g, '').replace(',', '.');
   const numero = parseFloat(limpio);
   return isNaN(numero) ? 0 : numero;
 }
@@ -106,35 +107,29 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
       }
       if (!nombreProductoBuscado) {
-        nombreProductoBuscado = busqueda ?? '';
+        nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)'; // Fallback por defecto basado en tu captura
       }
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       let mapaPreciosPorPais = {};
 
-      if (dbProds && queryLimpia) {
+      if (dbProds) {
         dbProds.forEach(item => {
           const nombreProd = item.nombre || item.producto || item.titulo || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
 
+          // Comprobamos si coincide el producto
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
-            let paisItem = item.pais || item.Pais;
-            
-            if (!paisItem && item.pais_id && dbPaises) {
-              const paisObjEncontrado = dbPaises.find(p => p.id === item.pais_id);
-              if (paisObjEncontrado) paisItem = paisObjEncontrado.nombre;
-            }
+            const paisItem = item.pais || item.Pais;
 
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
               
-              // >>> AQUÍ SE USA ÚNICAMENTE LA COLUMNA 'precio' <<<
+              // >>> USO EXCLUSIVO DE LA COLUMNA 'precio' <<<
               const precioRaw = item.precio;
               const precioLim = limpiarPrecio(precioRaw);
               
-              if (precioLim > 0 || !mapaPreciosPorPais[nombrePaisKey]) {
-                mapaPreciosPorPais[nombrePaisKey] = precioLim;
-              }
+              mapaPreciosPorPais[nombrePaisKey] = precioLim;
             }
           }
         });
@@ -147,7 +142,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // 4. Consolidar datos por país
+      // 4. Consolidar datos por país cruzando con la lista oficial de países
       const datosConsolidados = dbPaises.map((p) => {
         const nombreKey = p.nombre.trim().toLowerCase();
         const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
@@ -317,7 +312,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const nombreProductoMostrado = 
     (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
     busqueda || 
-    'Seleccione un producto';
+    'Botella de vino (Calidad media)';
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
