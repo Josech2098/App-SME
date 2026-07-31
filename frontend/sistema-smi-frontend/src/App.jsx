@@ -241,6 +241,15 @@ export default function App() {
               subcategoria={subcategoria}
             />
           )}
+          {/* 💵 TAB 2: COSTO (COST) */}
+          {activeTab === 1 && (
+            <TabCosto 
+              categoria={categoriaSeleccionada}
+              subcategoria={subcategoriaSeleccionada}
+              productoActivo={productoSeleccionado}
+              busqueda={busquedaNombre}
+            />
+          )}
 
           {/* ⚙️ DEMÁS TABS */}
           {activeTab > 1 && (
