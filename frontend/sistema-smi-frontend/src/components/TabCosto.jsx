@@ -32,14 +32,14 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
 // --- Helper: Limpiar el formato del precio (ej. "8,97 €" -> 8.97) ---
 function limpiarPrecio(val) {
   if (val === null || val === undefined) return 0;
-  if (typeof val === 'number') return val;
+  if (typeof val === 'number') return val > 0 ? val : 0;
   
   const str = String(val).trim();
-  if (str.toLowerCase().includes('no encontrado') || str === '') return 0;
+  if (str.toLowerCase().includes('no encontrado') || str === '' || str === '0' || str === '$0.00') return 0;
 
   const limpio = str.replace(/[^\d,.-]/g, '').replace(',', '.');
   const numero = parseFloat(limpio);
-  return isNaN(numero) ? 0 : numero;
+  return isNaN(numero) || numero <= 0 ? 0 : numero;
 }
 
 export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen }) {
@@ -125,7 +125,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               const precioRaw = item.precio;
               const precioLim = limpiarPrecio(precioRaw);
               
-              mapaPreciosPorPais[nombrePaisKey] = precioLim;
+              // Solo guardamos si el precio es estrictamente mayor a 0
+              if (precioLim > 0) {
+                mapaPreciosPorPais[nombrePaisKey] = precioLim;
+              }
             }
           }
         });
@@ -138,30 +141,32 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // 4. Consolidar datos por país
-      const datosConsolidados = dbPaises.map((p) => {
-        const nombreKey = p.nombre.trim().toLowerCase();
-        const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
+      // 4. Consolidar datos por país (Solo incluimos países que tengan PPD > 0)
+      const datosConsolidados = dbPaises
+        .map((p) => {
+          const nombreKey = p.nombre.trim().toLowerCase();
+          const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
 
-        const cicMatch = (dbCostoImportacion || []).find(
-          (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
-        );
-        let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
-        if (isNaN(cicVal)) cicVal = null;
+          const cicMatch = (dbCostoImportacion || []).find(
+            (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
+          );
+          let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
+          if (isNaN(cicVal)) cicVal = null;
 
-        const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
-        const ctiVal = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : 0;
+          const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
+          const ctiVal = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : 0;
 
-        return {
-          id: p.id,
-          pais_nombre: p.nombre,
-          latitud: p.latitud,
-          longitud: p.longitud,
-          ppd: ppdVal,
-          cti: ctiVal,
-          cic: cicVal
-        };
-      });
+          return {
+            id: p.id,
+            pais_nombre: p.nombre,
+            latitud: p.latitud,
+            longitud: p.longitud,
+            ppd: ppdVal,
+            cti: ctiVal,
+            cic: cicVal
+          };
+        })
+        .filter(item => item.ppd > 0); // <--- FILTRO ESTRICTO: Fuera los que tengan 0 o nulos
 
       setDatosProductos(datosConsolidados);
     } catch (err) {
@@ -180,9 +185,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const PESO_PPD = 0.44; // 44.00%
   const PESO_CTI = 0.34; // 34.00%
   const PESO_CIC = 0.22; // 22.00%
-  const PUNTAJE_MAXIMO = 10; // Equivalente a tu celda $A$3
+  const PUNTAJE_MAXIMO = 10;
 
-  // Filtramos valores válidos mayores a 0 para los mínimos de CTI y CIC
   const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v > 0);
   const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v > 0);
   const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v > 0);
@@ -191,14 +195,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
   const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0;
 
-  // Fórmula Excel PPD: =($A$3 * ValorActual) / MAX(Rango)
   const calcularNormalizadoDirecto = (val, maxVal) => {
     if (val === null || val === undefined || val <= 0 || !maxVal) return 0;
     const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
     return Number(resultado.toFixed(2));
   };
 
-  // Fórmula Excel CTI / CIC: =($A$3 * MIN(Rango)) / ValorActual
   const calcularNormalizadoInverso = (val, minVal) => {
     if (val === null || val === undefined) return 0;
     if (val === 0) return PUNTAJE_MAXIMO; 
@@ -208,7 +210,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     return Number(resultado.toFixed(2));
   };
 
-  // 1. Mapeamos y calculamos todos los registros
   const matrizCalculadaCompleta = datosProductos.map(row => {
     const ppdNorm = calcularNormalizadoDirecto(row.ppd, maxPpd);
     const ctiNorm = calcularNormalizadoInverso(row.cti, minCti);
@@ -231,10 +232,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     };
   });
 
-  // 2. FILTRAR ESTRICTO: Ocultar completamente los que tengan PPD igual a 0, null o indefinido
-  const matrizFiltrada = matrizCalculadaCompleta.filter(row => row.ppd !== null && row.ppd !== undefined && row.ppd > 0);
-
-  // 3. ORDENAR: De mayor a menor puntaje subtotal
+  const matrizFiltrada = matrizCalculadaCompleta.filter(row => row.ppd > 0);
   matrizFiltrada.sort((a, b) => b.costoSubtotalNorm - a.costoSubtotalNorm);
 
   const toggleAccordion = (tab) => {
@@ -450,9 +448,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
                 >
                   <option value="">-- Selecciona un país --</option>
-                  {datosProductos.map(p => (
+                  {listaPaises.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.pais_nombre} (ID: {p.id})
+                      {p.nombre} (ID: {p.id})
                     </option>
                   ))}
                 </select>
@@ -511,11 +509,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             {activeAccordion === 'delete' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
                 <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
-                  {datosProductos.map(p => (
+                  {listaPaises.map(p => (
                     <div key={p.id} className="flex justify-between items-center bg-[#0e1117] p-2 rounded border border-slate-800">
-                      <span className="text-slate-200 font-medium">{p.pais_nombre}</span>
+                      <span className="text-slate-200 font-medium">{p.nombre}</span>
                       <button
-                        onClick={() => handleEliminarPais(p.id, p.pais_nombre)}
+                        onClick={() => handleEliminarPais(p.id, p.nombre)}
                         className="bg-red-600/80 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] cursor-pointer"
                       >
                         Eliminar
@@ -565,9 +563,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">
-                      {row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : <span className="text-slate-500">No encontrado</span>}
-                    </td>
+                    <td className="p-3 text-right">${row.ppd.toFixed(2)}</td>
                     <td className="p-3 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
                     <td className="p-3 text-right pr-6">
                       {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
@@ -577,7 +573,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               ) : (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
-                    No hay registros con datos para este producto.
+                    No hay registros con datos de precios válidos para este producto.
                   </td>
                 </tr>
               )}
@@ -617,11 +613,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.ppdNorm !== null ? row.ppdNorm : <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right">{row.ctiNorm !== null ? row.ctiNorm : <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right">{row.cicNorm !== null ? row.cicNorm : <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right font-bold text-sky-400">{row.costoSubtotalNorm !== null ? row.costoSubtotalNorm : <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto !== null ? row.aporteFactorCosto : <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right">{row.ppdNorm}</td>
+                    <td className="p-3 text-right">{row.ctiNorm}</td>
+                    <td className="p-3 text-right">{row.cicNorm}</td>
+                    <td className="p-3 text-right font-bold text-sky-400">{row.costoSubtotalNorm}</td>
+                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
                   </tr>
                 ))
               ) : (
