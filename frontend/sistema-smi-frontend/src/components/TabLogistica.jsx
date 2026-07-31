@@ -2,31 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen }) {
-  // Estado para la lista de países y logística
   const [tablaLogi, setTablaLogi] = useState([]);
   const [cargando, setCargando] = useState(true);
 
-  // Estados para controlar los desplegables (Acordeones)
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDel, setOpenDel] = useState(false);
 
-  // Estados para selección en CRUD
   const [paisSeleccionadoEdit, setPaisSeleccionadoEdit] = useState('');
   const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
 
-  // Formulario Añadir
   const [nuevoPais, setNuevoPais] = useState('');
   const [nuevoLpin, setNuevoLpin] = useState('');
   const [nuevoCpt, setNuevoCpt] = useState('');
   const [nuevoIttt, setNuevoIttt] = useState('');
 
-  // Formulario Editar
   const [editLpin, setEditLpin] = useState('');
   const [editCpt, setEditCpt] = useState('');
   const [editIttt, setEditIttt] = useState('');
 
-  // Formulario Cálculo ITTT
   const [paisSalida, setPaisSalida] = useState(paisOrigen || 'España');
   const [paisLlegada, setPaisLlegada] = useState('');
   const [puertoSalida, setPuertoSalida] = useState('Valencia (ES)');
@@ -34,13 +28,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [velocidadBuque, setVelocidadBuque] = useState(18.00);
   const [resultadoIttt, setResultadoIttt] = useState({ distancia: '8,964 km', tiempo: '11.2 días' });
 
-  // 1. CARGAR TODOS LOS PAÍSES Y DATOS DESDE SUPABASE
   useEffect(() => {
     async function fetchDatosLogistica() {
       setCargando(true);
       try {
-        // Consultar tabla de logística en Supabase
-        const { data: logiData, error: logiError } = await supabase
+        const { data: logiData } = await supabase
           .from('logistica')
           .select('*')
           .order('pais', { ascending: true });
@@ -55,7 +47,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           }));
           setTablaLogi(formateados);
         } else {
-          // Fallback a la tabla de 'paises' si 'logistica' no devuelve registros
           const { data: paisesData } = await supabase
             .from('paises')
             .select('*')
@@ -82,7 +73,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     fetchDatosLogistica();
   }, []);
 
-  // Actualizar seleccionados por defecto al cambiar la tabla
   useEffect(() => {
     if (tablaLogi.length > 0) {
       if (!paisSeleccionadoEdit) setPaisSeleccionadoEdit(tablaLogi[0].Paises);
@@ -91,7 +81,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
   }, [tablaLogi]);
 
-  // Manejo de edición
   const handleSelectEditPais = (e) => {
     const paisNombre = e.target.value;
     setPaisSeleccionadoEdit(paisNombre);
@@ -103,7 +92,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
   };
 
-  // Guardar nuevo país
   const handleAddPais = async (e) => {
     e.preventDefault();
     if (!nuevoPais.trim()) return;
@@ -115,7 +103,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       'Tiempo de tránsito del transporte internacional (ITTT)': nuevoIttt ? `${nuevoIttt} días` : '0 días'
     };
 
-    // Guardar en la base de datos Supabase
     await supabase.from('logistica').insert([
       {
         pais: nuevoPais,
@@ -133,7 +120,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     setOpenAdd(false);
   };
 
-  // Actualizar país
   const handleUpdatePais = async (e) => {
     e.preventDefault();
     const actualizado = tablaLogi.map((item) => {
@@ -161,7 +147,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     setOpenEdit(false);
   };
 
-  // Eliminar país
   const handleDeletePais = async (e) => {
     e.preventDefault();
     const filtrado = tablaLogi.filter((item) => item.Paises !== paisSeleccionadoDel);
@@ -186,7 +171,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
-      {/* HEADER DE LA SECCIÓN */}
+      {/* HEADER */}
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">2. Logística (LOGI)</h2>
         <p className="text-xs text-slate-400 mt-1">
@@ -194,10 +179,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         </p>
       </div>
 
-      {/* ================= SECCIÓN DE DESPLEGABLES / ACORDEONES ================= */}
+      {/* ACORDEONES CRUD */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        {/* DESPLEGABLE 1: AÑADIR */}
+        {/* AÑADIR */}
         <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
           <button 
             type="button"
@@ -261,7 +246,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           )}
         </div>
 
-        {/* DESPLEGABLE 2: EDITAR */}
+        {/* EDITAR */}
         <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
           <button 
             type="button"
@@ -326,7 +311,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           )}
         </div>
 
-        {/* DESPLEGABLE 3: ELIMINAR */}
+        {/* ELIMINAR */}
         <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
           <button 
             type="button"
@@ -365,7 +350,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       </div>
 
-      {/* ================= CÁLCULO ITTT ================= */}
+      {/* CÁLCULO ITTT */}
       <div className="bg-[#16181d] border border-slate-800 p-5 rounded-lg space-y-4">
         <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito Internacional (ITTT)</h3>
         
@@ -446,7 +431,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         </div>
       </div>
 
-      {/* ================= TABLA LOGÍSTICA BD ================= */}
+      {/* ================= TABLA LOGÍSTICA BD (MÁXIMO 10 FILAS VISIBLES + SCROLL) ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Logística (LOGI)</h3>
         <p className="text-xs text-slate-400">Puntajes registrados para los países en la base de datos Supabase.</p>
@@ -454,15 +439,15 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando datos desde Supabase...</div>
         ) : (
-          <div className="overflow-x-auto border border-slate-800 rounded-lg">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+          <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+            <table className="w-full text-left text-xs text-slate-300 relative">
+              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
                 <tr>
-                  <th className="p-3 w-12">#</th>
-                  <th className="p-3">País</th>
-                  <th className="p-3">Índice Logístico (LPIN)</th>
-                  <th className="p-3">Tráfico Contenedores (CPT)</th>
-                  <th className="p-3">Tiempo Tránsito (ITTT)</th>
+                  <th className="p-3 w-12 bg-[#181a20]">#</th>
+                  <th className="p-3 bg-[#181a20]">País</th>
+                  <th className="p-3 bg-[#181a20]">Índice Logístico (LPIN)</th>
+                  <th className="p-3 bg-[#181a20]">Tráfico Contenedores (CPT)</th>
+                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
@@ -481,21 +466,21 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         )}
       </div>
 
-      {/* ================= TABLA LOGÍSTICA NORMALIZADA ================= */}
+      {/* ================= TABLA LOGÍSTICA NORMALIZADA (MÁXIMO 10 FILAS VISIBLES + SCROLL) ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Logística Normalizada (LOGI)</h3>
         <p className="text-xs text-slate-400">Ponderaciones: LPIN=30% | CPT=30% | ITTT=40%</p>
 
-        <div className="overflow-x-auto border border-slate-800 rounded-lg">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+          <table className="w-full text-left text-xs text-slate-300 relative">
+            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
               <tr>
-                <th className="p-3 w-12">#</th>
-                <th className="p-3">País</th>
-                <th className="p-3">LPIN Norm</th>
-                <th className="p-3">CPT Norm</th>
-                <th className="p-3">ITTT Norm</th>
-                <th className="p-3">Costo Total Logístico Norm</th>
+                <th className="p-3 w-12 bg-[#181a20]">#</th>
+                <th className="p-3 bg-[#181a20]">País</th>
+                <th className="p-3 bg-[#181a20]">LPIN Norm</th>
+                <th className="p-3 bg-[#181a20]">CPT Norm</th>
+                <th className="p-3 bg-[#181a20]">ITTT Norm</th>
+                <th className="p-3 bg-[#181a20]">Costo Total Logístico Norm</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
