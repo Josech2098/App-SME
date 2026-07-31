@@ -37,7 +37,6 @@ function limpiarPrecio(val) {
   const str = String(val).trim();
   if (str.toLowerCase().includes('no encontrado') || str === '') return 0;
 
-  // Remover símbolos de moneda, letras y espacios, y cambiar coma por punto
   const limpio = str.replace(/[^\d,\.-]/g, '').replace(',', '.');
   const numero = parseFloat(limpio);
   return isNaN(numero) ? 0 : numero;
@@ -50,7 +49,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
 
-  // Control de acordeones para "Gestión de Datos"
   const [activeAccordion, setActiveAccordion] = useState(null);
 
   // Estados Formulario Añadir
@@ -86,29 +84,39 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setErrorLog(null);
 
     try {
-      console.log("productoActivo recibido en TabCosto:", productoActivo);
+      console.log("productoActivo recibido:", productoActivo);
 
+      // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
 
+      // 2. Obtener costos de importación (CIC)
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) throw errCIC;
 
-      // Extracción y limpieza robusta del precio del producto activo
-      let ppdBaseVal = 0;
-      if (productoActivo) {
-        const rawPrecio = 
-          productoActivo.precio ?? 
-          productoActivo.precio_destinos ?? 
-          productoActivo.precio_usd ?? 
-          productoActivo.precio_base ?? 
-          productoActivo.precio_unitario ?? 
-          productoActivo.costo ?? 
-          productoActivo.valor ?? 
-          productoActivo.ppd ?? 
-          0;
-        
-        ppdBaseVal = limpiarPrecio(rawPrecio);
+      // 3. Obtener los precios directamente de la tabla `productos` para el producto seleccionado
+      // Buscamos por el nombre del producto activo (ej. productoActivo.producto o productoActivo.nombre o busqueda)
+      const nombreProductoBuscado = 
+        productoActivo?.producto ?? 
+        productoActivo?.nombre ?? 
+        busqueda ?? 
+        '';
+
+      let mapaPreciosPorPais = {};
+      if (nombreProductoBuscado) {
+        const { data: dbProds, error: errProds } = await supabase
+          .from('productos')
+          .select('pais, precio')
+          .ilike('producto', `%${nombreProductoBuscado}%`);
+
+        if (!errProds && dbProds) {
+          dbProds.forEach(item => {
+            if (item.pais) {
+              const nombrePaisKey = item.pais.trim().toLowerCase();
+              mapaPreciosPorPais[nombrePaisKey] = limpiarPrecio(item.precio);
+            }
+          });
+        }
       }
 
       const objetoPaisBase = dbPaises.find(
@@ -118,11 +126,13 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
+      // 4. Consolidar datos por país
       const datosConsolidados = dbPaises.map((p) => {
-        const ppdVal = ppdBaseVal > 0 ? ppdBaseVal : 0;
+        const nombreKey = p.nombre.trim().toLowerCase();
+        const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
 
         const cicMatch = (dbCostoImportacion || []).find(
-          (c) => (c.pais || '').trim().toLowerCase() === p.nombre.trim().toLowerCase()
+          (c) => (c.pais || '').trim().toLowerCase() === nombreKey
         );
         let cicVal = cicMatch ? Number(cicMatch.valor) : null;
         if (isNaN(cicVal)) cicVal = null;
@@ -151,7 +161,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   // ----------------------------------------------------
-  // PORCENTAJES DE CÁLCULO SEGÚN TABLA DE IMPORTACIÓN
+  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN
   // ----------------------------------------------------
   const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
@@ -283,6 +293,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     }
   }
 
+  const nombreProductoMostrado = productoActivo?.producto ?? productoActivo?.nombre ?? busqueda ?? 'Seleccione un producto';
+
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
@@ -294,14 +306,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">21.50%</span>
-            {productoActivo?.nombre && (
-              <span className="ml-3 text-slate-300">
-                • Producto: <strong className="text-sky-400">{productoActivo.nombre}</strong> 
-                {productoActivo.precio !== undefined && (
-                  <span className="ml-1 text-emerald-400">({productoActivo.precio})</span>
-                )}
-              </span>
-            )}
+            <span className="ml-3 text-slate-300">
+              • Producto: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
+            </span>
           </p>
         </div>
       </div>
@@ -531,7 +538,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
                     <td className="p-3 text-right">
-                      {row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
+                      {row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : <span className="text-slate-500">No encontrado</span>}
                     </td>
                     <td className="p-3 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
                     <td className="p-3 text-right pr-6">
