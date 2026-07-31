@@ -84,7 +84,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setErrorLog(null);
 
     try {
-      console.log("=== INICIO CARGAR Y CALCULAR MATRIZ ===");
+      console.log("=== [TabCosto] INICIO CARGAR Y CALCULAR MATRIZ ===");
       console.log("productoActivo recibido:", productoActivo);
       console.log("busqueda recibido:", busqueda);
 
@@ -96,10 +96,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) console.warn("Aviso en CIC:", errCIC);
 
-      // 3. Obtener todos los productos para hacer el match exacto o parcial en JavaScript de forma robusta
+      // 3. Obtener todos los productos de la tabla 'productos'
       const { data: dbProds, error: errProds } = await supabase
         .from('productos')
-        .select('pais, precio, producto');
+        .select('*');
 
       if (errProds) throw errProds;
 
@@ -110,26 +110,32 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
       } else if (productoActivo && typeof productoActivo === 'object') {
-        nombreProductoBuscado = productoActivo.producto ?? productoActivo.nombre ?? '';
+        nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? '';
       }
       if (!nombreProductoBuscado) {
         nombreProductoBuscado = busqueda ?? '';
       }
 
       const queryLimpia = nombreProductoBuscado.trim().toLowerCase();
-      console.log("Buscando coincidencia para:", queryLimpia);
+      console.log("Buscando coincidencia para el producto:", queryLimpia);
 
       let mapaPreciosPorPais = {};
 
       if (dbProds && queryLimpia) {
         dbProds.forEach(item => {
-          const prodTabla = (item.producto || '').trim().toLowerCase();
+          const nombreProd = item.nombre || item.producto || '';
+          const prodTabla = String(nombreProd).trim().toLowerCase();
+
+          // Comprobación flexible compatible con TablaProductos
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
-            if (item.pais) {
-              const nombrePaisKey = item.pais.trim().toLowerCase();
-              const precioLim = limpiarPrecio(item.precio);
+            const paisItem = item.pais || item.Pais;
+            if (paisItem) {
+              const nombrePaisKey = String(paisItem).trim().toLowerCase();
+              const precioRaw = item.precio ?? item.Precio;
+              const precioLim = limpiarPrecio(precioRaw);
+              
               mapaPreciosPorPais[nombrePaisKey] = precioLim;
-              console.log(`Match encontrado -> País: ${item.pais} | Precio: ${precioLim}`);
+              console.log(`[Match TabCosto] País: ${paisItem} | Producto: ${nombreProd} | Precio: ${precioLim}`);
             }
           }
         });
@@ -150,7 +156,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
 
         const cicMatch = (dbCostoImportacion || []).find(
-          (c) => (c.pais || '').trim().toLowerCase() === nombreKey
+          (c) => String(c.pais || '').trim().toLowerCase() === nombreKey
         );
         let cicVal = cicMatch ? Number(cicMatch.valor) : null;
         if (isNaN(cicVal)) cicVal = null;
@@ -312,7 +318,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   const nombreProductoMostrado = 
-    (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.producto ?? productoActivo?.nombre)) || 
+    (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto)) || 
     busqueda || 
     'Seleccione un producto';
 
