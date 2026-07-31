@@ -1,8 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
+// --- Helper: Cálculo de distancia geográfica mediante Haversine ---
+function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  
+  // Reemplazar comas por puntos en caso de strings con formato europeo ("9,7489")
+  const parseCoord = (val) => parseFloat(String(val).replace(',', '.'));
+  
+  const l1 = parseCoord(lat1);
+  const ln1 = parseCoord(lon1);
+  const l2 = parseCoord(lat2);
+  const ln2 = parseCoord(lon2);
+
+  if (isNaN(l1) || isNaN(ln1) || isNaN(l2) || isNaN(ln2)) return 0;
+
+  const R = 6371; // Radio medio de la Tierra en km
+  const dLat = (l2 - l1) * (Math.PI / 180);
+  const dLon = (ln2 - ln1) * (Math.PI / 180);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(l1 * (Math.PI / 180)) *
+      Math.cos(l2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distancia calculada en km
+}
+
 export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen }) {
-  const [paisBase, setPaisBase] = useState(paisOrigen || 'Colombia');
+  const [paisBase, setPaisBase] = useState(paisOrigen || 'Costa Rica');
   const [datosProductos, setDatosProductos] = useState([]);
   const [listaPaises, setListaPaises] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,18 +40,24 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   // Control de acordeones para "Gestión de Datos"
   const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete' | null
 
-  // Estados para CRUD
-  const [selectedProductId, setSelectedProductId] = useState('');
-  const [ppaoEdit, setPpaoEdit] = useState('');
-  const [intcEdit, setIntcEdit] = useState('');
-  const [cebcEdit, setCebcEdit] = useState('');
+  // Estados Formulario Añadir
+  const [nuevoPaisNombre, setNuevoPaisNombre] = useState('');
+  const [nuevaLatitud, setNuevaLatitud] = useState('');
+  const [nuevaLongitud, setNuevaLongitud] = useState('');
+  const [nuevoCebc, setNuevoCebc] = useState('');
 
-  // Sincronizar país base si cambia la prop
+  // Estados Formulario Editar
+  const [selectedPaisId, setSelectedPaisId] = useState('');
+  const [editLatitud, setEditLatitud] = useState('');
+  const [editLongitud, setEditLongitud] = useState('');
+  const [editCebc, setEditCebc] = useState('');
+
+  // Sincronizar país base si cambia la propiedad heredada
   useEffect(() => {
     if (paisOrigen) setPaisBase(paisOrigen);
   }, [paisOrigen]);
 
-  // Cargar lista de países para el selector dinámico
+  // Cargar lista de países para el selector dinámico de origen
   useEffect(() => {
     async function fetchPaises() {
       const { data } = await supabase.from('paises').select('*').order('nombre');
@@ -31,73 +66,89 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     fetchPaises();
   }, []);
 
-  // Consultar base de datos
+  // Consultar base de datos y recalcular cada vez que cambien los filtros o el país base
   useEffect(() => {
-    cargarProductosDesdeBD();
+    cargarYCalcularMatriz();
   }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
 
-  async function cargarProductosDesdeBD() {
+  async function cargarYCalcularMatriz() {
     setLoading(true);
     setErrorLog(null);
 
     try {
-      let query = supabase.from('productos').select('*');
+      // 1. Obtener la lista completa de países con sus coordenadas (para INTC)
+      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
+      if (errPaises) throw errPaises;
 
+      // 2. Obtener la tabla costo_importacion (para CEBC)
+      const { data: dbCostoImportacion, error: errCEBC } = await supabase.from('costo_importacion').select('*');
+      if (errCEBC) throw errCEBC;
+
+      // 3. Obtener los precios del producto desde la tabla productos (para PPAO)
+      let queryProductos = supabase.from('productos').select('*');
       if (productoActivo && productoActivo.id) {
-        query = query.eq('id', productoActivo.id);
+        queryProductos = queryProductos.eq('id', productoActivo.id);
       }
+      const { data: dbProductos, error: errProd } = await queryProductos;
+      if (errProd) throw errProd;
 
-      const { data, error } = await query;
+      // Ubicar las coordenadas del país origen/base seleccionado
+      const objetoPaisBase = dbPaises.find(
+        (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
+      ) || dbPaises.find((p) => p.nombre.toLowerCase().includes('costa rica')) || dbPaises[0];
 
-      if (error) throw error;
+      const latBase = objetoPaisBase?.latitud;
+      const lonBase = objetoPaisBase?.longitud;
 
-      if (data) {
-        let filtrados = data;
+      // 4. Mapear y calcular INTC y CEBC por cada país de la BD
+      const datosConsolidados = dbPaises.map((p) => {
+        // Coincidencia PPAO en productos
+        const prodMatch = (dbProductos || []).find(
+          (prod) => (prod.pais || prod.pais_destino || '').trim().toLowerCase() === p.nombre.trim().toLowerCase()
+        );
+        const ppaoVal = prodMatch ? Number(prodMatch.precio || prodMatch.precio_origen || prodMatch.ppao) : null;
 
-        if (!productoActivo || !productoActivo.id) {
-          if (categoria && categoria !== 'Todos') {
-            filtrados = filtrados.filter(item => item.categoria_codigo === categoria || item.categoria_id === categoria);
-          }
-          if (subcategoria && subcategoria !== 'Todos') {
-            filtrados = filtrados.filter(item => item.subcategoria_codigo === subcategoria || item.subcategoria_id === subcategoria);
-          }
-          if (busqueda && busqueda.trim() !== '') {
-            const q = busqueda.toLowerCase();
-            filtrados = filtrados.filter(item =>
-              (item.nombre && item.nombre.toLowerCase().includes(q)) ||
-              (item.codigo && String(item.codigo).toLowerCase().includes(q)) ||
-              (item.pais || item.pais_destino || '').toLowerCase().includes(q)
-            );
-          }
-        }
+        // Coincidencia CEBC en costo_importacion
+        const cebcMatch = (dbCostoImportacion || []).find(
+          (c) => (c.pais || '').trim().toLowerCase() === p.nombre.trim().toLowerCase()
+        );
+        const cebcVal = cebcMatch ? Number(cebcMatch.valor) : null;
 
-        setDatosProductos(filtrados);
-      }
+        // Cálculo de INTC basado en Haversine ($0.38 por km)
+        const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
+        const intcVal = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : 0;
+
+        return {
+          id: p.id,
+          pais_nombre: p.nombre,
+          latitud: p.latitud,
+          longitud: p.longitud,
+          ppao: ppaoVal,
+          intc: intcVal,
+          cebc: cebcVal
+        };
+      });
+
+      setDatosProductos(datosConsolidados);
     } catch (err) {
-      console.error("Error al cargar productos:", err);
-      setErrorLog(err.message || "Error al conectar con la tabla productos");
+      console.error("Error al consolidar costos:", err);
+      setErrorLog(err.message || "Error al sincronizar datos con Supabase");
     } finally {
       setLoading(false);
     }
   }
 
-  // Helper para extraer campos flexibles
-  const getPpao = (row) => Number(row.precio_origen || row.ppao || row.precio) || null;
-  const getIntc = (row) => Number(row.costo_transporte || row.impuesto_importacion || row.intc) || null;
-  const getCebc = (row) => Number(row.cumplimiento || row.costo_embalaje || row.cebc) || null;
-  const getPaisNombre = (row) => row.pais_destino || row.pais || row.destino || 'Desconocido';
-
   // ----------------------------------------------------
-  // FÓRMULAS Y CÁLCULOS AUTOMÁTICOS DE MATRIZ
+  // FÓRMULAS DE NORMALIZACIÓN Y PONDERACIÓN (35% - 35% - 30%)
   // ----------------------------------------------------
-  const PESO_PPAO = 0.44;
-  const PESO_INTC = 0.34;
-  const PESO_CEBC = 0.22;
+  const PESO_PPAO = 0.35;
+  const PESO_INTC = 0.35;
+  const PESO_CEBC = 0.30;
   const A3 = 10;
 
-  const ppaoVals = datosProductos.map(getPpao).filter(v => v !== null && v > 0);
-  const intcVals = datosProductos.map(getIntc).filter(v => v !== null && v > 0);
-  const cebcVals = datosProductos.map(getCebc).filter(v => v !== null && v > 0);
+  const ppaoVals = datosProductos.map(d => d.ppao).filter(v => v !== null && v > 0);
+  const intcVals = datosProductos.map(d => d.intc).filter(v => v !== null && v > 0);
+  const cebcVals = datosProductos.map(d => d.cebc).filter(v => v !== null && v > 0);
 
   const minPpao = ppaoVals.length > 0 ? Math.min(...ppaoVals) : null;
   const minIntc = intcVals.length > 0 ? Math.min(...intcVals) : null;
@@ -109,13 +160,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   };
 
   const matrizCalculada = datosProductos.map(row => {
-    const ppao = getPpao(row);
-    const intc = getIntc(row);
-    const cebc = getCebc(row);
-
-    const ppaoNorm = calcularNormalizado(ppao, minPpao);
-    const intcNorm = calcularNormalizado(intc, minIntc);
-    const cebcNorm = calcularNormalizado(cebc, minCebc);
+    const ppaoNorm = calcularNormalizado(row.ppao, minPpao);
+    const intcNorm = calcularNormalizado(row.intc, minIntc);
+    const cebcNorm = calcularNormalizado(row.cebc, minCebc);
 
     const p1 = ppaoNorm ?? 0;
     const p2 = intcNorm ?? 0;
@@ -127,60 +174,104 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
     return {
       ...row,
-      ppao,
-      intc,
-      cebc,
       ppaoNorm,
       intcNorm,
       cebcNorm,
-      costoTotalNorm,
-      pais_nombre: getPaisNombre(row)
+      costoTotalNorm
     };
   });
 
-  matrizCalculada.sort((a, b) => (a.costoTotalNorm ?? 999) - (b.costoTotalNorm ?? 999));
+  // Ordenar de mayor a menor puntuación obtenida
+  matrizCalculada.sort((a, b) => (b.costoTotalNorm ?? -1) - (a.costoTotalNorm ?? -1));
 
-  // Manejo de acordeones
+  // Manejador de visibilidad de acordeones
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
   };
 
-  // Edición rápida
+  // Cargar registro seleccionado en formulario de edición
   const handleSelectEdit = (id) => {
-    setSelectedProductId(id);
+    setSelectedPaisId(id);
     const target = datosProductos.find(p => p.id === parseInt(id) || p.id === id);
     if (target) {
-      setPpaoEdit(getPpao(target) ?? '');
-      setIntcEdit(getIntc(target) ?? '');
-      setCebcEdit(getCebc(target) ?? '');
+      setEditLatitud(target.latitud ?? '');
+      setEditLongitud(target.longitud ?? '');
+      setEditCebc(target.cebc ?? '');
     }
   };
 
-  async function handleGuardarCambios() {
-    if (!selectedProductId) return alert("Selecciona un registro para editar.");
+  // Operación CRUD: Guardar Nuevo País
+  async function handleAgregarPais() {
+    if (!nuevoPaisNombre) return alert("Por favor ingresa el nombre del país.");
 
-    const sample = datosProductos[0] || {};
-    const colPpao = 'precio_origen' in sample ? 'precio_origen' : ('ppao' in sample ? 'ppao' : 'precio');
-    const colIntc = 'costo_transporte' in sample ? 'costo_transporte' : ('intc' in sample ? 'intc' : 'impuesto_importacion');
-    const colCebc = 'cumplimiento' in sample ? 'cumplimiento' : ('cebc' in sample ? 'cebc' : 'costo_embalaje');
+    try {
+      // Insertar coordenadas en tabla 'paises'
+      const { data: newPais, error: errP } = await supabase
+        .from('paises')
+        .insert([{ nombre: nuevoPaisNombre, latitud: nuevaLatitud, longitud: nuevaLongitud }])
+        .select();
 
-    const updateData = {
-      [colPpao]: parseFloat(ppaoEdit) || 0,
-      [colIntc]: parseFloat(intcEdit) || 0,
-      [colCebc]: parseFloat(cebcEdit) || 0
-    };
+      if (errP) throw errP;
 
-    const { error } = await supabase
-      .from('productos')
-      .update(updateData)
-      .eq('id', selectedProductId);
+      // Insertar CEBC en tabla 'costo_importacion'
+      if (nuevoCebc) {
+        const { error: errC } = await supabase
+          .from('costo_importacion')
+          .insert([{ pais: nuevoPaisNombre, valor: parseFloat(nuevoCebc) || 0 }]);
+        if (errC) throw errC;
+      }
 
-    if (error) {
-      alert("Error al actualizar: " + error.message);
-    } else {
-      setSelectedProductId(''); setPpaoEdit(''); setIntcEdit(''); setCebcEdit('');
+      setNuevoPaisNombre(''); setNuevaLatitud(''); setNuevaLongitud(''); setNuevoCebc('');
       setActiveAccordion(null);
-      cargarProductosDesdeBD();
+      cargarYCalcularMatriz();
+    } catch (err) {
+      alert("Error al agregar registro: " + err.message);
+    }
+  }
+
+  // Operación CRUD: Actualizar Registro
+  async function handleGuardarCambios() {
+    if (!selectedPaisId) return alert("Selecciona un país para editar.");
+
+    const target = datosProductos.find(p => p.id === parseInt(selectedPaisId) || p.id === selectedPaisId);
+    if (!target) return;
+
+    try {
+      // Actualizar coordenadas en 'paises'
+      const { error: errP } = await supabase
+        .from('paises')
+        .update({ latitud: editLatitud, longitud: editLongitud })
+        .eq('id', selectedPaisId);
+
+      if (errP) throw errP;
+
+      // Upsert en 'costo_importacion' para CEBC
+      const { error: errC } = await supabase
+        .from('costo_importacion')
+        .upsert({ pais: target.pais_nombre, valor: parseFloat(editCebc) || 0 }, { onConflict: 'pais' });
+
+      if (errC) throw errC;
+
+      setSelectedPaisId(''); setEditLatitud(''); setEditLongitud(''); setEditCebc('');
+      setActiveAccordion(null);
+      cargarYCalcularMatriz();
+    } catch (err) {
+      alert("Error al actualizar: " + err.message);
+    }
+  }
+
+  // Operación CRUD: Eliminar Registro
+  async function handleEliminarPais(id, nombrePais) {
+    if (!window.confirm(`¿Seguro que deseas eliminar los datos correspondientes a ${nombrePais}?`)) return;
+
+    try {
+      await supabase.from('paises').delete().eq('id', id);
+      await supabase.from('costo_importacion').delete().eq('pais', nombrePais);
+
+      setActiveAccordion(null);
+      cargarYCalcularMatriz();
+    } catch (err) {
+      alert("Error al eliminar registro: " + err.message);
     }
   }
 
@@ -189,16 +280,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       
       {/* ---------------- 1. TÍTULO PRINCIPAL ---------------- */}
       <h1 className="text-3xl font-bold text-white tracking-tight">
-        1.Costo (COST) — Estandarización de criterios
+        1. Costo (COST) — Estandarización de criterios
       </h1>
 
       {/* ---------------- 2. SELECTOR DE PAÍS BASE ---------------- */}
       <div className="space-y-2">
         <label className="block text-xl font-bold text-white">
-          Selecciona el país base (origen-Costo Transporte)
+          Selecciona el país base (origen para cálculo de distancia INTC)
         </label>
         <span className="block text-xs text-slate-400">
-          Selecciona el país base (origen)
+          Ubicación geográfica tomada como punto de partida para evaluar costos de transporte internacional.
         </span>
         <div className="relative">
           <select
@@ -206,8 +297,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             onChange={(e) => setPaisBase(e.target.value)}
             className="w-full bg-[#1e2028] border border-slate-700/80 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
           >
-            <option value="Colombia">Colombia</option>
-            <option value="España">España</option>
             {listaPaises.map((p) => (
               <option key={p.id || p.nombre} value={p.nombre}>
                 {p.nombre}
@@ -234,30 +323,57 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               onClick={() => toggleAccordion('add')}
               className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
             >
-              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Añadir país y valores
+              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Añadir país y coordenadas
             </button>
             {activeAccordion === 'add' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
                 <div>
                   <label className="block text-slate-400 mb-1">Nombre del País</label>
-                  <input type="text" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                  <input
+                    type="text"
+                    value={nuevoPaisNombre}
+                    onChange={(e) => setNuevoPaisNombre(e.target.value)}
+                    placeholder="Ej. Panamá"
+                    className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                  />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-slate-400 mb-1">PPAO</label>
-                    <input type="number" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                    <label className="block text-slate-400 mb-1">Latitud</label>
+                    <input
+                      type="text"
+                      value={nuevaLatitud}
+                      onChange={(e) => setNuevaLatitud(e.target.value)}
+                      placeholder="8.5379"
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                    />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">INTC</label>
-                    <input type="number" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                    <label className="block text-slate-400 mb-1">Longitud</label>
+                    <input
+                      type="text"
+                      value={nuevaLongitud}
+                      onChange={(e) => setNuevaLongitud(e.target.value)}
+                      placeholder="-80.7821"
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                    />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">CEBC</label>
-                    <input type="number" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                    <label className="block text-slate-400 mb-1">CEBC ($)</label>
+                    <input
+                      type="number"
+                      value={nuevoCebc}
+                      onChange={(e) => setNuevoCebc(e.target.value)}
+                      placeholder="250"
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                    />
                   </div>
                 </div>
-                <button className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs cursor-pointer">
-                  Guardar
+                <button
+                  onClick={handleAgregarPais}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors"
+                >
+                  Guardar Registro
                 </button>
               </div>
             )}
@@ -275,51 +391,51 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
                 <select
                   onChange={(e) => handleSelectEdit(e.target.value)}
-                  value={selectedProductId}
+                  value={selectedPaisId}
                   className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
                 >
-                  <option value="">-- Selecciona un registro --</option>
+                  <option value="">-- Selecciona un país --</option>
                   {datosProductos.map(p => (
                     <option key={p.id} value={p.id}>
-                      {getPaisNombre(p)} (ID: {p.id})
+                      {p.pais_nombre} (ID: {p.id})
                     </option>
                   ))}
                 </select>
 
-                {selectedProductId && (
+                {selectedPaisId && (
                   <>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-slate-400 block mb-1">PPAO</label>
+                        <label className="text-slate-400 block mb-1">Latitud</label>
                         <input
-                          type="number"
-                          value={ppaoEdit}
-                          onChange={(e) => setPpaoEdit(e.target.value)}
+                          type="text"
+                          value={editLatitud}
+                          onChange={(e) => setEditLatitud(e.target.value)}
                           className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">INTC</label>
+                        <label className="text-slate-400 block mb-1">Longitud</label>
                         <input
-                          type="number"
-                          value={intcEdit}
-                          onChange={(e) => setIntcEdit(e.target.value)}
+                          type="text"
+                          value={editLongitud}
+                          onChange={(e) => setEditLongitud(e.target.value)}
                           className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">CEBC</label>
+                        <label className="text-slate-400 block mb-1">CEBC ($)</label>
                         <input
                           type="number"
-                          value={cebcEdit}
-                          onChange={(e) => setCebcEdit(e.target.value)}
+                          value={editCebc}
+                          onChange={(e) => setEditCebc(e.target.value)}
                           className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                         />
                       </div>
                     </div>
                     <button 
                       onClick={handleGuardarCambios}
-                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium cursor-pointer"
+                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium cursor-pointer transition-colors"
                     >
                       Actualizar
                     </button>
@@ -339,17 +455,24 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             </button>
             {activeAccordion === 'delete' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
-                <p className="text-slate-400">Selecciona el registro que deseas remover.</p>
+                <p className="text-slate-400">Selecciona el registro que deseas remover:</p>
+                <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                  {datosProductos.map(p => (
+                    <div key={p.id} className="flex justify-between items-center bg-[#0e1117] p-2 rounded border border-slate-800">
+                      <span className="text-slate-200 font-medium">{p.pais_nombre}</span>
+                      <button
+                        onClick={() => handleEliminarPais(p.id, p.pais_nombre)}
+                        className="bg-red-600/80 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] cursor-pointer"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-        </div>
-
-        <div>
-          <button className="px-4 py-2 bg-[#1e2028] hover:bg-[#262730] border border-slate-700/80 rounded-lg text-xs font-medium text-slate-200 transition-colors cursor-pointer">
-            Descargar Excel actualizado
-          </button>
         </div>
       </div>
 
@@ -369,10 +492,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-slate-400 bg-[#16181e]">
-                <th className="p-3 w-16 text-right pr-6 font-normal"></th>
+                <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
                 <th className="p-3 font-medium text-slate-300">Países</th>
                 <th className="p-3 text-right font-medium text-slate-300">Precio del producto en origen (PPAO)</th>
-                <th className="p-3 text-right font-medium text-slate-300">Costos de transporte internacional (INTC)</th>
+                <th className="p-3 text-right font-medium text-slate-300">Costos de transporte internacional (INTC) ($0.38/km)</th>
                 <th className="p-3 text-right pr-6 font-medium text-slate-300">Costo de exportación del cumplimiento fronterizo (CEBC)</th>
               </tr>
             </thead>
@@ -388,9 +511,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{row.id}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.ppao ?? 'None'}</td>
-                    <td className="p-3 text-right">{row.intc ?? 'None'}</td>
-                    <td className="p-3 text-right pr-6">{row.cebc ?? 'None'}</td>
+                    <td className="p-3 text-right">{row.ppao !== null ? `$${row.ppao}` : 'None'}</td>
+                    <td className="p-3 text-right">{row.intc > 0 ? `$${row.intc}` : '$0.00'}</td>
+                    <td className="p-3 text-right pr-6">{row.cebc !== null ? `$${row.cebc}` : 'None'}</td>
                   </tr>
                 ))
               ) : (
@@ -416,10 +539,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             <thead>
               <tr className="border-b border-slate-800 text-slate-400 bg-[#16181e]">
                 <th className="p-3 font-medium text-slate-300">Países</th>
-                <th className="p-3 text-right font-medium text-slate-300">PPAO Norm (44%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">INTC Norm (34%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">CEBC Norm (22%)</th>
-                <th className="p-3 text-right pr-6 font-bold text-red-400">Costo Total Normalizado</th>
+                <th className="p-3 text-right font-medium text-slate-300">PPAO Norm (35%)</th>
+                <th className="p-3 text-right font-medium text-slate-300">INTC Norm (35%)</th>
+                <th className="p-3 text-right font-medium text-slate-300">CEBC Norm (30%)</th>
+                <th className="p-3 text-right pr-6 font-bold text-emerald-400">Costo Total Normalizado</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
@@ -436,7 +559,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     <td className="p-3 text-right">{row.ppaoNorm ?? 'None'}</td>
                     <td className="p-3 text-right">{row.intcNorm ?? 'None'}</td>
                     <td className="p-3 text-right">{row.cebcNorm ?? 'None'}</td>
-                    <td className="p-3 text-right pr-6 font-bold text-red-400">{row.costoTotalNorm ?? 'None'}</td>
+                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.costoTotalNorm ?? 'None'}</td>
                   </tr>
                 ))
               ) : (
