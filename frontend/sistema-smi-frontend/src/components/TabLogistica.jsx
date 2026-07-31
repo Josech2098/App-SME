@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './TabLogistica.css';
 
 export default function TabLogistica({ datosLogisticaInicial }) {
   const [tablaLogi, setTablaLogi] = useState(datosLogisticaInicial || [
@@ -99,7 +98,6 @@ export default function TabLogistica({ datosLogisticaInicial }) {
 
   const handleCalcularIttt = (e) => {
     e.preventDefault();
-    // Simulación de cálculo dinámico basado en entradas
     setResultadoIttt({
       distancia: '8,964 km',
       tiempo: '11.2 días'
@@ -107,7 +105,7 @@ export default function TabLogistica({ datosLogisticaInicial }) {
   };
 
   return (
-    <div className="tab-container" style={{ padding: '20px', color: '#fff', backgroundColor: '#0e1117', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+    <div style={{ padding: '20px', color: '#fff', backgroundColor: '#0e1117', minHeight: '100vh', fontFamily: 'sans-serif' }}>
       <h2 style={{ borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '20px' }}>2. Logística (LOGI)</h2>
 
       {/* ================= GESTIÓN DE DATOS (TABLA LOGI) ================= */}
@@ -116,7 +114,7 @@ export default function TabLogistica({ datosLogisticaInicial }) {
           🛠️ Gestión de Datos (Tabla LOGI)
         </h3>
         
-        <div className="crud-container" style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
           
           {/* Añadir */}
           <div style={{ flex: 1, minWidth: '280px', border: '1px solid #333', padding: '15px', borderRadius: '8px', backgroundColor: '#1a1c23' }}>
@@ -245,7 +243,6 @@ export default function TabLogistica({ datosLogisticaInicial }) {
           </div>
         </form>
 
-        {/* Caja de Resultado Verde */}
         <div style={{ backgroundColor: '#0f291e', border: '1px solid #1e4620', padding: '12px 15px', borderRadius: '4px', color: '#a3d9a5', fontSize: '0.9rem' }}>
           Distancia: {resultadoIttt.distancia} | Tiempo estimado: {resultadoIttt.tiempo}
         </div>
