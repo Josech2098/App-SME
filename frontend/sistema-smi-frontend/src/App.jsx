@@ -6,7 +6,7 @@ import TabLogistica from './components/TabLogistica';
 import TabComercial from './components/TabComercial';
 import TabEconomia from './components/TabEconomia';
 import TabPolitica from './components/TabPolitica';
-import TabCultura from './components/TabCultura'; // <--- 1. Importar la pestaña de cultura
+import TabCultura from './components/TabCultura';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -95,7 +95,6 @@ export default function App() {
         {/* Banner de Usuario y Selector de Origen */}
         <div className="space-y-2">
           <div className="bg-[#2e4d3a] border border-[#3e6b4f] text-[#a1e8bc] px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm">
-            Usuario: admin (admin)
           </div>
 
           {/* SELECTOR DINÁMICO DE PAÍS DE ORIGEN */}
@@ -117,11 +116,6 @@ export default function App() {
             </select>
           </div>
         </div>
-
-        {/* Botón Cerrar Sesión */}
-        <button className="self-start px-3 py-1.5 bg-[#262730] hover:bg-[#31333f] text-xs font-medium text-slate-200 border border-slate-700/60 rounded cursor-pointer transition-colors">
-          Cerrar sesión
-        </button>
 
         {/* Resumen del Producto Seleccionado */}
         <div className="bg-[#181a20] border border-slate-800 p-3 rounded-lg space-y-1">
