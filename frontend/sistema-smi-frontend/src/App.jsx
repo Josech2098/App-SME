@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient.js';
 import TablaProductos from './components/TabProductos';
 import TabCosto from './components/TabCosto';
 import TabLogistica from './components/TabLogistica';
+import TabComercial from './components/TabComercial'; // <--- 1. Importar la pestaña comercial
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -268,7 +269,16 @@ export default function App() {
             />
           )}
 
-          {activeTab > 2 && (
+          {/* --- 2. RENDERIZAR LA PESTAÑA COMERCIAL (COMM) --- */}
+          {activeTab === 3 && (
+            <TabComercial 
+              productoActivo={productoSeleccionado}
+              paisesDestino={paisesDestino}
+              paisOrigen={paisOrigen}
+            />
+          )}
+
+          {activeTab > 3 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
                 {tabList[activeTab]}
