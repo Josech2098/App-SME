@@ -8,7 +8,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
 
-  // Control de acordeones para la sección "Gestión de Datos"
+  // Control de acordeones para "Gestión de Datos"
   const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete' | null
 
   // Estados para CRUD
@@ -31,7 +31,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     fetchPaises();
   }, []);
 
-  // Reejecutar consulta al cambiar cualquier filtro del Sidebar o el País Base
+  // Consultar base de datos
   useEffect(() => {
     cargarProductosDesdeBD();
   }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
@@ -76,7 +76,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     } catch (err) {
       console.error("Error al cargar productos:", err);
       setErrorLog(err.message || "Error al conectar con la tabla productos");
-    } finally {
+    } fontally {
       setLoading(false);
     }
   }
@@ -84,11 +84,61 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   // Helper para extraer campos flexibles
   const getPpao = (row) => Number(row.precio_origen || row.ppao || row.precio) || null;
   const getIntc = (row) => Number(row.costo_transporte || row.impuesto_importacion || row.intc) || null;
-  const getCebc = (row) => {
-    const val = row.cumplimiento ?? row.costo_embalaje ?? row.cebc;
-    return val !== undefined && val !== null ? val : 'None';
-  };
+  const getCebc = (row) => Number(row.cumplimiento || row.costo_embalaje || row.cebc) || null;
   const getPaisNombre = (row) => row.pais_destino || row.pais || row.destino || 'Desconocido';
+
+  // ----------------------------------------------------
+  // FÓRMULAS Y CÁLCULOS AUTOMÁTICOS DE MATRIZ
+  // ----------------------------------------------------
+  const PESO_PPAO = 0.44;
+  const PESO_INTC = 0.34;
+  const PESO_CEBC = 0.22;
+  const A3 = 10;
+
+  const ppaoVals = datosProductos.map(getPpao).filter(v => v !== null && v > 0);
+  const intcVals = datosProductos.map(getIntc).filter(v => v !== null && v > 0);
+  const cebcVals = datosProductos.map(getCebc).filter(v => v !== null && v > 0);
+
+  const minPpao = ppaoVals.length > 0 ? Math.min(...ppaoVals) : null;
+  const minIntc = intcVals.length > 0 ? Math.min(...intcVals) : null;
+  const minCebc = cebcVals.length > 0 ? Math.min(...cebcVals) : null;
+
+  const calcularNormalizado = (val, minVal) => {
+    if (!val || !minVal || val <= 0 || minVal <= 0) return null;
+    return Number((A3 * (minVal / val)).toFixed(2));
+  };
+
+  const matrizCalculada = datosProductos.map(row => {
+    const ppao = getPpao(row);
+    const intc = getIntc(row);
+    const cebc = getCebc(row);
+
+    const ppaoNorm = calcularNormalizado(ppao, minPpao);
+    const intcNorm = calcularNormalizado(intc, minIntc);
+    const cebcNorm = calcularNormalizado(cebc, minCebc);
+
+    const p1 = ppaoNorm ?? 0;
+    const p2 = intcNorm ?? 0;
+    const p3 = cebcNorm ?? 0;
+
+    const costoTotalNorm = (ppaoNorm !== null || intcNorm !== null || cebcNorm !== null)
+      ? Number(((PESO_PPAO * p1) + (PESO_INTC * p2) + (PESO_CEBC * p3)).toFixed(2))
+      : null;
+
+    return {
+      ...row,
+      ppao,
+      intc,
+      cebc,
+      ppaoNorm,
+      intcNorm,
+      cebcNorm,
+      costoTotalNorm,
+      pais_nombre: getPaisNombre(row)
+    };
+  });
+
+  matrizCalculada.sort((a, b) => (a.costoTotalNorm ?? 999) - (b.costoTotalNorm ?? 999));
 
   // Manejo de acordeones
   const toggleAccordion = (tab) => {
@@ -100,10 +150,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setSelectedProductId(id);
     const target = datosProductos.find(p => p.id === parseInt(id) || p.id === id);
     if (target) {
-      setPpaoEdit(getPpao(target) || '');
-      setIntcEdit(getIntc(target) || '');
-      const cebcVal = getCebc(target);
-      setCebcEdit(cebcVal !== 'None' ? cebcVal : '');
+      setPpaoEdit(getPpao(target) ?? '');
+      setIntcEdit(getIntc(target) ?? '');
+      setCebcEdit(getCebc(target) ?? '');
     }
   };
 
@@ -136,7 +185,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   return (
-    <div className="space-y-6 text-slate-100 font-sans">
+    <div className="space-y-8 text-slate-100 font-sans">
       
       {/* ---------------- 1. TÍTULO PRINCIPAL ---------------- */}
       <h1 className="text-3xl font-bold text-white tracking-tight">
@@ -177,7 +226,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <span>🔧</span> Gestión de Datos (Tabla COST)
         </h2>
 
-        {/* Acordeones horizontales */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           
           {/* Añadir */}
@@ -298,7 +346,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
         </div>
 
-        {/* Botón Excel */}
         <div>
           <button className="px-4 py-2 bg-[#1e2028] hover:bg-[#262730] border border-slate-700/80 rounded-lg text-xs font-medium text-slate-200 transition-colors cursor-pointer">
             Descargar Excel actualizado
@@ -313,7 +360,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       )}
 
       {/* ---------------- 4. TABLA DE COSTOS BASE ---------------- */}
-      <div className="space-y-4 pt-4">
+      <div className="space-y-4 pt-2">
         <h2 className="text-2xl font-bold text-white">
           Tabla de costos base
         </h2>
@@ -336,20 +383,66 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     Cargando datos de costos...
                   </td>
                 </tr>
-              ) : datosProductos.length > 0 ? (
-                datosProductos.map((row) => (
+              ) : matrizCalculada.length > 0 ? (
+                matrizCalculada.map((row) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{row.id}</td>
-                    <td className="p-3 font-sans font-medium text-slate-100">{getPaisNombre(row)}</td>
-                    <td className="p-3 text-right">{getPpao(row) ?? 'None'}</td>
-                    <td className="p-3 text-right">{getIntc(row) ?? 'None'}</td>
-                    <td className="p-3 text-right pr-6">{getCebc(row)}</td>
+                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
+                    <td className="p-3 text-right">{row.ppao ?? 'None'}</td>
+                    <td className="p-3 text-right">{row.intc ?? 'None'}</td>
+                    <td className="p-3 text-right pr-6">{row.cebc ?? 'None'}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
                     No hay registros en la tabla de costos base.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ---------------- 5. TABLA DE NORMALIZACIÓN Y CÁLCULOS ---------------- */}
+      <div className="space-y-4 pt-4 border-t border-slate-800/80">
+        <h2 className="text-xl font-bold text-white">
+          Normalización y Ponderación Final
+        </h2>
+
+        <div className="overflow-x-auto rounded-lg border border-slate-800/80 bg-[#0e1117]">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 bg-[#16181e]">
+                <th className="p-3 font-medium text-slate-300">Países</th>
+                <th className="p-3 text-right font-medium text-slate-300">PPAO Norm (44%)</th>
+                <th className="p-3 text-right font-medium text-slate-300">INTC Norm (34%)</th>
+                <th className="p-3 text-right font-medium text-slate-300">CEBC Norm (22%)</th>
+                <th className="p-3 text-right pr-6 font-bold text-red-400">Costo Total Normalizado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
+                    Calculando ponderaciones...
+                  </td>
+                </tr>
+              ) : matrizCalculada.length > 0 ? (
+                matrizCalculada.map((row) => (
+                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
+                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
+                    <td className="p-3 text-right">{row.ppaoNorm ?? 'None'}</td>
+                    <td className="p-3 text-right">{row.intcNorm ?? 'None'}</td>
+                    <td className="p-3 text-right">{row.cebcNorm ?? 'None'}</td>
+                    <td className="p-3 text-right pr-6 font-bold text-red-400">{row.costoTotalNorm ?? 'None'}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
+                    Sin registros para calcular.
                   </td>
                 </tr>
               )}
