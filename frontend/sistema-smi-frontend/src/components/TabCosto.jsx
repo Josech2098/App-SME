@@ -122,8 +122,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
-              
-              // >>> USO EXCLUSIVO DE LA COLUMNA 'precio' <<<
               const precioRaw = item.precio;
               const precioLim = limpiarPrecio(precioRaw);
               
@@ -175,27 +173,28 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   // ----------------------------------------------------
-  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULA VIP)
+  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULA IMP / VIP)
   // ----------------------------------------------------
   const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
   const PESO_PPD = 0.44; // 44.00%
   const PESO_CTI = 0.34; // 34.00%
   const PESO_CIC = 0.22; // 22.00%
-  const A3 = 10;
+  const PUNTAJE_MAXIMO = 10;
 
   const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v > 0);
   const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v > 0);
-  const cicVals = datosProductos.map(d => d.cic).filter(v => v !== null && v > 0);
+  const cicVals = datosProductos.map(d => d.cic).filter(v => v !== null);
 
   const minPpd = ppdVals.length > 0 ? Math.min(...ppdVals) : null;
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
   const minCic = cicVals.length > 0 ? Math.min(...cicVals) : null;
 
-  // Fórmula Inversamente Proporcional (VIP): (Minimo * 10) / Valor Actual
+  // Fórmula Relación Inversamente Proporcional (IMP): (Puntaje Máximo * Mínimo Valor) / Valor Actual
   const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined || !minVal || val <= 0 || minVal <= 0) return null;
-    return Number(((minVal * A3) / val).toFixed(2));
+    if (val === null || val === undefined || minVal === null || val <= 0) return 0;
+    const resultado = (PUNTAJE_MAXIMO * minVal) / val;
+    return Number(resultado.toFixed(2));
   };
 
   const matrizCalculada = datosProductos.map(row => {
@@ -207,13 +206,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const p2 = ctiNorm ?? 0;
     const p3 = cicNorm ?? 0;
 
-    const costoSubtotalNorm = (row.ppd > 0 || row.cti > 0 || row.cic !== null)
-      ? Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2))
-      : null;
-
-    const aporteFactorCosto = costoSubtotalNorm !== null
-      ? Number((costoSubtotalNorm * PESO_FACTOR_COSTO).toFixed(2))
-      : null;
+    const costoSubtotalNorm = Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2));
+    const aporteFactorCosto = Number((costoSubtotalNorm * PESO_FACTOR_COSTO).toFixed(2));
 
     return {
       ...row,
@@ -225,7 +219,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     };
   });
 
-  matrizCalculada.sort((a, b) => (b.costoSubtotalNorm ?? -1) - (a.costoSubtotalNorm ?? -1));
+  matrizCalculada.sort((a, b) => b.costoSubtotalNorm - a.costoSubtotalNorm);
 
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
