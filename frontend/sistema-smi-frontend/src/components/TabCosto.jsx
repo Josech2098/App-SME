@@ -37,7 +37,6 @@ function limpiarPrecio(val) {
   const str = String(val).trim();
   if (str.toLowerCase().includes('no encontrado') || str === '') return 0;
 
-  // Remueve letras, símbolos de moneda (€, $, etc.), espacios y cambia la coma por punto
   const limpio = str.replace(/[^\d,.-]/g, '').replace(',', '.');
   const numero = parseFloat(limpio);
   return isNaN(numero) ? 0 : numero;
@@ -107,7 +106,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
       }
       if (!nombreProductoBuscado) {
-        nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)'; // Fallback por defecto basado en tu captura
+        nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)';
       }
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
@@ -118,7 +117,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const nombreProd = item.nombre || item.producto || item.titulo || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
 
-          // Comprobamos si coincide el producto
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
             const paisItem = item.pais || item.Pais;
 
@@ -142,7 +140,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // 4. Consolidar datos por país cruzando con la lista oficial de países
+      // 4. Consolidar datos por país
       const datosConsolidados = dbPaises.map((p) => {
         const nombreKey = p.nombre.trim().toLowerCase();
         const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
@@ -177,7 +175,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   // ----------------------------------------------------
-  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN
+  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULA VIP)
   // ----------------------------------------------------
   const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
@@ -194,15 +192,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
   const minCic = cicVals.length > 0 ? Math.min(...cicVals) : null;
 
-  const calcularNormalizado = (val, minVal) => {
+  // Fórmula Inversamente Proporcional (VIP): (Minimo * 10) / Valor Actual
+  const calcularNormalizadoInverso = (val, minVal) => {
     if (val === null || val === undefined || !minVal || val <= 0 || minVal <= 0) return null;
-    return Number((A3 * (minVal / val)).toFixed(2));
+    return Number(((minVal * A3) / val).toFixed(2));
   };
 
   const matrizCalculada = datosProductos.map(row => {
-    const ppdNorm = calcularNormalizado(row.ppd, minPpd);
-    const ctiNorm = calcularNormalizado(row.cti, minCti);
-    const cicNorm = calcularNormalizado(row.cic, minCic);
+    const ppdNorm = calcularNormalizadoInverso(row.ppd, minPpd);
+    const ctiNorm = calcularNormalizadoInverso(row.cti, minCti);
+    const cicNorm = calcularNormalizadoInverso(row.cic, minCic);
 
     const p1 = ppdNorm ?? 0;
     const p2 = ctiNorm ?? 0;
