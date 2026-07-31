@@ -86,28 +86,29 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     try {
       console.log("productoActivo recibido:", productoActivo);
 
-      // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
 
-      // 2. Obtener costos de importación (CIC)
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) throw errCIC;
 
-      // 3. Obtener los precios directamente de la tabla `productos` para el producto seleccionado
-      // Buscamos por el nombre del producto activo (ej. productoActivo.producto o productoActivo.nombre o busqueda)
-      const nombreProductoBuscado = 
-        productoActivo?.producto ?? 
-        productoActivo?.nombre ?? 
-        busqueda ?? 
-        '';
+      let nombreProductoBuscado = '';
+      if (typeof productoActivo === 'string') {
+        nombreProductoBuscado = productoActivo;
+      } else if (productoActivo && typeof productoActivo === 'object') {
+        nombreProductoBuscado = productoActivo.producto ?? productoActivo.nombre ?? '';
+      }
+      if (!nombreProductoBuscado) {
+        nombreProductoBuscado = busqueda ?? '';
+      }
 
       let mapaPreciosPorPais = {};
+
       if (nombreProductoBuscado) {
         const { data: dbProds, error: errProds } = await supabase
           .from('productos')
-          .select('pais, precio')
-          .ilike('producto', `%${nombreProductoBuscado}%`);
+          .select('pais, precio, producto')
+          .ilike('producto', `%${nombreProductoBuscado.trim()}%`);
 
         if (!errProds && dbProds) {
           dbProds.forEach(item => {
@@ -126,7 +127,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // 4. Consolidar datos por país
       const datosConsolidados = dbPaises.map((p) => {
         const nombreKey = p.nombre.trim().toLowerCase();
         const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
@@ -293,7 +293,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     }
   }
 
-  const nombreProductoMostrado = productoActivo?.producto ?? productoActivo?.nombre ?? busqueda ?? 'Seleccione un producto';
+  const nombreProductoMostrado = 
+    (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.producto ?? productoActivo?.nombre)) || 
+    busqueda || 
+    'Seleccione un producto';
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
