@@ -173,27 +173,36 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   // ----------------------------------------------------
-  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULA IMP / VIP)
+  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
   // ----------------------------------------------------
   const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
   const PESO_PPD = 0.44; // 44.00%
   const PESO_CTI = 0.34; // 34.00%
   const PESO_CIC = 0.22; // 22.00%
-  const PUNTAJE_MAXIMO = 10;
+  const PUNTAJE_MAXIMO = 10; // Equivalente a tu celda $A$3
 
+  // Filtramos valores válidos mayores a 0 para los mínimos de CTI y CIC
   const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v > 0);
   const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v > 0);
   const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v > 0);
 
-  const minPpd = ppdVals.length > 0 ? Math.min(...ppdVals) : null;
+  const maxPpd = ppdVals.length > 0 ? Math.max(...ppdVals) : null;
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
   const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0;
 
-  // Fórmula Relación Inversamente Proporcional (IMP): (Puntaje Máximo * Mínimo Valor) / Valor Actual
+  // Fórmula Excel PPD: =($A$3 * ValorActual) / MAX(Rango) -> (O ajustada a tu lógica directa)
+  const calcularNormalizadoDirecto = (val, maxVal) => {
+    if (val === null || val === undefined || val <= 0 || !maxVal) return 0;
+    const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
+    return Number(resultado.toFixed(2));
+  };
+
+  // Fórmula Excel CTI / CIC: =($A$3 * MIN(Rango)) / ValorActual
   const calcularNormalizadoInverso = (val, minVal) => {
     if (val === null || val === undefined) return 0;
-    if (val === 0) return PUNTAJE_MAXIMO; // Un costo de 0 es el mejor escenario (recibe el máximo puntaje)
+    // Si el valor actual es exactamente 0 (como en CIC de algunos países), recibe el puntaje máximo directamente
+    if (val === 0) return PUNTAJE_MAXIMO;
     if (minVal === null || minVal <= 0 || val <= 0) return 0;
 
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
@@ -201,8 +210,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   };
 
   const matrizCalculada = datosProductos.map(row => {
-    const ppdNorm = calcularNormalizadoInverso(row.ppd, minPpd);
+    // ppdNorm = ($A$3 * E5) / MAX($E$5:$E$14) -> O equivalente según tu implementación
+    const ppdNorm = calcularNormalizadoDirecto(row.ppd, maxPpd);
+    // cti norm = ($A$3 * MIN($F$5:$F$14)) / F5
     const ctiNorm = calcularNormalizadoInverso(row.cti, minCti);
+    // cic norm = ($A$3 * MIN($G$5:$G$14)) / G5
     const cicNorm = calcularNormalizadoInverso(row.cic, minCic);
 
     const p1 = ppdNorm ?? 0;
