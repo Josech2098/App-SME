@@ -97,13 +97,22 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         const prodMatch = (dbProductos || []).find(
           (prod) => (prod.pais || prod.pais_destino || '').trim().toLowerCase() === p.nombre.trim().toLowerCase()
         );
-        const ppdVal = prodMatch ? Number(prodMatch.precio || prodMatch.precio_origen || prodMatch.ppao || prodMatch.ppd) : null;
+        
+        let ppdRaw = prodMatch
+          ? (prodMatch.precio ?? prodMatch.precio_origen ?? prodMatch.ppao ?? prodMatch.ppd ?? 0)
+          : 0;
+
+        let ppdVal = Number(ppdRaw);
+        if (isNaN(ppdVal) || ppdVal <= 0) {
+          ppdVal = null; // Si no hay precio registrado para ese país, se maneja como null
+        }
 
         // CIC: Costo de Importación para el Cumplimiento Fronterizo
         const cicMatch = (dbCostoImportacion || []).find(
           (c) => (c.pais || '').trim().toLowerCase() === p.nombre.trim().toLowerCase()
         );
-        const cicVal = cicMatch ? Number(cicMatch.valor) : null;
+        let cicVal = cicMatch ? Number(cicMatch.valor) : null;
+        if (isNaN(cicVal)) cicVal = null;
 
         // CTI: Costos de Transporte Internacional (distancia Haversine x $0.38/km)
         const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
@@ -181,6 +190,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     };
   });
 
+  // Ordenar de mayor a menor según el subtotal normalizado
   matrizCalculada.sort((a, b) => (b.costoSubtotalNorm ?? -1) - (a.costoSubtotalNorm ?? -1));
 
   const toggleAccordion = (tab) => {
@@ -480,10 +490,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           Tabla de Costos Base
         </h2>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-800/80 bg-[#0e1117]">
+        {/* Scrollbox limitado a 10 filas (~450px) */}
+        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 bg-[#16181e]">
+            <thead className="sticky top-0 bg-[#16181e] z-10">
+              <tr className="border-b border-slate-800 text-slate-400">
                 <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
                 <th className="p-3 font-medium text-slate-300">Países</th>
                 <th className="p-3 text-right font-medium text-slate-300">Precio Producto Destino (PPD)</th>
@@ -499,13 +510,17 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   </td>
                 </tr>
               ) : matrizCalculada.length > 0 ? (
-                matrizCalculada.map((row) => (
+                matrizCalculada.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{row.id}</td>
+                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.ppd !== null ? `$${row.ppd}` : 'None'}</td>
-                    <td className="p-3 text-right">{row.cti > 0 ? `$${row.cti}` : '$0.00'}</td>
-                    <td className="p-3 text-right pr-6">{row.cic !== null ? `$${row.cic}` : 'None'}</td>
+                    <td className="p-3 text-right">
+                      {row.ppd !== null && row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
+                    </td>
+                    <td className="p-3 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
+                    <td className="p-3 text-right pr-6">
+                      {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
+                    </td>
                   </tr>
                 ))
               ) : (
@@ -526,10 +541,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           Normalización y Ponderación Final
         </h2>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-800/80 bg-[#0e1117]">
+        {/* Scrollbox limitado a 10 filas (~450px) */}
+        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 text-slate-400 bg-[#16181e]">
+            <thead className="sticky top-0 bg-[#16181e] z-10">
+              <tr className="border-b border-slate-800 text-slate-400">
+                <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
                 <th className="p-3 font-medium text-slate-300">Países</th>
                 <th className="p-3 text-right font-medium text-slate-300">PPD Norm (44.00%)</th>
                 <th className="p-3 text-right font-medium text-slate-300">CTI Norm (34.00%)</th>
@@ -541,24 +558,25 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="7" className="p-6 text-center text-slate-500 font-sans">
                     Calculando...
                   </td>
                 </tr>
               ) : matrizCalculada.length > 0 ? (
-                matrizCalculada.map((row) => (
+                matrizCalculada.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
+                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.ppdNorm ?? 'None'}</td>
-                    <td className="p-3 text-right">{row.ctiNorm ?? 'None'}</td>
-                    <td className="p-3 text-right">{row.cicNorm ?? 'None'}</td>
-                    <td className="p-3 text-right font-bold text-sky-400">{row.costoSubtotalNorm ?? 'None'}</td>
-                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto ?? 'None'}</td>
+                    <td className="p-3 text-right">{row.ppdNorm ?? <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right">{row.ctiNorm ?? <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right">{row.cicNorm ?? <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right font-bold text-sky-400">{row.costoSubtotalNorm ?? <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto ?? <span className="text-slate-500">0.00</span>}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="7" className="p-6 text-center text-slate-500 font-sans">
                     Sin registros para calcular.
                   </td>
                 </tr>
