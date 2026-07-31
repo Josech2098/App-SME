@@ -29,7 +29,7 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- Helper: Limpiar precios en formato string como "8,97 €" o "No encontrado" ---
+// --- Helper: Limpiar precios en formato string como "8,97 €", "$120.00" o "No encontrado" ---
 function limpiarPrecio(val) {
   if (val === null || val === undefined) return 0;
   if (typeof val === 'number') return val;
@@ -85,8 +85,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
     try {
       console.log("=== [TabCosto] INICIO CARGAR Y CALCULAR MATRIZ ===");
-      console.log("productoActivo recibido:", productoActivo);
-      console.log("busqueda recibido:", busqueda);
 
       // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
@@ -105,39 +103,51 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       console.log("Total de productos obtenidos de Supabase:", dbProds?.length);
 
-      // Determinar el nombre del producto que buscamos
+      // Determinar el nombre del producto buscado de forma segura
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
       } else if (productoActivo && typeof productoActivo === 'object') {
-        nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? '';
+        nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
       }
       if (!nombreProductoBuscado) {
         nombreProductoBuscado = busqueda ?? '';
       }
 
-      const queryLimpia = nombreProductoBuscado.trim().toLowerCase();
+      const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       console.log("Buscando coincidencia para el producto:", queryLimpia);
 
       let mapaPreciosPorPais = {};
 
       if (dbProds && queryLimpia) {
         dbProds.forEach(item => {
-          const nombreProd = item.nombre || item.producto || '';
+          // Evaluar todas las variantes posibles de nombre de producto en la tabla
+          const nombreProd = item.nombre || item.producto || item.titulo || item.title || item.descripcion || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
 
-          // Comprobación flexible compatible con TablaProductos
+          // Coincidencia flexible
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
-            const paisItem = item.pais || item.Pais;
+            
+            // Evaluar variantes posibles de país (texto o ID relacionado)
+            let paisItem = item.pais || item.Pais || item.country || item.paises;
+            
+            if (!paisItem && item.pais_id && dbPaises) {
+              const paisObjEncontrado = dbPaises.find(p => p.id === item.pais_id);
+              if (paisObjEncontrado) paisItem = paisObjEncontrado.nombre;
+            }
+
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
               
-              // CORRECCIÓN CLAVE: Se lee primero la columna 'precios' como está en tu BD
-              const precioRaw = item.precios ?? item.precio ?? item.Precio;
+              // Evaluar todas las variantes posibles de la columna precio
+              const precioRaw = item.precios ?? item.precio ?? item.Precio ?? item.valor ?? item.costo ?? item.monto;
               const precioLim = limpiarPrecio(precioRaw);
               
-              mapaPreciosPorPais[nombrePaisKey] = precioLim;
-              console.log(`[Match TabCosto] País: ${paisItem} | Producto: ${nombreProd} | Precio: ${precioLim}`);
+              // Si hay múltiples entradas, nos quedamos con el valor válido mayor o el último encontrado
+              if (precioLim > 0 || !mapaPreciosPorPais[nombrePaisKey]) {
+                mapaPreciosPorPais[nombrePaisKey] = precioLim;
+              }
+              console.log(`[Match TabCosto] País: ${paisItem} | Producto: ${nombreProd} | Precio Raw: ${precioRaw} | Precio Limpio: ${precioLim}`);
             }
           }
         });
@@ -158,9 +168,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
 
         const cicMatch = (dbCostoImportacion || []).find(
-          (c) => String(c.pais || '').trim().toLowerCase() === nombreKey
+          (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
         );
-        let cicVal = cicMatch ? Number(cicMatch.valor) : null;
+        let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
         if (isNaN(cicVal)) cicVal = null;
 
         const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
@@ -320,7 +330,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   const nombreProductoMostrado = 
-    (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto)) || 
+    (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
     busqueda || 
     'Seleccione un producto';
 
