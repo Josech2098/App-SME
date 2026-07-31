@@ -4,13 +4,14 @@ import TablaProductos from './components/TabProductos';
 import TabCosto from './components/TabCosto';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState(0); // 0 = Productos por defecto
+  const [activeTab, setActiveTab] = useState(0);
 
   // ----------------------------------------------------
-  // ESTADOS GLOBALES DE PRODUCTO Y PAÍSES DESTINO
+  // ESTADOS GLOBALES DE PRODUCTO, PAÍSES Y ORIGEN
   // ----------------------------------------------------
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [paisesDestino, setPaisesDestino] = useState([]);
+  const [paisOrigen, setPaisOrigen] = useState('España'); // Por defecto
 
   // Filtros de la barra lateral
   const [categoria, setCategoria] = useState('Todos');
@@ -19,26 +20,32 @@ export default function App() {
   const [searchCodigo, setSearchCodigo] = useState('');
   const [searchSubcodigo, setSearchSubcodigo] = useState('');
 
-  // Estados para cargar categorías y subcategorías desde Supabase
+  // Listas desde Supabase
   const [listaCategorias, setListaCategorias] = useState([]);
   const [listaSubcategorias, setListaSubcategorias] = useState([]);
+  const [listaPaisesOrigen, setListaPaisesOrigen] = useState([]);
 
-  // 1. Cargar la lista completa de categorías desde Supabase
+  // 1. Cargar Categorías y Países para el Origen
   useEffect(() => {
-    async function fetchCategorias() {
-      const { data, error } = await supabase
+    async function fetchIniciales() {
+      // Categorías
+      const { data: catData } = await supabase
         .from('categorias')
         .select('*')
         .order('codigo');
+      if (catData) setListaCategorias(catData);
 
-      if (!error && data) {
-        setListaCategorias(data);
-      }
+      // Países para el origen
+      const { data: paisesData } = await supabase
+        .from('paises')
+        .select('*')
+        .order('nombre');
+      if (paisesData) setListaPaisesOrigen(paisesData);
     }
-    fetchCategorias();
+    fetchIniciales();
   }, []);
 
-  // 2. Cargar dinámicamente las subcategorías según la categoría seleccionada
+  // 2. Cargar Subcategorías
   useEffect(() => {
     async function fetchSubcategorias() {
       if (categoria === 'Todos') {
@@ -47,17 +54,14 @@ export default function App() {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('subcategorias')
         .select('*')
         .eq('categoria_codigo', categoria)
         .order('codigo');
 
-      if (!error && data) {
-        setListaSubcategorias(data);
-      } else {
-        setListaSubcategorias([]);
-      }
+      if (data) setListaSubcategorias(data);
+      else setListaSubcategorias([]);
       
       setSubcategoria('Todos');
     }
@@ -83,13 +87,29 @@ export default function App() {
       {/* ---------------- BARRA LATERAL (SIDEBAR) ---------------- */}
       <aside className="w-80 bg-[#262730]/40 border-r border-[#262730] p-6 flex flex-col gap-6 shrink-0">
         
-        {/* Banner de Usuario y Origen */}
+        {/* Banner de Usuario y Selector de Origen */}
         <div className="space-y-2">
           <div className="bg-[#2e4d3a] border border-[#3e6b4f] text-[#a1e8bc] px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm">
             Usuario: admin (admin)
           </div>
-          <div className="bg-[#1e2028] border border-red-500/30 text-red-400 px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2">
-            <span>🇪🇸</span> Origen de Exportación: España
+
+          {/* SELECTOR DINÁMICO DE PAÍS DE ORIGEN */}
+          <div className="bg-[#1e2028] border border-red-500/30 p-2.5 rounded-lg text-xs space-y-1">
+            <label className="text-red-400 font-semibold block">
+              🌐 Origen de Exportación:
+            </label>
+            <select
+              value={paisOrigen}
+              onChange={(e) => setPaisOrigen(e.target.value)}
+              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+            >
+              <option value="España">🇪🇸 España</option>
+              {listaPaisesOrigen.filter(p => p.nombre !== 'España').map((p) => (
+                <option key={p.id || p.nombre} value={p.nombre}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -113,7 +133,6 @@ export default function App() {
         <div className="space-y-4 pt-2">
           <h2 className="text-base font-bold text-slate-100">Filtros de búsqueda</h2>
 
-          {/* Selector de Categoría */}
           <div className="space-y-1.5">
             <label className="block text-xs text-slate-300">Selecciona una categoría</label>
             <select 
@@ -130,7 +149,6 @@ export default function App() {
             </select>
           </div>
 
-          {/* Selector de Subcategoría */}
           <div className="space-y-1.5">
             <label className="block text-xs text-slate-300">Selecciona una subcategoría</label>
             <select 
@@ -190,7 +208,6 @@ export default function App() {
       {/* ---------------- ÁREA PRINCIPAL ---------------- */}
       <main className="flex-1 p-8 overflow-y-auto">
         
-        {/* Título Principal */}
         <h1 className="text-3xl font-bold text-white mb-6 tracking-tight">
           Aplicativo Selección de Mercados Internacionales
         </h1>
@@ -217,7 +234,6 @@ export default function App() {
 
         {/* Contenido Dinámico */}
         <div>
-          {/* 📦 TAB 0: PRODUCTOS */}
           {activeTab === 0 && (
             <TablaProductos 
               productoSeleccionado={productoSeleccionado}
@@ -232,7 +248,6 @@ export default function App() {
             />
           )}
 
-          {/* 💵 TAB 1: COSTO (COST) */}
           {activeTab === 1 && (
             <TabCosto 
               productoActivo={productoSeleccionado}
@@ -240,10 +255,10 @@ export default function App() {
               categoria={categoria}
               subcategoria={subcategoria}
               busqueda={searchNombre || searchCodigo || searchSubcodigo}
+              paisOrigen={paisOrigen}
             />
           )}
 
-          {/* ⚙️ DEMÁS TABS */}
           {activeTab > 1 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
@@ -252,7 +267,7 @@ export default function App() {
               <div className="bg-[#1c2c3d] border border-[#2b4259] text-[#71b1ea] px-4 py-3 rounded flex items-center gap-2 text-sm">
                 <span>ℹ️</span>
                 <span>
-                  Sección en desarrollo. Evaluando datos exportables desde España para{' '}
+                  Sección en desarrollo. Evaluando datos exportables desde {paisOrigen} para{' '}
                   <strong className="text-white">
                     {productoSeleccionado ? productoSeleccionado.nombre : 'Producto sin seleccionar'}
                   </strong>.

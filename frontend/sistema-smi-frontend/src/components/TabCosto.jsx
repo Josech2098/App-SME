@@ -1,84 +1,88 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-export default function TabCosto({ categoria, subcategoria, productoActivo, busqueda }) {
-  const [datosCostos, setDatosCostos] = useState([]);
+export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen }) {
+  const [datosProductos, setDatosProductos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorLog, setErrorLog] = useState(null);
 
-  // Formularios de edición
+  // Estados para la sección de edición rápida
   const [activeAccordion, setActiveAccordion] = useState(null);
-  const [selectedCostId, setSelectedCostId] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [ppaoEdit, setPpaoEdit] = useState('');
   const [intcEdit, setIntcEdit] = useState('');
   const [cebcEdit, setCebcEdit] = useState('');
 
-  // Reejecutar cada vez que cambien los filtros del Sidebar
+  // Reejecutar consulta al cambiar cualquier filtro del Sidebar
   useEffect(() => {
-    cargarDatosSegunSidebar();
-  }, [categoria, subcategoria, productoActivo, busqueda]);
+    cargarProductosDesdeBD();
+  }, [productoActivo, categoria, subcategoria, busqueda, paisOrigen]);
 
-  async function cargarDatosSegunSidebar() {
+  async function cargarProductosDesdeBD() {
     setLoading(true);
-    try {
-      // 1. Obtener todos los costos junto a sus datos relacionales
-      let query = supabase
-        .from('producto_pais_costos')
-        .select(`
-          *,
-          productos ( id, nombre, codigo, categoria_id, subcategoria_id ),
-          paises ( id, nombre )
-        `);
+    setErrorLog(null);
 
-      // Si hay un producto específico seleccionado en el Sidebar
+    try {
+      // Consulta directa a la tabla "productos"
+      let query = supabase.from('productos').select('*');
+
+      // 1. Si hay un producto específico seleccionado en el sidebar
       if (productoActivo && productoActivo.id) {
-        query = query.eq('producto_id', productoActivo.id);
+        query = query.eq('id', productoActivo.id);
       }
 
       const { data, error } = await query;
 
-      if (error) {
-        console.error("Error al consultar costos:", error.message);
-        setDatosCostos([]);
-      } else if (data) {
-        // 2. Si el Sidebar está en "Todos", aplicamos filtros adicionales en JS si se especificaron
+      if (error) throw error;
+
+      if (data) {
         let filtrados = data;
 
+        // 2. Si el sidebar está en "Todos", aplicamos filtros adicionales si corresponden
         if (!productoActivo || !productoActivo.id) {
           if (categoria && categoria !== 'Todos') {
-            filtrados = filtrados.filter(item => item.productos?.categoria_id === categoria);
+            filtrados = filtrados.filter(item => item.categoria_codigo === categoria || item.categoria_id === categoria);
           }
           if (subcategoria && subcategoria !== 'Todos') {
-            filtrados = filtrados.filter(item => item.productos?.subcategoria_id === subcategoria);
+            filtrados = filtrados.filter(item => item.subcategoria_codigo === subcategoria || item.subcategoria_id === subcategoria);
           }
           if (busqueda && busqueda.trim() !== '') {
-            const queryLower = busqueda.toLowerCase();
-            filtrados = filtrados.filter(item => 
-              item.productos?.nombre?.toLowerCase().includes(queryLower) ||
-              item.productos?.codigo?.toLowerCase().includes(queryLower)
+            const q = busqueda.toLowerCase();
+            filtrados = filtrados.filter(item =>
+              (item.nombre && item.nombre.toLowerCase().includes(q)) ||
+              (item.codigo && String(item.codigo).toLowerCase().includes(q)) ||
+              (item.pais || item.pais_destino || '').toLowerCase().includes(q)
             );
           }
         }
 
-        setDatosCostos(filtrados);
+        setDatosProductos(filtrados);
       }
     } catch (err) {
-      console.error("Error inesperado en TabCosto:", err);
+      console.error("Error al cargar productos:", err);
+      setErrorLog(err.message || "Error al conectar con la tabla productos");
     } finally {
       setLoading(false);
     }
   }
 
   // ----------------------------------------------------
-  // FÓRMULAS Y PONDERACIONES AUTOMÁTICAS
+  // FÓRMULAS Y NORMALIZACIÓN AUTOMÁTICA
   // ----------------------------------------------------
   const PESO_PPAO = 0.44;
   const PESO_INTC = 0.34;
   const PESO_CEBC = 0.22;
   const A3 = 10;
 
-  const ppaoVals = datosCostos.map(c => Number(c.precio_origen)).filter(v => v > 0);
-  const intcVals = datosCostos.map(c => Number(c.impuesto_importación || c.costo_transporte)).filter(v => v > 0);
-  const cebcVals = datosCostos.map(c => Number(c.costo_embalaje || c.cumplimiento)).filter(v => v > 0);
+  // Extraer valores numéricos flexibles identificando los nombres de columnas habituales
+  const getPpao = (row) => Number(row.precio_origen || row.ppao || row.precio) || null;
+  const getIntc = (row) => Number(row.costo_transporte || row.impuesto_importacion || row.intc) || null;
+  const getCebc = (row) => Number(row.cumplimiento || row.costo_embalaje || row.cebc) || null;
+  const getPaisNombre = (row) => row.pais_destino || row.pais || row.destino || 'No especificado';
+
+  const ppaoVals = datosProductos.map(getPpao).filter(v => v > 0);
+  const intcVals = datosProductos.map(getIntc).filter(v => v > 0);
+  const cebcVals = datosProductos.map(getCebc).filter(v => v > 0);
 
   const minPpao = ppaoVals.length > 0 ? Math.min(...ppaoVals) : null;
   const minIntc = intcVals.length > 0 ? Math.min(...intcVals) : null;
@@ -89,10 +93,10 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
     return Number((A3 * (minVal / val)).toFixed(2));
   };
 
-  const matrizCalculada = datosCostos.map(row => {
-    const ppao = Number(row.precio_origen) || null;
-    const intc = Number(row.impuesto_importación || row.costo_transporte) || null;
-    const cebc = Number(row.costo_embalaje || row.cumplimiento) || null;
+  const matrizCalculada = datosProductos.map(row => {
+    const ppao = getPpao(row);
+    const intc = getIntc(row);
+    const cebc = getCebc(row);
 
     const ppaoNorm = calcularNormalizado(ppao, minPpao);
     const intcNorm = calcularNormalizado(intc, minIntc);
@@ -112,43 +116,52 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
       ppaoNorm,
       intcNorm,
       cebcNorm,
-      costoTotalNorm
+      costoTotalNorm,
+      pais_nombre: getPaisNombre(row)
     };
   });
 
   matrizCalculada.sort((a, b) => a.costoTotalNorm - b.costoTotalNorm);
 
   // ----------------------------------------------------
-  // EDICIÓN / GUARDADO EN BD
+  // GUARDAR EDICIONES EN LA TABLA PRODUCTOS
   // ----------------------------------------------------
   const handleSelectEdit = (id) => {
-    setSelectedCostId(id);
-    const target = datosCostos.find(c => c.id === parseInt(id));
+    setSelectedProductId(id);
+    const target = datosProductos.find(p => p.id === parseInt(id) || p.id === id);
     if (target) {
-      setPpaoEdit(target.precio_origen || '');
-      setIntcEdit(target.impuesto_importación || target.costo_transporte || '');
-      setCebcEdit(target.costo_embalaje || target.cumplimiento || '');
+      setPpaoEdit(getPpao(target) || '');
+      setIntcEdit(getIntc(target) || '');
+      setCebcEdit(getCebc(target) || '');
     }
   };
 
   async function handleGuardarCambios() {
-    if (!selectedCostId) return alert("Selecciona un registro para editar.");
+    if (!selectedProductId) return alert("Selecciona un registro para editar.");
+
+    // Detectar qué nombres de columna existen para actualizar correctamente
+    const sample = datosProductos[0] || {};
+    const colPpao = 'precio_origen' in sample ? 'precio_origen' : ('ppao' in sample ? 'ppao' : 'precio');
+    const colIntc = 'costo_transporte' in sample ? 'costo_transporte' : ('intc' in sample ? 'intc' : 'impuesto_importacion');
+    const colCebc = 'cumplimiento' in sample ? 'cumplimiento' : ('cebc' in sample ? 'cebc' : 'costo_embalaje');
+
+    const updateData = {
+      [colPpao]: parseFloat(ppaoEdit) || 0,
+      [colIntc]: parseFloat(intcEdit) || 0,
+      [colCebc]: parseFloat(cebcEdit) || 0
+    };
 
     const { error } = await supabase
-      .from('producto_pais_costos')
-      .update({
-        precio_origen: parseFloat(ppaoEdit) || 0,
-        impuesto_importación: parseFloat(intcEdit) || 0,
-        costo_embalaje: parseFloat(cebcEdit) || 0
-      })
-      .eq('id', selectedCostId);
+      .from('productos')
+      .update(updateData)
+      .eq('id', selectedProductId);
 
     if (error) {
       alert("Error al actualizar: " + error.message);
     } else {
-      setSelectedCostId(''); setPpaoEdit(''); setIntcEdit(''); setCebcEdit('');
+      setSelectedProductId(''); setPpaoEdit(''); setIntcEdit(''); setCebcEdit('');
       setActiveAccordion(null);
-      cargarDatosSegunSidebar();
+      cargarProductosDesdeBD();
     }
   }
 
@@ -157,11 +170,11 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
   return (
     <div className="space-y-6 text-slate-100">
       
-      {/* Indicador de Filtro */}
+      {/* Banner de Estado */}
       <div className="bg-[#181a20] border border-red-500/30 p-4 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
-            Origen de Exportación: España 🇪🇸
+            Origen de Exportación: {paisOrigen || 'España'} 🇪🇸
           </span>
           <h3 className="text-lg font-bold text-white">
             {modoTodos 
@@ -169,16 +182,22 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
               : `Producto Filtrado: ${productoActivo.nombre}`}
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Procesando automáticamente <strong className="text-emerald-400">{datosCostos.length}</strong> registro(s) según los filtros del menú lateral.
+            Procesando automáticamente <strong className="text-emerald-400">{datosProductos.length}</strong> registro(s) desde la tabla <code className="text-amber-400">productos</code>.
           </p>
         </div>
       </div>
+
+      {errorLog && (
+        <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs">
+          ⚠️ <strong>Error en BD:</strong> {errorLog}
+        </div>
+      )}
 
       <h2 className="text-xl font-bold text-white tracking-tight">
         1. Costo (COST) — Estandarización y Cálculo Automático
       </h2>
 
-      {/* Control Desplegable */}
+      {/* Accordion Edición */}
       <div className="space-y-3">
         <button
           onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
@@ -193,22 +212,22 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
 
         {activeAccordion === 'edit' && (
           <div className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold text-amber-400 uppercase">Modificar Valores</h4>
+            <h4 className="text-xs font-bold text-amber-400 uppercase">Modificar Valores del Producto</h4>
             <div className="space-y-3">
               <select
                 onChange={(e) => handleSelectEdit(e.target.value)}
-                value={selectedCostId}
+                value={selectedProductId}
                 className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
               >
                 <option value="">-- Selecciona un registro --</option>
-                {datosCostos.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.productos?.nombre || 'Producto'} ➔ {c.paises?.nombre || 'País'}
+                {datosProductos.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre || `Producto #${p.id}`} (País: {getPaisNombre(p)})
                   </option>
                 ))}
               </select>
 
-              {selectedCostId && (
+              {selectedProductId && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                   <div>
                     <label className="text-slate-400 block mb-1">Precio Origen (PPAO)</label>
@@ -271,14 +290,14 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
               {loading ? (
                 <tr>
                   <td colSpan="5" className="p-4 text-center text-slate-500 animate-pulse">
-                    Consultando productos en la base de datos...
+                    Consultando tabla productos en Supabase...
                   </td>
                 </tr>
               ) : matrizCalculada.length > 0 ? (
                 matrizCalculada.map((row) => (
                   <tr key={row.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                    <td className="p-3 font-medium text-amber-300">{row.productos?.nombre || '—'}</td>
-                    <td className="p-3 font-medium text-white">{row.paises?.nombre || '—'}</td>
+                    <td className="p-3 font-medium text-amber-300">{row.nombre || `Producto #${row.id}`}</td>
+                    <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 font-mono">{row.ppao ?? '—'}</td>
                     <td className="p-3 font-mono">{row.intc ?? '—'}</td>
                     <td className="p-3 font-mono">{row.cebc ?? '—'}</td>
@@ -287,7 +306,7 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
               ) : (
                 <tr>
                   <td colSpan="5" className="p-4 text-center text-slate-500">
-                    No hay registros de costos para los criterios/filtros aplicados.
+                    No se encontraron registros en la tabla <code className="text-amber-400">productos</code>.
                   </td>
                 </tr>
               )}
@@ -318,14 +337,14 @@ export default function TabCosto({ categoria, subcategoria, productoActivo, busq
               {loading ? (
                 <tr>
                   <td colSpan="6" className="p-4 text-center text-slate-500 animate-pulse">
-                    Calculando ponderaciones...
+                    Calculando matriz...
                   </td>
                 </tr>
               ) : matrizCalculada.length > 0 ? (
                 matrizCalculada.map((row) => (
                   <tr key={row.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                    <td className="p-3 font-medium text-amber-300">{row.productos?.nombre || '—'}</td>
-                    <td className="p-3 font-medium text-white">{row.paises?.nombre || '—'}</td>
+                    <td className="p-3 font-medium text-amber-300">{row.nombre || `Producto #${row.id}`}</td>
+                    <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 font-mono">{row.ppaoNorm ?? '—'}</td>
                     <td className="p-3 font-mono">{row.intcNorm ?? '—'}</td>
                     <td className="p-3 font-mono">{row.cebcNorm ?? '—'}</td>
