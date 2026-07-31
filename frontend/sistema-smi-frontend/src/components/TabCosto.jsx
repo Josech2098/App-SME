@@ -131,7 +131,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             const paisItem = item.pais || item.Pais;
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
-              const precioRaw = item.precio ?? item.Precio;
+              
+              // CORRECCIÓN CLAVE: Se lee primero la columna 'precios' como está en tu BD
+              const precioRaw = item.precios ?? item.precio ?? item.Precio;
               const precioLim = limpiarPrecio(precioRaw);
               
               mapaPreciosPorPais[nombrePaisKey] = precioLim;
