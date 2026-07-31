@@ -72,18 +72,24 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setErrorLog(null);
 
     try {
+      // 1. Cargar datos de países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
 
+      // 2. Cargar costos de importación
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) throw errCIC;
 
-      let queryProductos = supabase.from('productos').select('*');
-      if (productoActivo && productoActivo.id) {
-        queryProductos = queryProductos.eq('id', productoActivo.id);
+      // 3. Extraer el precio directo del producto activo (de la primera pestaña / prop)
+      let ppdBaseVal = 0;
+      if (productoActivo) {
+        // Busca cualquier variante común para el precio enviado desde la primera pestaña
+        const rawPrecio = productoActivo.precio ?? productoActivo.precio_usd ?? productoActivo.precio_base ?? productoActivo.ppd ?? 0;
+        const parsedPpd = Number(rawPrecio);
+        if (!isNaN(parsedPpd) && parsedPpd > 0) {
+          ppdBaseVal = parsedPpd;
+        }
       }
-      const { data: dbProductos, error: errProd } = await queryProductos;
-      if (errProd) throw errProd;
 
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
@@ -93,19 +99,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const lonBase = objetoPaisBase?.longitud;
 
       const datosConsolidados = dbPaises.map((p) => {
-        // PPD: Precio del Producto en Destino
-        const prodMatch = (dbProductos || []).find(
-          (prod) => (prod.pais || prod.pais_destino || '').trim().toLowerCase() === p.nombre.trim().toLowerCase()
-        );
-        
-        let ppdRaw = prodMatch
-          ? (prodMatch.precio ?? prodMatch.precio_origen ?? prodMatch.ppao ?? prodMatch.ppd ?? 0)
-          : 0;
-
-        let ppdVal = Number(ppdRaw);
-        if (isNaN(ppdVal) || ppdVal <= 0) {
-          ppdVal = null; // Si no hay precio registrado para ese país, se maneja como null
-        }
+        // El PPD asigna el precio del producto activo seleccionado en la 1er pestaña
+        const ppdVal = ppdBaseVal > 0 ? ppdBaseVal : null;
 
         // CIC: Costo de Importación para el Cumplimiento Fronterizo
         const cicMatch = (dbCostoImportacion || []).find(
@@ -170,7 +165,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const p2 = ctiNorm ?? 0;
     const p3 = cicNorm ?? 0;
 
-    // Subtotal normalizado de la subtabla (escala 0-10)
+    // Subtotal normalizado (escala 0-10)
     const costoSubtotalNorm = (ppdNorm !== null || ctiNorm !== null || cicNorm !== null)
       ? Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2))
       : null;
@@ -285,6 +280,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">21.50%</span>
+            {productoActivo?.nombre && (
+              <span className="ml-3 text-slate-300">
+                • Producto Seleccionado: <strong className="text-sky-400">{productoActivo.nombre}</strong>
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -490,7 +490,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           Tabla de Costos Base
         </h2>
 
-        {/* Scrollbox limitado a 10 filas (~450px) */}
+        {/* Contenedor con Scroll de max-h-[450px] (~10 filas) */}
         <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#16181e] z-10">
@@ -541,7 +541,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           Normalización y Ponderación Final
         </h2>
 
-        {/* Scrollbox limitado a 10 filas (~450px) */}
+        {/* Contenedor con Scroll de max-h-[450px] (~10 filas) */}
         <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#16181e] z-10">
