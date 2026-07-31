@@ -29,7 +29,7 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- Helper: Limpiar el formato del precio en la columna 'precio' ---
+// --- Helper: Limpiar precios en formato string como "8,97 €", "$120.00" o "No encontrado" ---
 function limpiarPrecio(val) {
   if (val === null || val === undefined) return 0;
   if (typeof val === 'number') return val;
@@ -84,6 +84,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setErrorLog(null);
 
     try {
+      console.log("=== [TabCosto] INICIO CARGAR Y CALCULAR MATRIZ ===");
+
       // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
@@ -92,13 +94,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) console.warn("Aviso en CIC:", errCIC);
 
-      // 3. Obtener registros de la tabla 'productos'
+      // 3. Obtener todos los productos de la tabla 'productos'
       const { data: dbProds, error: errProds } = await supabase
         .from('productos')
         .select('*');
 
       if (errProds) throw errProds;
 
+      console.log("Total de productos obtenidos de Supabase:", dbProds?.length);
+
+      // Determinar el nombre del producto buscado de forma segura
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
@@ -110,15 +115,21 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       }
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
+      console.log("Buscando coincidencia para el producto:", queryLimpia);
+
       let mapaPreciosPorPais = {};
 
       if (dbProds && queryLimpia) {
         dbProds.forEach(item => {
-          const nombreProd = item.nombre || item.producto || item.titulo || '';
+          // Evaluar todas las variantes posibles de nombre de producto en la tabla
+          const nombreProd = item.nombre || item.producto || item.titulo || item.title || item.descripcion || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
 
+          // Coincidencia flexible
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
-            let paisItem = item.pais || item.Pais;
+            
+            // Evaluar variantes posibles de país (texto o ID relacionado)
+            let paisItem = item.pais || item.Pais || item.country || item.paises;
             
             if (!paisItem && item.pais_id && dbPaises) {
               const paisObjEncontrado = dbPaises.find(p => p.id === item.pais_id);
@@ -128,17 +139,21 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
               
-              // >>> AQUÍ SE USA ÚNICAMENTE LA COLUMNA 'precio' <<<
-              const precioRaw = item.precio;
+              // Evaluar todas las variantes posibles de la columna precio
+              const precioRaw = item.precios ?? item.precio ?? item.Precio ?? item.valor ?? item.costo ?? item.monto;
               const precioLim = limpiarPrecio(precioRaw);
               
+              // Si hay múltiples entradas, nos quedamos con el valor válido mayor o el último encontrado
               if (precioLim > 0 || !mapaPreciosPorPais[nombrePaisKey]) {
                 mapaPreciosPorPais[nombrePaisKey] = precioLim;
               }
+              console.log(`[Match TabCosto] País: ${paisItem} | Producto: ${nombreProd} | Precio Raw: ${precioRaw} | Precio Limpio: ${precioLim}`);
             }
           }
         });
       }
+
+      console.log("Mapa final de precios por país:", mapaPreciosPorPais);
 
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
