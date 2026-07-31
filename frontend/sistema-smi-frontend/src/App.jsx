@@ -235,19 +235,11 @@ export default function App() {
           {/* 💵 TAB 1: COSTO (COST) */}
           {activeTab === 1 && (
             <TabCosto 
-              productoSeleccionado={productoSeleccionado}
+              productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               categoria={categoria}
               subcategoria={subcategoria}
-            />
-          )}
-          {/* 💵 TAB 2: COSTO (COST) */}
-          {activeTab === 1 && (
-            <TabCosto 
-              categoria={categoriaSeleccionada}
-              subcategoria={subcategoriaSeleccionada}
-              productoActivo={productoSeleccionado}
-              busqueda={busquedaNombre}
+              busqueda={searchNombre || searchCodigo || searchSubcodigo}
             />
           )}
 
