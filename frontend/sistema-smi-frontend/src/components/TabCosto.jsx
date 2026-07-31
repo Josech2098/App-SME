@@ -84,14 +84,28 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setErrorLog(null);
 
     try {
+      console.log("=== INICIO CARGAR Y CALCULAR MATRIZ ===");
       console.log("productoActivo recibido:", productoActivo);
+      console.log("busqueda recibido:", busqueda);
 
+      // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
 
+      // 2. Obtener costos de importación (CIC)
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
-      if (errCIC) throw errCIC;
+      if (errCIC) console.warn("Aviso en CIC:", errCIC);
 
+      // 3. Obtener todos los productos para hacer el match exacto o parcial en JavaScript de forma robusta
+      const { data: dbProds, error: errProds } = await supabase
+        .from('productos')
+        .select('pais, precio, producto');
+
+      if (errProds) throw errProds;
+
+      console.log("Total de productos obtenidos de Supabase:", dbProds?.length);
+
+      // Determinar el nombre del producto que buscamos
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
@@ -102,23 +116,26 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = busqueda ?? '';
       }
 
+      const queryLimpia = nombreProductoBuscado.trim().toLowerCase();
+      console.log("Buscando coincidencia para:", queryLimpia);
+
       let mapaPreciosPorPais = {};
 
-      if (nombreProductoBuscado) {
-        const { data: dbProds, error: errProds } = await supabase
-          .from('productos')
-          .select('pais, precio, producto')
-          .ilike('producto', `%${nombreProductoBuscado.trim()}%`);
-
-        if (!errProds && dbProds) {
-          dbProds.forEach(item => {
+      if (dbProds && queryLimpia) {
+        dbProds.forEach(item => {
+          const prodTabla = (item.producto || '').trim().toLowerCase();
+          if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
             if (item.pais) {
               const nombrePaisKey = item.pais.trim().toLowerCase();
-              mapaPreciosPorPais[nombrePaisKey] = limpiarPrecio(item.precio);
+              const precioLim = limpiarPrecio(item.precio);
+              mapaPreciosPorPais[nombrePaisKey] = precioLim;
+              console.log(`Match encontrado -> País: ${item.pais} | Precio: ${precioLim}`);
             }
-          });
-        }
+          }
+        });
       }
+
+      console.log("Mapa final de precios por país:", mapaPreciosPorPais);
 
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
@@ -127,6 +144,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
+      // 4. Consolidar datos por país
       const datosConsolidados = dbPaises.map((p) => {
         const nombreKey = p.nombre.trim().toLowerCase();
         const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
