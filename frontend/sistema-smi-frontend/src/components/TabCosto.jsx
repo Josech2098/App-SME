@@ -2,31 +2,47 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen }) {
+  const [paisBase, setPaisBase] = useState(paisOrigen || 'Colombia');
   const [datosProductos, setDatosProductos] = useState([]);
+  const [listaPaises, setListaPaises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
 
-  // Estados para la sección de edición rápida
-  const [activeAccordion, setActiveAccordion] = useState(null);
+  // Control de acordeones para la sección "Gestión de Datos"
+  const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete' | null
+
+  // Estados para CRUD
   const [selectedProductId, setSelectedProductId] = useState('');
   const [ppaoEdit, setPpaoEdit] = useState('');
   const [intcEdit, setIntcEdit] = useState('');
   const [cebcEdit, setCebcEdit] = useState('');
 
-  // Reejecutar consulta al cambiar cualquier filtro del Sidebar
+  // Sincronizar país base si cambia la prop
+  useEffect(() => {
+    if (paisOrigen) setPaisBase(paisOrigen);
+  }, [paisOrigen]);
+
+  // Cargar lista de países para el selector dinámico
+  useEffect(() => {
+    async function fetchPaises() {
+      const { data } = await supabase.from('paises').select('*').order('nombre');
+      if (data) setListaPaises(data);
+    }
+    fetchPaises();
+  }, []);
+
+  // Reejecutar consulta al cambiar cualquier filtro del Sidebar o el País Base
   useEffect(() => {
     cargarProductosDesdeBD();
-  }, [productoActivo, categoria, subcategoria, busqueda, paisOrigen]);
+  }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
 
   async function cargarProductosDesdeBD() {
     setLoading(true);
     setErrorLog(null);
 
     try {
-      // Consulta directa a la tabla "productos"
       let query = supabase.from('productos').select('*');
 
-      // 1. Si hay un producto específico seleccionado en el sidebar
       if (productoActivo && productoActivo.id) {
         query = query.eq('id', productoActivo.id);
       }
@@ -38,7 +54,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       if (data) {
         let filtrados = data;
 
-        // 2. Si el sidebar está en "Todos", aplicamos filtros adicionales si corresponden
         if (!productoActivo || !productoActivo.id) {
           if (categoria && categoria !== 'Todos') {
             filtrados = filtrados.filter(item => item.categoria_codigo === categoria || item.categoria_id === categoria);
@@ -66,80 +81,35 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     }
   }
 
-  // ----------------------------------------------------
-  // FÓRMULAS Y NORMALIZACIÓN AUTOMÁTICA
-  // ----------------------------------------------------
-  const PESO_PPAO = 0.44;
-  const PESO_INTC = 0.34;
-  const PESO_CEBC = 0.22;
-  const A3 = 10;
-
-  // Extraer valores numéricos flexibles identificando los nombres de columnas habituales
+  // Helper para extraer campos flexibles
   const getPpao = (row) => Number(row.precio_origen || row.ppao || row.precio) || null;
   const getIntc = (row) => Number(row.costo_transporte || row.impuesto_importacion || row.intc) || null;
-  const getCebc = (row) => Number(row.cumplimiento || row.costo_embalaje || row.cebc) || null;
-  const getPaisNombre = (row) => row.pais_destino || row.pais || row.destino || 'No especificado';
+  const getCebc = (row) => {
+    const val = row.cumplimiento ?? row.costo_embalaje ?? row.cebc;
+    return val !== undefined && val !== null ? val : 'None';
+  };
+  const getPaisNombre = (row) => row.pais_destino || row.pais || row.destino || 'Desconocido';
 
-  const ppaoVals = datosProductos.map(getPpao).filter(v => v > 0);
-  const intcVals = datosProductos.map(getIntc).filter(v => v > 0);
-  const cebcVals = datosProductos.map(getCebc).filter(v => v > 0);
-
-  const minPpao = ppaoVals.length > 0 ? Math.min(...ppaoVals) : null;
-  const minIntc = intcVals.length > 0 ? Math.min(...intcVals) : null;
-  const minCebc = cebcVals.length > 0 ? Math.min(...cebcVals) : null;
-
-  const calcularNormalizado = (val, minVal) => {
-    if (!val || !minVal || val <= 0 || minVal <= 0) return null;
-    return Number((A3 * (minVal / val)).toFixed(2));
+  // Manejo de acordeones
+  const toggleAccordion = (tab) => {
+    setActiveAccordion(activeAccordion === tab ? null : tab);
   };
 
-  const matrizCalculada = datosProductos.map(row => {
-    const ppao = getPpao(row);
-    const intc = getIntc(row);
-    const cebc = getCebc(row);
-
-    const ppaoNorm = calcularNormalizado(ppao, minPpao);
-    const intcNorm = calcularNormalizado(intc, minIntc);
-    const cebcNorm = calcularNormalizado(cebc, minCebc);
-
-    const p1 = ppaoNorm ?? 0;
-    const p2 = intcNorm ?? 0;
-    const p3 = cebcNorm ?? 0;
-
-    const costoTotalNorm = Number(((PESO_PPAO * p1) + (PESO_INTC * p2) + (PESO_CEBC * p3)).toFixed(2));
-
-    return {
-      ...row,
-      ppao,
-      intc,
-      cebc,
-      ppaoNorm,
-      intcNorm,
-      cebcNorm,
-      costoTotalNorm,
-      pais_nombre: getPaisNombre(row)
-    };
-  });
-
-  matrizCalculada.sort((a, b) => a.costoTotalNorm - b.costoTotalNorm);
-
-  // ----------------------------------------------------
-  // GUARDAR EDICIONES EN LA TABLA PRODUCTOS
-  // ----------------------------------------------------
+  // Edición rápida
   const handleSelectEdit = (id) => {
     setSelectedProductId(id);
     const target = datosProductos.find(p => p.id === parseInt(id) || p.id === id);
     if (target) {
       setPpaoEdit(getPpao(target) || '');
       setIntcEdit(getIntc(target) || '');
-      setCebcEdit(getCebc(target) || '');
+      const cebcVal = getCebc(target);
+      setCebcEdit(cebcVal !== 'None' ? cebcVal : '');
     }
   };
 
   async function handleGuardarCambios() {
     if (!selectedProductId) return alert("Selecciona un registro para editar.");
 
-    // Detectar qué nombres de columna existen para actualizar correctamente
     const sample = datosProductos[0] || {};
     const colPpao = 'precio_origen' in sample ? 'precio_origen' : ('ppao' in sample ? 'ppao' : 'precio');
     const colIntc = 'costo_transporte' in sample ? 'costo_transporte' : ('intc' in sample ? 'intc' : 'impuesto_importacion');
@@ -165,148 +135,221 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     }
   }
 
-  const modoTodos = !productoActivo || !productoActivo.id;
-
   return (
-    <div className="space-y-6 text-slate-100">
+    <div className="space-y-6 text-slate-100 font-sans">
       
-      {/* Banner de Estado */}
-      <div className="bg-[#181a20] border border-red-500/30 p-4 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* ---------------- 1. TÍTULO PRINCIPAL ---------------- */}
+      <h1 className="text-3xl font-bold text-white tracking-tight">
+        1.Costo (COST) — Estandarización de criterios
+      </h1>
+
+      {/* ---------------- 2. SELECTOR DE PAÍS BASE ---------------- */}
+      <div className="space-y-2">
+        <label className="block text-xl font-bold text-white">
+          Selecciona el país base (origen-Costo Transporte)
+        </label>
+        <span className="block text-xs text-slate-400">
+          Selecciona el país base (origen)
+        </span>
+        <div className="relative">
+          <select
+            value={paisBase}
+            onChange={(e) => setPaisBase(e.target.value)}
+            className="w-full bg-[#1e2028] border border-slate-700/80 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
+          >
+            <option value="Colombia">Colombia</option>
+            <option value="España">España</option>
+            {listaPaises.map((p) => (
+              <option key={p.id || p.nombre} value={p.nombre}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+            ▼
+          </div>
+        </div>
+      </div>
+
+      {/* ---------------- 3. GESTIÓN DE DATOS (TABLA COST) ---------------- */}
+      <div className="space-y-4 pt-2">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <span>🔧</span> Gestión de Datos (Tabla COST)
+        </h2>
+
+        {/* Acordeones horizontales */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          
+          {/* Añadir */}
+          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleAccordion('add')}
+              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+            >
+              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Añadir país y valores
+            </button>
+            {activeAccordion === 'add' && (
+              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1">Nombre del País</label>
+                  <input type="text" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-slate-400 mb-1">PPAO</label>
+                    <input type="number" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">INTC</label>
+                    <input type="number" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1">CEBC</label>
+                    <input type="number" className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white" />
+                  </div>
+                </div>
+                <button className="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs cursor-pointer">
+                  Guardar
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Editar */}
+          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleAccordion('edit')}
+              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+            >
+              <span>{activeAccordion === 'edit' ? '˅' : '❯'}</span> Editar país existente
+            </button>
+            {activeAccordion === 'edit' && (
+              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
+                <select
+                  onChange={(e) => handleSelectEdit(e.target.value)}
+                  value={selectedProductId}
+                  className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+                >
+                  <option value="">-- Selecciona un registro --</option>
+                  {datosProductos.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {getPaisNombre(p)} (ID: {p.id})
+                    </option>
+                  ))}
+                </select>
+
+                {selectedProductId && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-slate-400 block mb-1">PPAO</label>
+                        <input
+                          type="number"
+                          value={ppaoEdit}
+                          onChange={(e) => setPpaoEdit(e.target.value)}
+                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">INTC</label>
+                        <input
+                          type="number"
+                          value={intcEdit}
+                          onChange={(e) => setIntcEdit(e.target.value)}
+                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-400 block mb-1">CEBC</label>
+                        <input
+                          type="number"
+                          value={cebcEdit}
+                          onChange={(e) => setCebcEdit(e.target.value)}
+                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                        />
+                      </div>
+                    </div>
+                    <button 
+                      onClick={handleGuardarCambios}
+                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium cursor-pointer"
+                    >
+                      Actualizar
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Eliminar */}
+          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+            <button
+              onClick={() => toggleAccordion('delete')}
+              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+            >
+              <span>{activeAccordion === 'delete' ? '˅' : '❯'}</span> Eliminar país existente
+            </button>
+            {activeAccordion === 'delete' && (
+              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
+                <p className="text-slate-400">Selecciona el registro que deseas remover.</p>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* Botón Excel */}
         <div>
-          <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
-            Origen de Exportación: {paisOrigen || 'España'} 🇪🇸
-          </span>
-          <h3 className="text-lg font-bold text-white">
-            {modoTodos 
-              ? 'Detección Global (Modo: Todos los Productos)' 
-              : `Producto Filtrado: ${productoActivo.nombre}`}
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Procesando automáticamente <strong className="text-emerald-400">{datosProductos.length}</strong> registro(s) desde la tabla <code className="text-amber-400">productos</code>.
-          </p>
+          <button className="px-4 py-2 bg-[#1e2028] hover:bg-[#262730] border border-slate-700/80 rounded-lg text-xs font-medium text-slate-200 transition-colors cursor-pointer">
+            Descargar Excel actualizado
+          </button>
         </div>
       </div>
 
       {errorLog && (
         <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs">
-          ⚠️ <strong>Error en BD:</strong> {errorLog}
+          ⚠️ <strong>Error BD:</strong> {errorLog}
         </div>
       )}
 
-      <h2 className="text-xl font-bold text-white tracking-tight">
-        1. Costo (COST) — Estandarización y Cálculo Automático
-      </h2>
+      {/* ---------------- 4. TABLA DE COSTOS BASE ---------------- */}
+      <div className="space-y-4 pt-4">
+        <h2 className="text-2xl font-bold text-white">
+          Tabla de costos base
+        </h2>
 
-      {/* Accordion Edición */}
-      <div className="space-y-3">
-        <button
-          onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
-          className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
-            activeAccordion === 'edit'
-              ? 'bg-slate-800 border-red-500 text-white'
-              : 'bg-[#1e2028] border-slate-700/80 text-slate-300 hover:border-slate-500'
-          }`}
-        >
-          <span>{activeAccordion === 'edit' ? '▼' : '❯'}</span> Editar valores de origen en la Base de Datos
-        </button>
-
-        {activeAccordion === 'edit' && (
-          <div className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold text-amber-400 uppercase">Modificar Valores del Producto</h4>
-            <div className="space-y-3">
-              <select
-                onChange={(e) => handleSelectEdit(e.target.value)}
-                value={selectedProductId}
-                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
-              >
-                <option value="">-- Selecciona un registro --</option>
-                {datosProductos.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre || `Producto #${p.id}`} (País: {getPaisNombre(p)})
-                  </option>
-                ))}
-              </select>
-
-              {selectedProductId && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <label className="text-slate-400 block mb-1">Precio Origen (PPAO)</label>
-                    <input
-                      type="number"
-                      value={ppaoEdit}
-                      onChange={(e) => setPpaoEdit(e.target.value)}
-                      className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-400 block mb-1">Costo Transporte (INTC)</label>
-                    <input
-                      type="number"
-                      value={intcEdit}
-                      onChange={(e) => setIntcEdit(e.target.value)}
-                      className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-slate-400 block mb-1">Costo Cumplimiento (CEBC)</label>
-                    <input
-                      type="number"
-                      value={cebcEdit}
-                      onChange={(e) => setCebcEdit(e.target.value)}
-                      className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-            <button 
-              onClick={handleGuardarCambios}
-              className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors"
-            >
-              Guardar Cambios
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Tabla 1 */}
-      <div className="space-y-3">
-        <h3 className="text-base font-bold text-slate-200">
-          Tabla 1: Productos, Países de Destino y Costos Detectados
-        </h3>
-
-        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-[#16181e]">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#1e2028] text-slate-400 border-b border-slate-800">
-              <tr>
-                <th className="p-3 font-semibold">Producto Detectado</th>
-                <th className="p-3 font-semibold">País Destino</th>
-                <th className="p-3 font-semibold">Precio Origen (PPAO)</th>
-                <th className="p-3 font-semibold">Costo Transporte (INTC)</th>
-                <th className="p-3 font-semibold">Cumplimiento (CEBC)</th>
+        <div className="overflow-x-auto rounded-lg border border-slate-800/80 bg-[#0e1117]">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-800 text-slate-400 bg-[#16181e]">
+                <th className="p-3 w-16 text-right pr-6 font-normal"></th>
+                <th className="p-3 font-medium text-slate-300">Países</th>
+                <th className="p-3 text-right font-medium text-slate-300">Precio del producto en origen (PPAO)</th>
+                <th className="p-3 text-right font-medium text-slate-300">Costos de transporte internacional (INTC)</th>
+                <th className="p-3 text-right pr-6 font-medium text-slate-300">Costo de exportación del cumplimiento fronterizo (CEBC)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="p-4 text-center text-slate-500 animate-pulse">
-                    Consultando tabla productos en Supabase...
+                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
+                    Cargando datos de costos...
                   </td>
                 </tr>
-              ) : matrizCalculada.length > 0 ? (
-                matrizCalculada.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                    <td className="p-3 font-medium text-amber-300">{row.nombre || `Producto #${row.id}`}</td>
-                    <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
-                    <td className="p-3 font-mono">{row.ppao ?? '—'}</td>
-                    <td className="p-3 font-mono">{row.intc ?? '—'}</td>
-                    <td className="p-3 font-mono">{row.cebc ?? '—'}</td>
+              ) : datosProductos.length > 0 ? (
+                datosProductos.map((row) => (
+                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
+                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{row.id}</td>
+                    <td className="p-3 font-sans font-medium text-slate-100">{getPaisNombre(row)}</td>
+                    <td className="p-3 text-right">{getPpao(row) ?? 'None'}</td>
+                    <td className="p-3 text-right">{getIntc(row) ?? 'None'}</td>
+                    <td className="p-3 text-right pr-6">{getCebc(row)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="p-4 text-center text-slate-500">
-                    No se encontraron registros en la tabla <code className="text-amber-400">productos</code>.
+                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
+                    No hay registros en la tabla de costos base.
                   </td>
                 </tr>
               )}
@@ -315,53 +358,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         </div>
       </div>
 
-      {/* Tabla 2 */}
-      <div className="space-y-3 pt-2 border-t border-slate-800">
-        <h3 className="text-base font-bold text-slate-200">
-          Tabla 2: Normalización y Ponderación Final
-        </h3>
-
-        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-[#16181e]">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#1e2028] text-slate-400 border-b border-slate-800">
-              <tr>
-                <th className="p-3 font-semibold">Producto</th>
-                <th className="p-3 font-semibold">País Destino</th>
-                <th className="p-3 font-semibold">PPAO Norm (44%)</th>
-                <th className="p-3 font-semibold">INTC Norm (34%)</th>
-                <th className="p-3 font-semibold">CEBC Norm (22%)</th>
-                <th className="p-3 font-semibold text-red-400">Costo Total Normalizado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="p-4 text-center text-slate-500 animate-pulse">
-                    Calculando matriz...
-                  </td>
-                </tr>
-              ) : matrizCalculada.length > 0 ? (
-                matrizCalculada.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                    <td className="p-3 font-medium text-amber-300">{row.nombre || `Producto #${row.id}`}</td>
-                    <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
-                    <td className="p-3 font-mono">{row.ppaoNorm ?? '—'}</td>
-                    <td className="p-3 font-mono">{row.intcNorm ?? '—'}</td>
-                    <td className="p-3 font-mono">{row.cebcNorm ?? '—'}</td>
-                    <td className="p-3 font-mono font-bold text-red-400">{row.costoTotalNorm ?? '—'}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="p-4 text-center text-slate-500">
-                    Sin registros para calcular.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 }
