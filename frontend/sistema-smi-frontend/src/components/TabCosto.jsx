@@ -184,15 +184,18 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v > 0);
   const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v > 0);
-  const cicVals = datosProductos.map(d => d.cic).filter(v => v !== null);
+  const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v > 0);
 
   const minPpd = ppdVals.length > 0 ? Math.min(...ppdVals) : null;
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
-  const minCic = cicVals.length > 0 ? Math.min(...cicVals) : null;
+  const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0;
 
   // Fórmula Relación Inversamente Proporcional (IMP): (Puntaje Máximo * Mínimo Valor) / Valor Actual
   const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined || minVal === null || val <= 0) return 0;
+    if (val === null || val === undefined) return 0;
+    if (val === 0) return PUNTAJE_MAXIMO; // Un costo de 0 es el mejor escenario (recibe el máximo puntaje)
+    if (minVal === null || minVal <= 0 || val <= 0) return 0;
+
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
     return Number(resultado.toFixed(2));
   };
