@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient.js';
 export default function TabCosto() {
   const [datosCostos, setDatosCostos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [errorLog, setErrorLog] = useState(null);
 
   // Formularios de edición rápida
   const [activeAccordion, setActiveAccordion] = useState(null);
@@ -13,7 +14,7 @@ export default function TabCosto() {
   const [cebcEdit, setCebcEdit] = useState('');
 
   // ----------------------------------------------------
-  // 1. DETECTAR AUTOMÁTICAMENTE TODOS LOS PRODUCTOS Y PAÍSES
+  // 1. CONSULTA DIRECTA Y RESILIENTE A SUPABASE
   // ----------------------------------------------------
   useEffect(() => {
     cargarDatosAutomaticos();
@@ -21,28 +22,41 @@ export default function TabCosto() {
 
   async function cargarDatosAutomaticos() {
     setLoading(true);
-    try {
-      // Consulta a Supabase relacionando Costos con Productos y Países
-      const { data, error } = await supabase
-        .from('producto_pais_costos')
-        .select(`
-          id,
-          precio_origen,
-          impuesto_importación,
-          costo_embalaje,
-          producto_id,
-          pais_id,
-          productos ( id, nombre, codigo ),
-          paises ( id, nombre )
-        `);
+    setErrorLog(null);
 
-      if (error) {
-        console.error("Error al consultar Supabase:", error.message);
-      } else if (data) {
-        setDatosCostos(data);
+    try {
+      // Intento 1: Traer la tabla de costos
+      const { data: costos, error: errCostos } = await supabase
+        .from('producto_pais_costos')
+        .select('*');
+
+      if (errCostos) throw errCostos;
+
+      if (!costos || costos.length === 0) {
+        setDatosCostos([]);
+        setLoading(false);
+        return;
       }
+
+      // Traer Productos y Países de forma independiente para evitar fallos de Foreign Keys
+      const { data: productos } = await supabase.from('productos').select('id, nombre, codigo');
+      const { data: paises } = await supabase.from('paises').select('id, nombre');
+
+      // Crear Mapas de búsqueda rápida
+      const mapProductos = new Map((productos || []).map(p => [p.id, p]));
+      const mapPaises = new Map((p => [p.id, p])((paises || [])));
+
+      // Combinar la información
+      const combinados = costos.map(c => ({
+        ...c,
+        producto_nombre: mapProductos.get(c.producto_id)?.nombre || `Producto #${c.producto_id || 'N/A'}`,
+        pais_nombre: mapPaises.get(c.pais_id)?.nombre || `País #${c.pais_id || 'N/A'}`
+      }));
+
+      setDatosCostos(combinados);
     } catch (err) {
-      console.error("Error inesperado en TabCosto:", err);
+      console.error("Error al cargar en TabCosto:", err);
+      setErrorLog(err.message || "Error al conectar con la base de datos");
     } finally {
       setLoading(false);
     }
@@ -51,15 +65,14 @@ export default function TabCosto() {
   // ----------------------------------------------------
   // 2. FÓRMULAS Y PONDERACIONES AUTOMÁTICAS
   // ----------------------------------------------------
-  const PESO_PPAO = 0.44; // 44.00%
-  const PESO_INTC = 0.34; // 34.00%
-  const PESO_CEBC = 0.22; // 22.00%
+  const PESO_PPAO = 0.44;
+  const PESO_INTC = 0.34;
+  const PESO_CEBC = 0.22;
   const A3 = 10;
 
-  // Extraer valores mínimos para normalización (Formula: 10 * Min / Valor)
   const ppaoVals = datosCostos.map(c => Number(c.precio_origen)).filter(v => v > 0);
-  const intcVals = datosCostos.map(c => Number(c.impuesto_importación)).filter(v => v > 0);
-  const cebcVals = datosCostos.map(c => Number(c.costo_embalaje)).filter(v => v > 0);
+  const intcVals = datosCostos.map(c => Number(c.impuesto_importación || c.costo_transporte)).filter(v => v > 0);
+  const cebcVals = datosCostos.map(c => Number(c.costo_embalaje || c.cumplimiento)).filter(v => v > 0);
 
   const minPpao = ppaoVals.length > 0 ? Math.min(...ppaoVals) : null;
   const minIntc = intcVals.length > 0 ? Math.min(...intcVals) : null;
@@ -70,11 +83,10 @@ export default function TabCosto() {
     return Number((A3 * (minVal / val)).toFixed(2));
   };
 
-  // Cálculo de matriz normalizada y ponderada por cada registro detectado
   const matrizCalculada = datosCostos.map(row => {
     const ppao = Number(row.precio_origen) || null;
-    const intc = Number(row.impuesto_importación) || null;
-    const cebc = Number(row.costo_embalaje) || null;
+    const intc = Number(row.impuesto_importación || row.costo_transporte) || null;
+    const cebc = Number(row.costo_embalaje || row.cumplimiento) || null;
 
     const ppaoNorm = calcularNormalizado(ppao, minPpao);
     const intcNorm = calcularNormalizado(intc, minIntc);
@@ -98,19 +110,18 @@ export default function TabCosto() {
     };
   });
 
-  // Ordenar los resultados del mejor al peor costo normalizado
   matrizCalculada.sort((a, b) => a.costoTotalNorm - b.costoTotalNorm);
 
   // ----------------------------------------------------
-  // 3. EDICIÓN / ACTUALIZACIÓN EN SUPABASE
+  // 3. EDICIÓN / GUARDADO EN SUPABASE
   // ----------------------------------------------------
   const handleSelectEdit = (id) => {
     setSelectedCostId(id);
     const target = datosCostos.find(c => c.id === parseInt(id));
     if (target) {
       setPpaoEdit(target.precio_origen || '');
-      setIntcEdit(target.impuesto_importación || '');
-      setCebcEdit(target.costo_embalaje || '');
+      setIntcEdit(target.impuesto_importación || target.costo_transporte || '');
+      setCebcEdit(target.costo_embalaje || target.cumplimiento || '');
     }
   };
 
@@ -129,19 +140,16 @@ export default function TabCosto() {
     if (error) {
       alert("Error al actualizar: " + error.message);
     } else {
-      setSelectedCostId('');
-      setPpaoEdit('');
-      setIntcEdit('');
-      setCebcEdit('');
+      setSelectedCostId(''); setPpaoEdit(''); setIntcEdit(''); setCebcEdit('');
       setActiveAccordion(null);
-      cargarDatosAutomaticos(); // Recargar y recalcular en tiempo real
+      cargarDatosAutomaticos();
     }
   }
 
   return (
     <div className="space-y-6 text-slate-100">
       
-      {/* Encabezado informativo */}
+      {/* Banner de estado */}
       <div className="bg-[#181a20] border border-red-500/30 p-4 rounded-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
@@ -151,16 +159,22 @@ export default function TabCosto() {
             Detección Automática de Productos y Países
           </h3>
           <p className="text-xs text-slate-400 mt-0.5">
-            Procesando automáticamente <strong className="text-emerald-400">{datosCostos.length}</strong> registro(s) encontrados en la base de datos de la Pestaña 1.
+            Procesando automáticamente <strong className="text-emerald-400">{datosCostos.length}</strong> registro(s) en la base de datos.
           </p>
         </div>
       </div>
+
+      {errorLog && (
+        <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs">
+          ⚠️ <strong>Error detectado:</strong> {errorLog}
+        </div>
+      )}
 
       <h2 className="text-xl font-bold text-white tracking-tight">
         1. Costo (COST) — Estandarización y Cálculo Automático
       </h2>
 
-      {/* Control desplegable para modificar parámetros en BD */}
+      {/* Accordion Edición */}
       <div className="space-y-3">
         <button
           onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
@@ -182,10 +196,10 @@ export default function TabCosto() {
                 value={selectedCostId}
                 className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
               >
-                <option value="">-- Selecciona un Producto / País registrado --</option>
+                <option value="">-- Selecciona un registro --</option>
                 {datosCostos.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.productos?.nombre} ➔ {c.paises?.nombre}
+                    {c.producto_nombre} ➔ {c.pais_nombre}
                   </option>
                 ))}
               </select>
@@ -232,7 +246,7 @@ export default function TabCosto() {
         )}
       </div>
 
-      {/* TABLA 1: Registros detectados y sus valores originales */}
+      {/* Tabla 1 */}
       <div className="space-y-3">
         <h3 className="text-base font-bold text-slate-200">
           Tabla 1: Productos, Países de Destino y Costos Detectados
@@ -253,14 +267,14 @@ export default function TabCosto() {
               {loading ? (
                 <tr>
                   <td colSpan="5" className="p-4 text-center text-slate-500 animate-pulse">
-                    Detectando datos en la base de datos...
+                    Detectando datos en Supabase...
                   </td>
                 </tr>
               ) : matrizCalculada.length > 0 ? (
                 matrizCalculada.map((row) => (
                   <tr key={row.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                    <td className="p-3 font-medium text-amber-300">{row.productos?.nombre || 'N/A'}</td>
-                    <td className="p-3 font-medium text-white">{row.paises?.nombre || 'N/A'}</td>
+                    <td className="p-3 font-medium text-amber-300">{row.producto_nombre}</td>
+                    <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 font-mono">{row.ppao ?? '—'}</td>
                     <td className="p-3 font-mono">{row.intc ?? '—'}</td>
                     <td className="p-3 font-mono">{row.cebc ?? '—'}</td>
@@ -269,7 +283,7 @@ export default function TabCosto() {
               ) : (
                 <tr>
                   <td colSpan="5" className="p-4 text-center text-slate-500">
-                    No se detectaron productos o costos en la base de datos.
+                    No se encontraron registros en la tabla <code className="text-red-400">producto_pais_costos</code>. Verifica que la tabla tenga filas creadas en Supabase.
                   </td>
                 </tr>
               )}
@@ -278,7 +292,7 @@ export default function TabCosto() {
         </div>
       </div>
 
-      {/* TABLA 2: Resultados de Normalización y Ponderación */}
+      {/* Tabla 2 */}
       <div className="space-y-3 pt-2 border-t border-slate-800">
         <h3 className="text-base font-bold text-slate-200">
           Tabla 2: Normalización y Ponderación Final
@@ -300,14 +314,14 @@ export default function TabCosto() {
               {loading ? (
                 <tr>
                   <td colSpan="6" className="p-4 text-center text-slate-500 animate-pulse">
-                    Calculando ponderaciones de la matriz...
+                    Calculando matriz...
                   </td>
                 </tr>
               ) : matrizCalculada.length > 0 ? (
                 matrizCalculada.map((row) => (
                   <tr key={row.id} className="hover:bg-[#1f222d]/50 transition-colors">
-                    <td className="p-3 font-medium text-amber-300">{row.productos?.nombre || 'N/A'}</td>
-                    <td className="p-3 font-medium text-white">{row.paises?.nombre || 'N/A'}</td>
+                    <td className="p-3 font-medium text-amber-300">{row.producto_nombre}</td>
+                    <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 font-mono">{row.ppaoNorm ?? '—'}</td>
                     <td className="p-3 font-mono">{row.intcNorm ?? '—'}</td>
                     <td className="p-3 font-mono">{row.cebcNorm ?? '—'}</td>
