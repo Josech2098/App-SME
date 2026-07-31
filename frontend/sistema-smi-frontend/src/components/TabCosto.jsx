@@ -76,7 +76,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     } catch (err) {
       console.error("Error al cargar productos:", err);
       setErrorLog(err.message || "Error al conectar con la tabla productos");
-    } fontally {
+    } finally {
       setLoading(false);
     }
   }
