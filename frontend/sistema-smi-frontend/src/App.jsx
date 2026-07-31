@@ -117,17 +117,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Resumen del Producto Seleccionado */}
-        <div className="bg-[#181a20] border border-slate-800 p-3 rounded-lg space-y-1">
-          <span className="text-[10px] uppercase font-bold text-slate-400">Producto activo</span>
-          <p className="text-xs font-semibold text-white truncate">
-            {productoSeleccionado ? productoSeleccionado.nombre : 'Ninguno seleccionado'}
-          </p>
-          <span className="text-[10px] text-emerald-400 block">
-            {paisesDestino.length} país(es) de destino seleccionados
-          </span>
-        </div>
-
         {/* Sección: Filtros de búsqueda */}
         <div className="space-y-4 pt-2">
           <h2 className="text-base font-bold text-slate-100">Filtros de búsqueda</h2>
