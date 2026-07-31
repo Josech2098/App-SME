@@ -191,7 +191,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
   const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0;
 
-  // Fórmula Excel PPD: =($A$3 * ValorActual) / MAX(Rango) -> (O ajustada a tu lógica directa)
+  // Fórmula Excel PPD: =($A$3 * ValorActual) / MAX(Rango)
   const calcularNormalizadoDirecto = (val, maxVal) => {
     if (val === null || val === undefined || val <= 0 || !maxVal) return 0;
     const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
@@ -201,20 +201,17 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   // Fórmula Excel CTI / CIC: =($A$3 * MIN(Rango)) / ValorActual
   const calcularNormalizadoInverso = (val, minVal) => {
     if (val === null || val === undefined) return 0;
-    // Si el valor actual es exactamente 0 (como en CIC de algunos países), recibe el puntaje máximo directamente
-    if (val === 0) return PUNTAJE_MAXIMO;
+    if (val === 0) return PUNTAJE_MAXIMO; 
     if (minVal === null || minVal <= 0 || val <= 0) return 0;
 
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
     return Number(resultado.toFixed(2));
   };
 
-  const matrizCalculada = datosProductos.map(row => {
-    // ppdNorm = ($A$3 * E5) / MAX($E$5:$E$14) -> O equivalente según tu implementación
+  // 1. Mapeamos y calculamos todos los registros
+  const matrizCalculadaCompleta = datosProductos.map(row => {
     const ppdNorm = calcularNormalizadoDirecto(row.ppd, maxPpd);
-    // cti norm = ($A$3 * MIN($F$5:$F$14)) / F5
     const ctiNorm = calcularNormalizadoInverso(row.cti, minCti);
-    // cic norm = ($A$3 * MIN($G$5:$G$14)) / G5
     const cicNorm = calcularNormalizadoInverso(row.cic, minCic);
 
     const p1 = ppdNorm ?? 0;
@@ -234,7 +231,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     };
   });
 
-  matrizCalculada.sort((a, b) => b.costoSubtotalNorm - a.costoSubtotalNorm);
+  // 2. FILTRAR: Ocultar países que no tengan datos (PPD = 0 o nulo)
+  const matrizFiltrada = matrizCalculadaCompleta.filter(row => row.ppd > 0);
+
+  // 3. ORDENAR: De mayor a menor puntaje (los que tienen datos quedan al principio ordenados por su subtotal)
+  matrizFiltrada.sort((a, b) => b.costoSubtotalNorm - a.costoSubtotalNorm);
 
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
@@ -559,8 +560,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     Cargando datos...
                   </td>
                 </tr>
-              ) : matrizCalculada.length > 0 ? (
-                matrizCalculada.map((row, idx) => (
+              ) : matrizFiltrada.length > 0 ? (
+                matrizFiltrada.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
@@ -576,7 +577,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               ) : (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
-                    No hay registros.
+                    No hay registros con datos para este producto.
                   </td>
                 </tr>
               )}
@@ -611,8 +612,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     Calculando...
                   </td>
                 </tr>
-              ) : matrizCalculada.length > 0 ? (
-                matrizCalculada.map((row, idx) => (
+              ) : matrizFiltrada.length > 0 ? (
+                matrizFiltrada.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
