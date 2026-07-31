@@ -29,6 +29,20 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// --- Helper: Limpiar precios en formato string como "8,97 €" o "No encontrado" ---
+function limpiarPrecio(val) {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return val;
+  
+  const str = String(val).trim();
+  if (str.toLowerCase().includes('no encontrado') || str === '') return 0;
+
+  // Remover símbolos de moneda, letras y espacios, y cambiar coma por punto
+  const limpio = str.replace(/[^\d,\.-]/g, '').replace(',', '.');
+  const numero = parseFloat(limpio);
+  return isNaN(numero) ? 0 : numero;
+}
+
 export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'Costa Rica');
   const [datosProductos, setDatosProductos] = useState([]);
@@ -72,23 +86,29 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setErrorLog(null);
 
     try {
-      // 1. Cargar datos de países
+      console.log("productoActivo recibido en TabCosto:", productoActivo);
+
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
 
-      // 2. Cargar costos de importación
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) throw errCIC;
 
-      // 3. Extraer el precio directo del producto activo (de la primera pestaña / prop)
+      // Extracción y limpieza robusta del precio del producto activo
       let ppdBaseVal = 0;
       if (productoActivo) {
-        // Busca cualquier variante común para el precio enviado desde la primera pestaña
-        const rawPrecio = productoActivo.precio ?? productoActivo.precio_usd ?? productoActivo.precio_base ?? productoActivo.ppd ?? 0;
-        const parsedPpd = Number(rawPrecio);
-        if (!isNaN(parsedPpd) && parsedPpd > 0) {
-          ppdBaseVal = parsedPpd;
-        }
+        const rawPrecio = 
+          productoActivo.precio ?? 
+          productoActivo.precio_destinos ?? 
+          productoActivo.precio_usd ?? 
+          productoActivo.precio_base ?? 
+          productoActivo.precio_unitario ?? 
+          productoActivo.costo ?? 
+          productoActivo.valor ?? 
+          productoActivo.ppd ?? 
+          0;
+        
+        ppdBaseVal = limpiarPrecio(rawPrecio);
       }
 
       const objetoPaisBase = dbPaises.find(
@@ -99,17 +119,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const lonBase = objetoPaisBase?.longitud;
 
       const datosConsolidados = dbPaises.map((p) => {
-        // El PPD asigna el precio del producto activo seleccionado en la 1er pestaña
-        const ppdVal = ppdBaseVal > 0 ? ppdBaseVal : null;
+        const ppdVal = ppdBaseVal > 0 ? ppdBaseVal : 0;
 
-        // CIC: Costo de Importación para el Cumplimiento Fronterizo
         const cicMatch = (dbCostoImportacion || []).find(
           (c) => (c.pais || '').trim().toLowerCase() === p.nombre.trim().toLowerCase()
         );
         let cicVal = cicMatch ? Number(cicMatch.valor) : null;
         if (isNaN(cicVal)) cicVal = null;
 
-        // CTI: Costos de Transporte Internacional (distancia Haversine x $0.38/km)
         const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
         const ctiVal = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : 0;
 
@@ -136,7 +153,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   // ----------------------------------------------------
   // PORCENTAJES DE CÁLCULO SEGÚN TABLA DE IMPORTACIÓN
   // ----------------------------------------------------
-  const PESO_FACTOR_COSTO = 0.215; // 21.50% (Tabla Principal)
+  const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
   const PESO_PPD = 0.44; // 44.00%
   const PESO_CTI = 0.34; // 34.00%
@@ -152,7 +169,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const minCic = cicVals.length > 0 ? Math.min(...cicVals) : null;
 
   const calcularNormalizado = (val, minVal) => {
-    if (!val || !minVal || val <= 0 || minVal <= 0) return null;
+    if (val === null || val === undefined || !minVal || val <= 0 || minVal <= 0) return null;
     return Number((A3 * (minVal / val)).toFixed(2));
   };
 
@@ -165,12 +182,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const p2 = ctiNorm ?? 0;
     const p3 = cicNorm ?? 0;
 
-    // Subtotal normalizado (escala 0-10)
-    const costoSubtotalNorm = (ppdNorm !== null || ctiNorm !== null || cicNorm !== null)
+    const costoSubtotalNorm = (row.ppd > 0 || row.cti > 0 || row.cic !== null)
       ? Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2))
       : null;
 
-    // Ponderación final aportada al Modelo Principal (Factor Costo = 21.50%)
     const aporteFactorCosto = costoSubtotalNorm !== null
       ? Number((costoSubtotalNorm * PESO_FACTOR_COSTO).toFixed(2))
       : null;
@@ -185,7 +200,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     };
   });
 
-  // Ordenar de mayor a menor según el subtotal normalizado
   matrizCalculada.sort((a, b) => (b.costoSubtotalNorm ?? -1) - (a.costoSubtotalNorm ?? -1));
 
   const toggleAccordion = (tab) => {
@@ -272,7 +286,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
-      {/* ---------------- 1. TÍTULO PRINCIPAL ---------------- */}
+      {/* TÍTULO PRINCIPAL */}
       <div className="flex justify-between items-start border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">
@@ -282,14 +296,17 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">21.50%</span>
             {productoActivo?.nombre && (
               <span className="ml-3 text-slate-300">
-                • Producto Seleccionado: <strong className="text-sky-400">{productoActivo.nombre}</strong>
+                • Producto: <strong className="text-sky-400">{productoActivo.nombre}</strong> 
+                {productoActivo.precio !== undefined && (
+                  <span className="ml-1 text-emerald-400">({productoActivo.precio})</span>
+                )}
               </span>
             )}
           </p>
         </div>
       </div>
 
-      {/* ---------------- 2. SELECTOR DE PAÍS BASE ---------------- */}
+      {/* SELECTOR DE PAÍS BASE */}
       <div className="space-y-2">
         <label className="block text-xl font-bold text-white">
           Selecciona el país base (Origen para transporte CTI)
@@ -312,7 +329,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         </div>
       </div>
 
-      {/* ---------------- 3. GESTIÓN DE DATOS ---------------- */}
+      {/* GESTIÓN DE DATOS */}
       <div className="space-y-4 pt-2">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <span>🔧</span> Gestión de Datos (Tabla COSTO)
@@ -484,13 +501,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         </div>
       )}
 
-      {/* ---------------- 4. TABLA DE COSTOS BASE ---------------- */}
+      {/* TABLA DE COSTOS BASE */}
       <div className="space-y-4 pt-2">
         <h2 className="text-2xl font-bold text-white">
           Tabla de Costos Base
         </h2>
 
-        {/* Contenedor con Scroll de max-h-[450px] (~10 filas) */}
         <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#16181e] z-10">
@@ -515,7 +531,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
                     <td className="p-3 text-right">
-                      {row.ppd !== null && row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
+                      {row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
                     </td>
                     <td className="p-3 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
                     <td className="p-3 text-right pr-6">
@@ -535,13 +551,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         </div>
       </div>
 
-      {/* ---------------- 5. TABLA DE NORMALIZACIÓN Y PONDERACIÓN ---------------- */}
+      {/* TABLA DE NORMALIZACIÓN Y PONDERACIÓN */}
       <div className="space-y-4 pt-4 border-t border-slate-800/80">
         <h2 className="text-xl font-bold text-white">
           Normalización y Ponderación Final
         </h2>
 
-        {/* Contenedor con Scroll de max-h-[450px] (~10 filas) */}
         <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#16181e] z-10">
@@ -567,11 +582,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.ppdNorm ?? <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right">{row.ctiNorm ?? <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right">{row.cicNorm ?? <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right font-bold text-sky-400">{row.costoSubtotalNorm ?? <span className="text-slate-500">0.00</span>}</td>
-                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto ?? <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right">{row.ppdNorm !== null ? row.ppdNorm : <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right">{row.ctiNorm !== null ? row.ctiNorm : <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right">{row.cicNorm !== null ? row.cicNorm : <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right font-bold text-sky-400">{row.costoSubtotalNorm !== null ? row.costoSubtotalNorm : <span className="text-slate-500">0.00</span>}</td>
+                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto !== null ? row.aporteFactorCosto : <span className="text-slate-500">0.00</span>}</td>
                   </tr>
                 ))
               ) : (
