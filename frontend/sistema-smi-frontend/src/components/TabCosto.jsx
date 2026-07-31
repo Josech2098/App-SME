@@ -231,10 +231,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     };
   });
 
-  // 2. FILTRAR: Ocultar países que no tengan datos (PPD = 0 o nulo)
-  const matrizFiltrada = matrizCalculadaCompleta.filter(row => row.ppd > 0);
+  // 2. FILTRAR ESTRICTO: Ocultar completamente los que tengan PPD igual a 0, null o indefinido
+  const matrizFiltrada = matrizCalculadaCompleta.filter(row => row.ppd !== null && row.ppd !== undefined && row.ppd > 0);
 
-  // 3. ORDENAR: De mayor a menor puntaje (los que tienen datos quedan al principio ordenados por su subtotal)
+  // 3. ORDENAR: De mayor a menor puntaje subtotal
   matrizFiltrada.sort((a, b) => b.costoSubtotalNorm - a.costoSubtotalNorm);
 
   const toggleAccordion = (tab) => {
