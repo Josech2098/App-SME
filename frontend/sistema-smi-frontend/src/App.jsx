@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient.js';
 import TablaProductos from './components/TabProductos';
 import TabCosto from './components/TabCosto';
+import TabLogistica from './components/TabLogistica';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -259,7 +260,15 @@ export default function App() {
             />
           )}
 
-          {activeTab > 1 && (
+          {activeTab === 2 && (
+            <TabLogistica 
+              productoActivo={productoSeleccionado}
+              paisesDestino={paisesDestino}
+              paisOrigen={paisOrigen}
+            />
+          )}
+
+          {activeTab > 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
                 {tabList[activeTab]}
