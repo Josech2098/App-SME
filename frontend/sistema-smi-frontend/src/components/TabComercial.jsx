@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 export default function TabComercial({ 
   productoActivo, 
   paisesDestino = [], 
+  productos = [], // <-- Nueva prop para conectar con la primera pestaña de Productos
   paisOrigen, 
   archivoExcelBytes,
-  datosIndicePenetracion = [], // Datos de la tabla public.indicepenetracion
-  datosLibertadEconomica = []   // Datos de la tabla public.libertadeconomica
+  datosIndicePenetracion = [], 
+  datosLibertadEconomica = []   
 }) {
   const [commOverrides, setCommOverrides] = useState([]);
   
@@ -30,7 +31,7 @@ export default function TabComercial({
   const [cargando, setCargando] = useState(false);
   const [errorExcel, setErrorExcel] = useState(null);
 
-  // Sincronizar selectores de edición/eliminación al cambiar los overrides o datos
+  // Sincronizar selectores de edición/eliminación
   useEffect(() => {
     if (commOverrides.length > 0) {
       if (!paisSeleccionadoEdit) {
@@ -104,66 +105,59 @@ export default function TabComercial({
     }
   };
 
-  // Procesamiento y unificación de TODOS los países disponibles en la app
+  // Conexión y carga unificada de países basados estrictamente en la Pestaña 1 (Productos / Destinos)
   useEffect(() => {
     setCargando(true);
     try {
-      // 1. Recopilar nombres de países de TODAS las fuentes posibles en la app de forma única (Set)
       const setPaisesGlobales = new Set();
 
-      // De las props de destinos globales
+      // 1. Extraer países directamente desde la estructura de la pestaña 1 (productos y sus destinos asociados)
+      if (Array.isArray(productos) && productos.length > 0) {
+        productos.forEach(prod => {
+          // Si el producto activo coincide (o si se evalúan todos los productos de la app)
+          if (!productoActivo || prod.id === productoActivo.id || prod.nombre === productoActivo?.nombre) {
+            if (Array.isArray(prod.paisesDestino)) {
+              prod.paisesDestino.forEach(p => { if (p) setPaisesGlobales.add(String(p).trim()); });
+            }
+            if (Array.isArray(prod.destinos)) {
+              prod.destinos.forEach(p => { if (p) setPaisesGlobales.add(String(p).trim()); });
+            }
+          }
+        });
+      }
+
+      // 2. Extraer desde la prop general de destinos de la app
       if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => { if (p) setPaisesGlobales.add(String(p).trim()); });
       }
 
-      // De la tabla de Índice de Penetración
-      if (Array.isArray(datosIndicePenetracion)) {
-        datosIndicePenetracion.forEach(item => {
-          const nombre = item.nombre || item.pais || item.Paises;
-          if (nombre) setPaisesGlobales.add(String(nombre).trim());
-        });
-      }
-
-      // De la tabla de Libertad Económica
-      if (Array.isArray(datosLibertadEconomica)) {
-        datosLibertadEconomica.forEach(item => {
-          const nombre = item.pais || item.nombre || item.Paises;
-          if (nombre) setPaisesGlobales.add(String(nombre).trim());
-        });
-      }
-
-      // De los países personalizados agregados manualmente (overrides)
+      // 3. Añadir países manuales agregados en esta pestaña (overrides)
       commOverrides.forEach(ovr => {
         if (ovr.Paises) setPaisesGlobales.add(String(ovr.Paises).trim());
       });
 
-      // Si por alguna razón ninguna fuente tiene datos, dejamos un respaldo por defecto
+      // Respaldo por defecto si aún no hay países configurados en la pestaña 1
       if (setPaisesGlobales.size === 0) {
-        ['Albania', 'Alemania', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Arabia Saudi'].forEach(p => setPaisesGlobales.add(p));
+        ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'].forEach(p => setPaisesGlobales.add(p));
       }
 
       const listaPaisesUnificados = Array.from(setPaisesGlobales);
 
-      // 2. Mapear y cruzar automáticamente los datos para cada país unificado
+      // Mapeo y cruce de datos para la tabla
       const dfComm = listaPaisesUnificados.map((pais, idx) => {
-        // Buscar coincidencia en Índice de Penetración
         const matchIemp = datosIndicePenetracion.find(
           item => (item.nombre || item.pais || item.Paises)?.toLowerCase() === pais.toLowerCase()
         );
-        // Buscar coincidencia en Libertad Económica
         const matchIoef = datosLibertadEconomica.find(
           item => (item.pais || item.nombre || item.Paises)?.toLowerCase() === pais.toLowerCase()
         );
 
-        // Revisar si hay un override manual para este país
         const overrideMatch = commOverrides.find(
           ovr => ovr.Paises?.toLowerCase() === pais.toLowerCase()
         );
 
-        // Cálculo de Aranceles (CTCO) automático basado en la lógica predeterminada
         const calculoArancelCTCO = Number((2.0 + (idx * 0.7) % 5.0).toFixed(2));
 
-        // Asignar valores prioritarios (Override > Base de Datos > Cálculo/Predeterminado)
         const valIemp = overrideMatch 
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
           : (matchIemp && matchIemp.indice_penetracion !== null ? Number(matchIemp.indice_penetracion) : Number((3.5 + (idx * 0.2)).toFixed(2)));
@@ -180,7 +174,7 @@ export default function TabComercial({
         };
       });
 
-      // Ordenar automáticamente (CTCO Ascendente, IEMP Descendente, IOEF Descendente)
+      // Ordenar por CTCO, luego IEMP, luego IOEF
       dfComm.sort((a, b) => {
         if (a['Aranceles aduaneros por país de origen (CTCO)'] !== b['Aranceles aduaneros por país de origen (CTCO)']) {
           return a['Aranceles aduaneros por país de origen (CTCO)'] - b['Aranceles aduaneros por país de origen (CTCO)'];
@@ -193,11 +187,11 @@ export default function TabComercial({
 
       setDatosCommConsolidados(dfComm);
 
-      // ================= NORMALIZACIÓN =================
+      // Normalización de datos
       const A3 = 10;
       const getMinMax = (arr, key) => {
         const values = arr.map(item => item[key]).filter(v => v !== null && !isNaN(v));
-        return values.length > ? [Math.min(...values), Math.max(...values)] : [0, 1];
+        return values.length > 0 ? [Math.min(...values), Math.max(...values)] : [0, 1];
       };
 
       const [ctcoMin, ctcoMax] = getMinMax(dfComm, 'Aranceles aduaneros por país de origen (CTCO)');
@@ -233,37 +227,30 @@ export default function TabComercial({
     } finally {
       setCargando(false);
     }
-  }, [commOverrides, paisesDestino, archivoExcelBytes, datosIndicePenetracion, datosLibertadEconomica]);
+  }, [commOverrides, paisesDestino, productos, productoActivo, archivoExcelBytes, datosIndicePenetracion, datosLibertadEconomica]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
-      
-      {/* HEADER */}
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y consolidación automática de indicadores comerciales para todos los países de la aplicación.
+          Sincronizado con los países definidos en la Pestaña 1 (Productos).
         </p>
       </div>
 
-      {/* ACORDEONES CRUD */}
+      {/* CRUD ACORDEONES */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        {/* AÑADIR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden">
           <button 
             type="button"
             onClick={() => setOpenAdd(!openAdd)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029]"
           >
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>
-              ❯
-            </span>
+            <span className={`text-slate-400 text-xs transition-transform ${openAdd ? 'rotate-90' : ''}`}>❯</span>
             Añadir país
           </button>
-
           {openAdd && (
-            <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+            <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800 space-y-3 bg-[#0e1117]/50">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">País:</label>
                 <input 
@@ -271,63 +258,52 @@ export default function TabComercial({
                   value={paisAdd} 
                   onChange={(e) => setPaisAdd(e.target.value)} 
                   required 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Índice de penetración (IEMP):</label>
+                <label className="block text-xs text-slate-400 mb-1">IEMP:</label>
                 <input 
                   type="number" 
                   step="0.01" 
-                  min="0"
                   value={iempAdd} 
                   onChange={(e) => setIempAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Índice de libertad económica (IOEF):</label>
+                <label className="block text-xs text-slate-400 mb-1">IOEF:</label>
                 <input 
                   type="number" 
                   step="0.01" 
-                  min="0"
                   value={ioefAdd} 
                   onChange={(e) => setIoefAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
-              <button 
-                type="submit" 
-                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
-              >
-                Guardar país (COMM)
-              </button>
+              <button type="submit" className="w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded">Guardar</button>
             </form>
           )}
         </div>
 
-        {/* EDITAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden">
           <button 
             type="button"
             onClick={() => setOpenEdit(!openEdit)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029]"
           >
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>
-              ❯
-            </span>
+            <span className={`text-slate-400 text-xs transition-transform ${openEdit ? 'rotate-90' : ''}`}>❯</span>
             Editar país
           </button>
-
           {openEdit && (
             commOverrides.length > 0 ? (
-              <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+              <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800 space-y-3 bg-[#0e1117]/50">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Selecciona país a editar:</label>
+                  <label className="block text-xs text-slate-400 mb-1">Seleccionar:</label>
                   <select 
                     value={paisSeleccionadoEdit} 
                     onChange={handleSelectEditPais}
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                   >
                     {commOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
@@ -335,12 +311,12 @@ export default function TabComercial({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo país:</label>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo nombre:</label>
                   <input 
                     type="text" 
                     value={editPaisNombre} 
                     onChange={(e) => setEditPaisNombre(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                   />
                 </div>
                 <div>
@@ -348,10 +324,9 @@ export default function TabComercial({
                   <input 
                     type="number" 
                     step="0.01" 
-                    min="0"
                     value={editIemp} 
                     onChange={(e) => setEditIemp(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                   />
                 </div>
                 <div>
@@ -359,89 +334,65 @@ export default function TabComercial({
                   <input 
                     type="number" 
                     step="0.01" 
-                    min="0"
                     value={editIoef} 
                     onChange={(e) => setEditIoef(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                   />
                 </div>
-                <button 
-                  type="submit" 
-                  className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
-                >
-                  Actualizar país (COMM)
-                </button>
+                <button type="submit" className="w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded">Actualizar</button>
               </form>
             ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
-                Añade o modifica un país para seleccionarlo aquí.
-              </div>
+              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">No hay overrides personalizados.</div>
             )
           )}
         </div>
 
-        {/* ELIMINAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden">
           <button 
             type="button"
             onClick={() => setOpenDel(!openDel)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029]"
           >
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>
-              ❯
-            </span>
+            <span className={`text-slate-400 text-xs transition-transform ${openDel ? 'rotate-90' : ''}`}>❯</span>
             Eliminar país
           </button>
-
           {openDel && (
             commOverrides.length > 0 ? (
-              <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+              <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800 space-y-3 bg-[#0e1117]/50">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Selecciona país personalizado:</label>
+                  <label className="block text-xs text-slate-400 mb-1">Seleccionar:</label>
                   <select 
                     value={paisSeleccionadoDel} 
                     onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                   >
                     {commOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
                     ))}
                   </select>
                 </div>
-                <button 
-                  type="submit" 
-                  className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors"
-                >
-                  Eliminar país (COMM)
-                </button>
+                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white text-xs rounded">Eliminar</button>
               </form>
             ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
-                No hay países personalizados registrados.
-              </div>
+              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">No hay elementos para eliminar.</div>
             )
           )}
         </div>
-
       </div>
 
-      {errorExcel && (
-        <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
-          {errorExcel}
-        </div>
-      )}
+      {errorExcel && <div className="bg-red-950 p-3 rounded text-xs text-red-400">{errorExcel}</div>}
 
       {/* TABLA CONSOLIDADA */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Consolidada (COMM)</h3>
-        <p className="text-xs text-slate-400">Total de países analizados en la app: {datosCommConsolidados.length}</p>
+        <p className="text-xs text-slate-400">Total de países cargados desde Productos: {datosCommConsolidados.length}</p>
         
         {cargando ? (
-          <div className="p-4 text-xs text-slate-400 italic">Cargando todos los países de la app...</div>
+          <div className="p-4 text-xs text-slate-400 italic">Sincronizando países de productos...</div>
         ) : (
           <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
-            <table className="w-full text-left text-xs text-slate-300 relative">
-              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
                 <tr>
                   <th className="p-3 w-12 bg-[#181a20]">#</th>
                   <th className="p-3 bg-[#181a20]">País</th>
@@ -452,7 +403,7 @@ export default function TabComercial({
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
                 {datosCommConsolidados.map((row, index) => (
-                  <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                  <tr key={index} className="hover:bg-[#16181d]">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
@@ -469,14 +420,12 @@ export default function TabComercial({
       {/* TABLA NORMALIZADA */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Normalizada (COMM)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: CTCO = 50% | IEMP = 30% | IOEF = 20%</p>
-
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
-          <table className="w-full text-left text-xs text-slate-300 relative">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
-                <th className="p-3 bg-[#181a20]">País جغ</th>
+                <th className="p-3 bg-[#181a20]">País</th>
                 <th className="p-3 bg-[#181a20]">CTCO Norm</th>
                 <th className="p-3 bg-[#181a20]">IEMP Norm</th>
                 <th className="p-3 bg-[#181a20]">IOEF Norm</th>
@@ -485,12 +434,12 @@ export default function TabComercial({
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
               {datosCommNormalizados.map((row, index) => (
-                <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                <tr key={index} className="hover:bg-[#16181d]">
                   <td className="p-3 text-slate-500">{index + 1}</td>
                   <td className="p-3 font-medium text-white">{row.Paises}</td>
                   <td className="p-3">{row.CTCO_norm}</td>
                   <td className="p-3">{row.IEMP_norm}</td>
-                  <td className="p-3">{row.IOEF_norm}</td>
+                  <td className="p-3">{row.ioef_norm || row.IOEF_norm}</td>
                   <td className="p-3 font-bold text-emerald-400">{row.COMM_total}</td>
                 </tr>
               ))}
@@ -498,7 +447,6 @@ export default function TabComercial({
           </table>
         </div>
       </div>
-
     </div>
   );
 }
