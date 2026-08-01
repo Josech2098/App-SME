@@ -29,6 +29,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [velocidadBuque, setVelocidadBuque] = useState(18.00);
   const [resultadoIttt, setResultadoIttt] = useState({ distancia: '0 nm', tiempo: '0 días' });
 
+  // Almacenar los ITTT calculados por país de llegada para actualizar las tablas en tiempo real
+  const [itttCalculadosPorPais, setItttCalculadosPorPais] = useState({});
+
   // Filtrar puertos según el país seleccionado
   const puertosSalidaLista = puertosData.filter(p => p.pais.toLowerCase() === (paisSalidaCalc || '').toLowerCase());
   const puertosLlegadaLista = puertosData.filter(p => p.pais.toLowerCase() === (paisLlegadaCalc || '').toLowerCase());
@@ -48,8 +51,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return R * c;
   };
 
-  // Cálculo automático del ITTT para la tabla principal usando puertos principales ('Y')
+  // Cálculo automático del ITTT por defecto usando puertos principales ('Y')
   const calcularItttAutomaticoTabla = (nombrePaisLlegada) => {
+    // Si el usuario ya calculó un ITTT específico para este país mediante el formulario, usar ese valor
+    if (itttCalculadosPorPais[nombrePaisLlegada]) {
+      return itttCalculadosPorPais[nombrePaisLlegada];
+    }
+
     if (!nombrePaisLlegada || puertosData.length === 0) return '11.2 días';
 
     const puertoO = puertosData.find(p => p.principal === 'Y') || puertosData[0];
@@ -130,7 +138,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
 
     fetchData();
-  }, [paisesDestino]);
+  }, [paisesDestino, itttCalculadosPorPais]);
 
   // Actualizar puertos seleccionados por defecto al cambiar de país
   useEffect(() => {
@@ -264,10 +272,32 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const manejoDias = (pD.manejo_dias || 0) + (pO.manejo_dias || 0);
     const totalDias = Math.max(1, diasNavegacion + manejoDias);
 
+    const formatoDias = `${totalDias.toFixed(1)} días`;
+
     setResultadoIttt({
       distancia: `${Math.round(distNm).toLocaleString()} nm`,
-      tiempo: `${totalDias.toFixed(1)} días`
+      tiempo: formatoDias
     });
+
+    // Actualiza inmediatamente el diccionario y refresca las filas de la tabla principal y normalizada correspondientes a este país de llegada
+    if (paisLlegadaCalc) {
+      setItttCalculadosPorPais(prev => ({
+        ...prev,
+        [paisLlegadaCalc]: formatoDias
+      }));
+
+      setTablaLogi(prevTabla => 
+        prevTabla.map(row => {
+          if (row.Paises.toLowerCase() === paisLlegadaCalc.toLowerCase()) {
+            return {
+              ...row,
+              'Tiempo de tránsito del transporte internacional (ITTT)': formatoDias
+            };
+          }
+          return row;
+        })
+      );
+    }
   };
 
   return (
@@ -529,7 +559,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         </form>
 
         <div className="bg-[#12281d] border border-[#1e4620] px-4 py-2.5 rounded text-xs text-[#a3d9a5] mt-3">
-          Distancia calculada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong>
+          Distancia calculada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong> (Tablas actualizadas automáticamente)
         </div>
       </div>
 
