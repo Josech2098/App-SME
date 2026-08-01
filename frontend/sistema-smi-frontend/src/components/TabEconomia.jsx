@@ -30,14 +30,19 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
   const [cargando, setCargando] = useState(false);
   const [errorEco, setErrorEco] = useState(null);
 
-  // Estado local sincronizado con Supabase usando rango ampliado (idéntico a comercial)
+  // Estado local sincronizado con Supabase usando rango ampliado
   const [listaCostoVidaDB, setListaCostoVidaDB] = useState(datosCostoDeVida);
 
   useEffect(() => {
     async function fetchCostoVidaDB() {
       try {
-        const { data: cvData } = await supabase.from('costodevida').select('*').range(0, 999);
-        if (cvData) setListaCostoVidaDB(cvData);
+        const { data: cvData, error } = await supabase.from('costodevida').select('*').range(0, 999);
+        if (error) {
+          console.error("Error en Supabase costodevida:", error.message);
+        } else if (cvData) {
+          console.log("Datos de costodevida cargados desde Supabase:", cvData);
+          setListaCostoVidaDB(cvData);
+        }
       } catch (err) {
         console.error("Error cargando datos de costo de vida:", err.message);
       }
@@ -124,7 +129,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento y cruce garantizando la inclusión de TODOS los países destino con normalización
+  // Procesamiento y cruce robusto con los datos de Supabase
   useEffect(() => {
     setCargando(true);
     try {
@@ -133,7 +138,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         : ['España', 'Francia', 'Alemania', 'Países Bajos', 'Italia', 'Portugal', 'Estados Unidos', 'México', 'Colombia', 'Chile'];
 
       const limpiarTexto = (str) => {
-        if (!str) return '';
+        if (!str && str !== 0) return '';
         return str
           .toString()
           .toLowerCase()
@@ -142,15 +147,30 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           .trim();
       };
 
+      const fuenteDatosCV = listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida;
+
       const dfEcon = listaPaisesBase.map((pais, idx) => {
         const paisLimpio = limpiarTexto(pais);
 
-        const matchCV = listaCostoVidaDB.find(item => {
-          const itemPais = limpiarTexto(item.pais || item.Paises || item.nombre);
-          return itemPais === paisLimpio || itemPais.includes(paisLimpio) || paisLimpio.includes(itemPais);
+        // Búsqueda profunda barriendo cualquier posible nombre de columna en la tabla de Supabase
+        const matchCV = fuenteDatosCV.find(item => {
+          if (!item) return false;
+          const candidatoPais = 
+            item.pais || item.País || item.PAIS || 
+            item.nombre || item.Nombre || item.NOMBRE || 
+            item.paises || item.Paises || item.PAISES || 
+            item.country || item.Country;
+          
+          const itemLimpio = limpiarTexto(candidatoPais);
+          return itemLimpio === paisLimpio || itemLimpio.includes(paisLimpio) || paisLimpio.includes(itemLimpio);
         });
 
-        const valorCVDB = matchCV ? (matchCV.costo_de_vida ?? matchCV.icv ?? matchCV.ICV ?? matchCV.valor) : null;
+        // Extracción segura evaluando múltiples nombres posibles de columnas de valores en Supabase
+        const valorCVDB = matchCV ? (
+          matchCV.costo_de_vida ?? matchCV.Costo_de_Vida ?? matchCV.COSTO_DE_VIDA ??
+          matchCV.icv ?? matchCV.ICV ?? matchCV.costovida ?? matchCV.CostoVida ?? 
+          matchCV.valor ?? matchCV.Valor ?? matchCV.val
+        ) : null;
 
         const valorICV = valorCVDB !== null && valorCVDB !== undefined && !isNaN(Number(valorCVDB))
           ? Number(valorCVDB)
@@ -244,7 +264,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     } finally {
       setCargando(false);
     }
-  }, [econOverrides, paisesDestino, listaCostoVidaDB]);
+  }, [econOverrides, paisesDestino, listaCostoVidaDB, datosCostoDeVida]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
