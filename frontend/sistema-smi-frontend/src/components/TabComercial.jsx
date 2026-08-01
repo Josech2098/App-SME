@@ -105,29 +105,36 @@ export default function TabComercial({
     }
   };
 
-  // Carga basada en las dos tablas de índices y conectada con la Pestaña 1 (Productos)
+  // Carga robusta uniendo índices y productos sin bloqueos
   useEffect(() => {
     setCargando(true);
     try {
       const setPaisesGlobales = new Set();
 
-      // 1. Extraer países disponibles en las dos tablas de índices
+      // Función auxiliar para extraer nombres de propiedades de forma flexible
+      const extraerNombrePais = (item) => {
+        if (!item) return null;
+        if (typeof item === 'string') return item.trim();
+        return item.pais || item.nombre || item.Paises || item.paisDestino || item.country || item.Country || null;
+      };
+
+      // 1. Extraer de datosIndicePenetracion
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
-          const p = item.nombre || item.pais || item.Paises;
-          if (p && typeof p === 'string') setPaisesGlobales.add(p.trim());
+          const p = extraerNombrePais(item);
+          if (p) setPaisesGlobales.add(p);
         });
       }
 
+      // 2. Extraer de datosLibertadEconomica
       if (Array.isArray(datosLibertadEconomica)) {
         datosLibertadEconomica.forEach(item => {
-          const p = item.pais || item.nombre || item.Paises;
-          if (p && typeof p === 'string') setPaisesGlobales.add(p.trim());
+          const p = extraerNombrePais(item);
+          if (p) setPaisesGlobales.add(p);
         });
       }
 
-      // 2. Conectar y filtrar/corroborar con los productos de la Pestaña 1 (si existen especificaciones por producto)
-      let paisesFiltradosPorProductos = new Set();
+      // 3. Extraer de productos (Pestaña 1)
       if (Array.isArray(productos) && productos.length > 0) {
         productos.forEach(prod => {
           if (!prod || typeof prod !== 'object') return;
@@ -135,51 +142,35 @@ export default function TabComercial({
           posiblesListas.forEach(lista => {
             if (Array.isArray(lista)) {
               lista.forEach(p => {
-                const nombre = typeof p === 'object' ? (p.nombre || p.pais || p.Paises) : p;
-                if (nombre && typeof nombre === 'string') paisesFiltradosPorProductos.add(nombre.trim().toLowerCase());
+                const nombre = extraerNombrePais(p);
+                if (nombre) setPaisesGlobales.add(nombre);
               });
             }
           });
-          const paisUnico = prod.pais || prod.paisDestino || prod.Paises;
-          if (paisUnico && typeof paisUnico === 'string') {
-            paisesFiltradosPorProductos.add(paisUnico.trim().toLowerCase());
-          }
+          const paisUnico = extraerNombrePais(prod);
+          if (paisUnico) setPaisesGlobales.add(paisUnico);
         });
       }
 
-      // Si la Pestaña 1 tiene productos con destinos definidos, filtramos los índices para mostrar solo los correspondientes; de lo contrario usamos todos los de las tablas.
-      let listaPaisesFinal = [];
-      const todosPaisesArray = Array.from(setPaisesGlobales);
-
-      if (paisesFiltradosPorProductos.size > 0) {
-        listaPaisesFinal = todosPaisesArray.filter(p => paisesFiltradosPorProductos.has(p.toLowerCase()));
-        // Si por coincidencia estricta no queda nada, mantenemos todos los de las tablas para evitar vacíos
-        if (listaPaisesFinal.length === 0) {
-          listaPaisesFinal = todosPaisesArray;
-        }
-      } else {
-        listaPaisesFinal = todosPaisesArray;
-      }
-
-      // 3. Añadir overrides manuales
+      // Si aún así no hay países en las tablas, usamos un set inicial más amplio o permitimos overrides
       commOverrides.forEach(ovr => {
-        if (ovr.Paises && !listaPaisesFinal.some(p => p.toLowerCase() === ovr.Paises.toLowerCase())) {
-          listaPaisesFinal.push(ovr.Paises.trim());
-        }
+        if (ovr.Paises) setPaisesGlobales.add(ovr.Paises.trim());
       });
 
-      // Respaldo por defecto si las tablas de índices vinieran vacías
+      let listaPaisesFinal = Array.from(setPaisesGlobales);
+
+      // Respaldo de emergencia absoluto solo si todo lo demás viene totalmente vacío
       if (listaPaisesFinal.length === 0) {
         listaPaisesFinal = ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'];
       }
 
-      // Mapeo y cruce de datos para la tabla consolidada
+      // Mapeo y cruce de datos con búsqueda flexible en las tablas de índices
       const dfComm = listaPaisesFinal.map((pais, idx) => {
         const matchIemp = datosIndicePenetracion.find(
-          item => (item.nombre || item.pais || item.Paises)?.toLowerCase() === pais.toLowerCase()
+          item => extraerNombrePais(item)?.toLowerCase() === pais.toLowerCase()
         );
         const matchIoef = datosLibertadEconomica.find(
-          item => (item.pais || item.nombre || item.Paises)?.toLowerCase() === pais.toLowerCase()
+          item => extraerNombrePais(item)?.toLowerCase() === pais.toLowerCase()
         );
 
         const overrideMatch = commOverrides.find(
@@ -188,13 +179,29 @@ export default function TabComercial({
 
         const calculoArancelCTCO = Number((2.0 + (idx * 0.7) % 5.0).toFixed(2));
 
+        // Buscar valores numéricos de forma dinámica en las propiedades del objeto de índice
+        const obtenerValorNumerico = (obj, posiblesClaves) => {
+          if (!obj) return null;
+          for (let clave of posiblesClaves) {
+            if (obj[clave] !== undefined && obj[clave] !== null && !isNaN(obj[clave])) {
+              return Number(obj[clave]);
+            }
+          }
+          // Si no encuentra por clave exacta, busca cualquier propiedad numérica que no sea el nombre
+          const valNum = Object.values(obj).find(v => typeof v === 'number' && !isNaN(v));
+          return valNum !== undefined ? Number(valNum) : null;
+        };
+
+        const valIempFromTable = obtenerValorNumerico(matchIemp, ['indice_penetracion', 'iemp', 'Penetracion', 'Índice de penetración en el mercado de exportación (IEMP)']);
+        const valIoefFromTable = obtenerValorNumerico(matchIoef, ['indice_de_libertad_economica', 'ioef', 'Libertad', 'Índice de Libertad Económica (IOEF)']);
+
         const valIemp = overrideMatch 
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp && matchIemp.indice_penetracion !== null && matchIemp.indice_penetracion !== undefined ? Number(matchIemp.indice_penetracion) : Number((3.5 + (idx * 0.2)).toFixed(2)));
+          : (valIempFromTable !== null ? valIempFromTable : Number((3.5 + (idx * 0.2)).toFixed(2)));
 
         const valIoef = overrideMatch 
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef && matchIoef.indice_de_libertad_economica !== null && matchIoef.indice_de_libertad_economica !== undefined ? Number(matchIoef.indice_de_libertad_economica) : 60.0);
+          : (valIoefFromTable !== null ? valIoefFromTable : 60.0);
 
         return {
           Paises: pais,
