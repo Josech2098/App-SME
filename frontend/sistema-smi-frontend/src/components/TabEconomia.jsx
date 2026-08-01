@@ -30,24 +30,37 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
   const [cargando, setCargando] = useState(false);
   const [errorEco, setErrorEco] = useState(null);
 
-  // Estado local sincronizado con Supabase usando rango ampliado
+  // Estados locales para las tablas de Supabase
   const [listaCostoVidaDB, setListaCostoVidaDB] = useState(datosCostoDeVida);
+  const [listaDesempleoDB, setListaDesempleoDB] = useState([]);
 
   useEffect(() => {
-    async function fetchCostoVidaDB() {
+    async function fetchDataDB() {
       try {
-        const { data: cvData, error } = await supabase.from('costodevida').select('*').range(0, 999);
-        if (error) {
-          console.error("Error en Supabase costodevida:", error.message);
+        setCargando(true);
+        // Consultar costo de vida
+        const { data: cvData, error: cvError } = await supabase.from('costodevida').select('*').range(0, 999);
+        if (cvError) {
+          console.error("Error en Supabase costodevida:", cvError.message);
         } else if (cvData) {
-          console.log("Datos de costodevida cargados desde Supabase:", cvData);
           setListaCostoVidaDB(cvData);
         }
+
+        // Consultar desempleo
+        const { data: desData, error: desError } = await supabase.from('desempleo').select('*').range(0, 999);
+        if (desError) {
+          console.error("Error en Supabase desempleo:", desError.message);
+        } else if (desData) {
+          console.log("Datos de desempleo cargados desde Supabase:", desData);
+          setListaDesempleoDB(desData);
+        }
       } catch (err) {
-        console.error("Error cargando datos de costo de vida:", err.message);
+        console.error("Error cargando datos de Supabase:", err.message);
+      } finally {
+        setCargando(false);
       }
     }
-    fetchCostoVidaDB();
+    fetchDataDB();
   }, []);
 
   // Sincronizar selectores de edición/eliminación al cambiar los overrides
@@ -129,7 +142,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento y construcción dinámica basada completamente en la tabla costodevida de Supabase
+  // Procesamiento y cruce de tablas (costodevida + desempleo)
   useEffect(() => {
     setCargando(true);
     try {
@@ -145,6 +158,16 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       const fuenteDatosCV = listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida;
 
+      // Crear un mapa rápido de desempleo usando el país limpio como llave
+      const mapaDesempleo = {};
+      listaDesempleoDB.forEach(item => {
+        const nombrePaisDes = item.pais || item.País || item.PAIS || item.paises || item.Paises;
+        const valorTAD = item.tasadesempleo ?? item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.desempleo ?? item.tad;
+        if (nombrePaisDes) {
+          mapaDesempleo[limpiarTexto(nombrePaisDes)] = valorTAD !== null && !isNaN(Number(valorTAD)) ? Number(valorTAD) : null;
+        }
+      });
+
       let dfEcon = fuenteDatosCV.map((item, idx) => {
         const nombrePais = 
           item.pais || item.País || item.PAIS || 
@@ -152,6 +175,8 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           item.paises || item.Paises || item.PAISES || 
           item.country || item.Country || `País ${idx + 1}`;
         
+        const paisKey = limpiarTexto(nombrePais);
+
         const valorICV = 
           item.costo_de_vida ?? item.Costo_de_Vida ?? item.COSTO_DE_VIDA ?? 
           item.icv ?? item.ICV ?? item.costovida ?? item.CostoVida;
@@ -161,11 +186,8 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           item.inflacion ?? item.Inflacion ?? item.INFLACION ?? 
           item.inan ?? item.INAN;
 
-        // Incluimos explícitamente tasadesempleo y sus variantes
-        const valorTAD = 
-          item.tasadesempleo ?? item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.TASA_DE_DESEMPLEO ?? 
-          item.desempleo ?? item.Desempleo ?? item.DESEMPLEO ?? 
-          item.tad ?? item.TAD;
+        // Buscar en la tabla de desempleo externa o dentro del mismo item si viniera ahí
+        const valorTAD = mapaDesempleo[paisKey] !== undefined ? mapaDesempleo[paisKey] : (item.tasadesempleo ?? item.tasa_desempleo ?? item.tad);
 
         return {
           Paises: nombrePais,
@@ -261,7 +283,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     } finally {
       setCargando(false);
     }
-  }, [econOverrides, paisesDestino, listaCostoVidaDB, datosCostoDeVida]);
+  }, [econOverrides, paisesDestino, listaCostoVidaDB, listaDesempleoDB, datosCostoDeVida]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -270,7 +292,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y normalización de indicadores macroeconómicos obtenidos directamente de la tabla `costodevida` en Supabase: Índice del Costo de Vida (ICV), Inflación Anual (IAN) y Tasa de Desempleo (TAD).
+          Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas `costodevida` y `desempleo` en Supabase.
         </p>
       </div>
 
@@ -408,7 +430,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA ECONÓMICA DATOS ORIGINALES ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Económica (ECON) — Datos originales</h3>
-        <p className="text-xs text-slate-400">Índice del Costo de Vida (ICV), Inflación Anual (IAN) y Tasa de Desempleo (TAD) cargados dinámicamente desde Supabase.</p>
+        <p className="text-xs text-slate-400">Índice del Costo de Vida (ICV), Inflación Anual (IAN) y Tasa de Desempleo (TAD) cruzados desde Supabase.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Procesando datos económicos...</div>
@@ -431,7 +453,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : '-'}</td>
                     <td className="p-3">{row.INAN !== null ? row.INAN : <span className="text-slate-600 italic">sin datos</span>}</td>
-                    <td className="p-3">{row.TAD !== null ? row.TAD : <span className="text-slate-600 italic">sin datos</span>}</td>
+                    <td className="p-3 text-emerald-400 font-semibold">{row.TAD !== null ? row.TAD : <span className="text-slate-600 italic">sin datos</span>}</td>
                   </tr>
                 ))}
               </tbody>
