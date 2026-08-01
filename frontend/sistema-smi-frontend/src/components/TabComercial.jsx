@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 export default function TabComercial({ 
   productoActivo, 
-  paisesDestino, 
+  paisesDestino = [], 
   paisOrigen, 
   archivoExcelBytes,
   datosIndicePenetracion = [], // Datos de la tabla public.indicepenetracion
@@ -104,51 +104,80 @@ export default function TabComercial({
     }
   };
 
-  // Procesamiento y vinculación automática de datos
+  // Procesamiento y unificación de TODOS los países disponibles en la app
   useEffect(() => {
     setCargando(true);
     try {
-      const listaPaisesBase = paisesDestino && paisesDestino.length > 0 
-        ? paisesDestino 
-        : ['Albania', 'Alemania', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Arabia Saudi'];
+      // 1. Recopilar nombres de países de TODAS las fuentes posibles en la app de forma única (Set)
+      const setPaisesGlobales = new Set();
 
-      // Mapeo automático cruzando con los datos reales de las tablas proporcionadas
-      const dfComm = listaPaisesBase.map((pais, idx) => {
+      // De las props de destinos globales
+      if (Array.isArray(paisesDestino)) {
+        paisesDestino.forEach(p => { if (p) setPaisesGlobales.add(String(p).trim()); });
+      }
+
+      // De la tabla de Índice de Penetración
+      if (Array.isArray(datosIndicePenetracion)) {
+        datosIndicePenetracion.forEach(item => {
+          const nombre = item.nombre || item.pais || item.Paises;
+          if (nombre) setPaisesGlobales.add(String(nombre).trim());
+        });
+      }
+
+      // De la tabla de Libertad Económica
+      if (Array.isArray(datosLibertadEconomica)) {
+        datosLibertadEconomica.forEach(item => {
+          const nombre = item.pais || item.nombre || item.Paises;
+          if (nombre) setPaisesGlobales.add(String(nombre).trim());
+        });
+      }
+
+      // De los países personalizados agregados manualmente (overrides)
+      commOverrides.forEach(ovr => {
+        if (ovr.Paises) setPaisesGlobales.add(String(ovr.Paises).trim());
+      });
+
+      // Si por alguna razón ninguna fuente tiene datos, dejamos un respaldo por defecto
+      if (setPaisesGlobales.size === 0) {
+        ['Albania', 'Alemania', 'Argentina', 'Armenia', 'Australia', 'Austria', 'Arabia Saudi'].forEach(p => setPaisesGlobales.add(p));
+      }
+
+      const listaPaisesUnificados = Array.from(setPaisesGlobales);
+
+      // 2. Mapear y cruzar automáticamente los datos para cada país unificado
+      const dfComm = listaPaisesUnificados.map((pais, idx) => {
         // Buscar coincidencia en Índice de Penetración
         const matchIemp = datosIndicePenetracion.find(
-          item => item.nombre?.toLowerCase() === pais.toLowerCase()
+          item => (item.nombre || item.pais || item.Paises)?.toLowerCase() === pais.toLowerCase()
         );
         // Buscar coincidencia en Libertad Económica
         const matchIoef = datosLibertadEconomica.find(
-          item => item.pais?.toLowerCase() === pais.toLowerCase()
+          item => (item.pais || item.nombre || item.Paises)?.toLowerCase() === pais.toLowerCase()
         );
 
-        // Cálculo automático de Aranceles (CTCO) basado en una fórmula lógica o fórmula predeterminada
-        // (Puedes ajustar esta lógica de cálculo automático según tus requerimientos de negocio)
+        // Revisar si hay un override manual para este país
+        const overrideMatch = commOverrides.find(
+          ovr => ovr.Paises?.toLowerCase() === pais.toLowerCase()
+        );
+
+        // Cálculo de Aranceles (CTCO) automático basado en la lógica predeterminada
         const calculoArancelCTCO = Number((2.0 + (idx * 0.7) % 5.0).toFixed(2));
+
+        // Asignar valores prioritarios (Override > Base de Datos > Cálculo/Predeterminado)
+        const valIemp = overrideMatch 
+          ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
+          : (matchIemp && matchIemp.indice_penetracion !== null ? Number(matchIemp.indice_penetracion) : Number((3.5 + (idx * 0.2)).toFixed(2)));
+
+        const valIoef = overrideMatch 
+          ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
+          : (matchIoef && matchIoef.indice_de_libertad_economica !== null ? Number(matchIoef.indice_de_libertad_economica) : 60.0);
 
         return {
           Paises: pais,
           'Aranceles aduaneros por país de origen (CTCO)': calculoArancelCTCO,
-          'Índice de penetración en el mercado de exportación (IEMP)': matchIemp ? Number(matchIemp.indice_penetracion) : (3.5 + (idx * 0.2)),
-          'Índice de Libertad Económica (IOEF)': matchIoef && matchIoef.indice_de_libertad_economica !== null ? Number(matchIoef.indice_de_libertad_economica) : 60.0
+          'Índice de penetración en el mercado de exportación (IEMP)': Number(valIemp) || 0,
+          'Índice de Libertad Económica (IOEF)': Number(valIoef) || 0
         };
-      });
-
-      // Aplicar Overrides del usuario
-      commOverrides.forEach(ovr => {
-        const index = dfComm.findIndex(item => item.Paises.toLowerCase() === ovr.Paises.toLowerCase());
-        if (index !== -1) {
-          dfComm[index]['Índice de penetración en el mercado de exportación (IEMP)'] = ovr['Índice de penetración en el mercado de exportación (IEMP)'];
-          dfComm[index]['Índice de Libertad Económica (IOEF)'] = ovr['Índice de Libertad Económica (IOEF)'];
-        } else {
-          dfComm.push({
-            Paises: ovr.Paises,
-            'Aranceles aduaneros por país de origen (CTCO)': 5.25,
-            'Índice de penetración en el mercado de exportación (IEMP)': ovr['Índice de penetración en el mercado de exportación (IEMP)'],
-            'Índice de Libertad Económica (IOEF)': ovr['Índice de Libertad Económica (IOEF)']
-          });
-        }
       });
 
       // Ordenar automáticamente (CTCO Ascendente, IEMP Descendente, IOEF Descendente)
@@ -168,7 +197,7 @@ export default function TabComercial({
       const A3 = 10;
       const getMinMax = (arr, key) => {
         const values = arr.map(item => item[key]).filter(v => v !== null && !isNaN(v));
-        return [Math.min(...values), Math.max(...values)];
+        return values.length > ? [Math.min(...values), Math.max(...values)] : [0, 1];
       };
 
       const [ctcoMin, ctcoMax] = getMinMax(dfComm, 'Aranceles aduaneros por país de origen (CTCO)');
@@ -213,7 +242,7 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y consolidación de indicadores comerciales y arancelarios por país.
+          Gestión y consolidación automática de indicadores comerciales para todos los países de la aplicación.
         </p>
       </div>
 
@@ -345,7 +374,7 @@ export default function TabComercial({
               </form>
             ) : (
               <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
-                No hay datos personalizados para editar aún.
+                Añade o modifica un país para seleccionarlo aquí.
               </div>
             )
           )}
@@ -368,7 +397,7 @@ export default function TabComercial({
             commOverrides.length > 0 ? (
               <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Selecciona país a eliminar:</label>
+                  <label className="block text-xs text-slate-400 mb-1">Selecciona país personalizado:</label>
                   <select 
                     value={paisSeleccionadoDel} 
                     onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
@@ -388,7 +417,7 @@ export default function TabComercial({
               </form>
             ) : (
               <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
-                No hay países en memoria para eliminar aún.
+                No hay países personalizados registrados.
               </div>
             )
           )}
@@ -405,10 +434,10 @@ export default function TabComercial({
       {/* TABLA CONSOLIDADA */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Consolidada (COMM)</h3>
-        <p className="text-xs text-slate-400">Aranceles aduaneros, índice de penetración e índice de libertad económica.</p>
+        <p className="text-xs text-slate-400">Total de países analizados en la app: {datosCommConsolidados.length}</p>
         
         {cargando ? (
-          <div className="p-4 text-xs text-slate-400 italic">Procesando datos comerciales...</div>
+          <div className="p-4 text-xs text-slate-400 italic">Cargando todos los países de la app...</div>
         ) : (
           <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
             <table className="w-full text-left text-xs text-slate-300 relative">
@@ -447,7 +476,7 @@ export default function TabComercial({
             <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
-                <th className="p-3 bg-[#181a20]">País</th>
+                <th className="p-3 bg-[#181a20]">País جغ</th>
                 <th className="p-3 bg-[#181a20]">CTCO Norm</th>
                 <th className="p-3 bg-[#181a20]">IEMP Norm</th>
                 <th className="p-3 bg-[#181a20]">IOEF Norm</th>
