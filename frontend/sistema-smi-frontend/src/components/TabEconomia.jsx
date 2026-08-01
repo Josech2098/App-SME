@@ -129,21 +129,40 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento y cruce garantizando la inclusión de TODOS los países destino
+  // Procesamiento y cruce garantizando la inclusión de TODOS los países destino con normalización avanzada de strings
   useEffect(() => {
     setCargando(true);
     try {
+      // Si paisesDestino está vacío, usamos una lista de respaldo representativa para evitar pantallas en blanco
       const listaPaisesBase = paisesDestino && paisesDestino.length > 0 
         ? paisesDestino 
         : ['España', 'Francia', 'Alemania', 'Países Bajos', 'Italia', 'Portugal', 'Estados Unidos', 'México', 'Colombia', 'Chile'];
 
-      const normalizar = (str) => (str || '').trim().toLowerCase();
+      // Función estricta para limpiar tildes, mayúsculas y espacios y lograr un match exacto con Supabase
+      const limpiarTexto = (str) => {
+        if (!str) return '';
+        return str
+          .toString()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim();
+      };
 
       const dfEcon = listaPaisesBase.map((pais, idx) => {
-        const matchDB = listaCostoVidaDB.find(item => normalizar(item.pais) === normalizar(pais));
+        const paisLimpio = limpiarTexto(pais);
         
-        const valorICV = matchDB && matchDB.costo_de_vida !== null 
-          ? Number(matchDB.costo_de_vida) 
+        // Búsqueda inteligente tolerante a diferencias de tildes o mayúsculas en Supabase
+        const matchDB = listaCostoVidaDB.find(item => {
+          const itemPaisLimpio = limpiarTexto(item.pais || item.Paises || item.nombre);
+          return itemPaisLimpio === paisLimpio || itemPaisLimpio.includes(paisLimpio) || paisLimpio.includes(itemPaisLimpio);
+        });
+        
+        // Obtener costo de vida real desde Supabase si existe (probando varias propiedades comunes)
+        const valorDB = matchDB ? (matchDB.costo_de_vida ?? matchDB.icv ?? matchDB.ICV ?? matchDB.valor) : null;
+
+        const valorICV = valorDB !== null && valorDB !== undefined && !isNaN(Number(valorDB))
+          ? Number(valorDB) 
           : Number((40.0 + ((idx * 3.5) % 30.0)).toFixed(2));
 
         return {
@@ -154,9 +173,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         };
       });
 
-      // Aplicar Overrides del usuario (CRUD)
+      // Aplicar Overrides del usuario (CRUD local)
       econOverrides.forEach(ovr => {
-        const index = dfEcon.findIndex(item => item.Paises.toLowerCase() === ovr.Paises.toLowerCase());
+        const index = dfEcon.findIndex(item => limpiarTexto(item.Paises) === limpiarTexto(ovr.Paises));
         if (index !== -1) {
           dfEcon[index].ICV = ovr.ICV;
           dfEcon[index].INAN = ovr.INAN;
