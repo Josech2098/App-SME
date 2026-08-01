@@ -105,41 +105,39 @@ export default function TabComercial({
     }
   };
 
-  // Carga exhaustiva y unificada de TODOS los países de la Pestaña 1 (Productos) sin exclusiones
+  // Carga exhaustiva y flexible de TODOS los países
   useEffect(() => {
     setCargando(true);
     try {
       const setPaisesGlobales = new Set();
 
-      // 1. Extraer de forma exhaustiva todos los países de todos los productos de la pestaña 1
+      // 1. Barrido profundo de productos (revisa CUALQUIER propiedad del objeto producto)
       if (Array.isArray(productos) && productos.length > 0) {
         productos.forEach(prod => {
-          const posiblesArraysDestinos = [
-            prod.paisesDestino,
-            prod.destinos,
-            prod.paises,
-            prod.paises_destino,
-            prod.listaPaises,
-            prod.mercados
-          ];
+          if (!prod || typeof prod !== 'object') return;
 
-          posiblesArraysDestinos.forEach(lista => {
-            if (Array.isArray(lista)) {
-              lista.forEach(p => {
-                if (p) {
-                  const nombrePais = typeof p === 'object' ? (p.nombre || p.pais || p.Paises) : p;
-                  if (nombrePais && typeof nombrePais === 'string') {
-                    setPaisesGlobales.add(nombrePais.trim());
+          // Revisamos todas las propiedades del producto actual de forma dinámica
+          Object.values(prod).forEach(val => {
+            if (Array.isArray(val)) {
+              val.forEach(item => {
+                if (item) {
+                  const nombre = typeof item === 'object' 
+                    ? (item.nombre || item.pais || item.Paises || item.destinos || item.name) 
+                    : item;
+                  if (nombre && typeof nombre === 'string' && nombre.trim().length > 1) {
+                    setPaisesGlobales.add(nombre.trim());
                   }
+                }
+              });
+            } else if (typeof val === 'string' && val.trim().length > 1) {
+              // Si alguna propiedad de texto parece un país o listado separado por comas
+              val.split(',').forEach(subVal => {
+                if (subVal.trim().length > 1) {
+                  setPaisesGlobales.add(subVal.trim());
                 }
               });
             }
           });
-
-          const posiblePaisUnico = prod.pais || prod.paisDestino || prod.Paises;
-          if (posiblePaisUnico && typeof posiblePaisUnico === 'string') {
-            setPaisesGlobales.add(posiblePaisUnico.trim());
-          }
         });
       }
 
@@ -147,8 +145,8 @@ export default function TabComercial({
       if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => { 
           if (p) {
-            const nombrePais = typeof p === 'object' ? (p.nombre || p.pais || p.Paises) : p;
-            if (nombrePais) setPaisesGlobales.add(String(nombrePais).trim()); 
+            const nombrePais = typeof p === 'object' ? (p.nombre || p.pais || p.Paises || p.name) : p;
+            if (nombrePais && typeof nombrePais === 'string') setPaisesGlobales.add(nombrePais.trim()); 
           }
         });
       }
@@ -158,7 +156,7 @@ export default function TabComercial({
         if (ovr.Paises) setPaisesGlobales.add(String(ovr.Paises).trim());
       });
 
-      // Respaldo por defecto solo si la lista está completamente vacía
+      // Solo si después de todo el escaneo sigue vacío, aplicamos valores mínimos de emergencia
       if (setPaisesGlobales.size === 0) {
         ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'].forEach(p => setPaisesGlobales.add(p));
       }
