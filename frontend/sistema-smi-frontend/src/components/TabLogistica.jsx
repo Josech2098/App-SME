@@ -20,10 +20,18 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [editLpin, setEditLpin] = useState('');
   const [editCpt, setEditCpt] = useState('');
 
-  const [paisSalida, setPaisSalida] = useState(paisOrigen || 'Costa Rica');
-  const [paisLlegada, setPaisLlegada] = useState('');
-  const [velocidadBuque, setVelocidadBuque] = useState(15.00);
+  // Estados para el calculador de ITTT de la imagen
+  const [paisesDisponibles, setPaisesDisponibles] = useState([]);
+  const [paisSalidaCalc, setPaisSalidaCalc] = useState(paisOrigen || '');
+  const [paisLlegadaCalc, setPaisLlegadaCalc] = useState('');
+  const [puertoSalidaCalc, setPuertoSalidaCalc] = useState('');
+  const [puertoLlegadaCalc, setPuertoLlegadaCalc] = useState('');
+  const [velocidadBuque, setVelocidadBuque] = useState(18.00);
   const [resultadoIttt, setResultadoIttt] = useState({ distancia: '0 nm', tiempo: '0 días' });
+
+  // Filtrar puertos según el país seleccionado
+  const puertosSalidaLista = puertosData.filter(p => p.pais.toLowerCase() === (paisSalidaCalc || '').toLowerCase());
+  const puertosLlegadaLista = puertosData.filter(p => p.pais.toLowerCase() === (paisLlegadaCalc || '').toLowerCase());
 
   // Función matemática de Haversine para calcular distancia en Millas Náuticas (nm)
   const calcularDistanciaNautica = (lat1, lon1, lat2, lon2) => {
@@ -40,35 +48,23 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return R * c;
   };
 
-  // Cálculo real del ITTT usando los datos de la tabla "puertos"
-  const calcularItttReal = (nombrePaisLlegada, velocidad) => {
-    if (!nombrePaisLlegada || puertosData.length === 0) return { dias: '5.0 días', distanciaStr: '0 nm' };
+  // Cálculo automático del ITTT para la tabla principal usando puertos principales ('Y')
+  const calcularItttAutomaticoTabla = (nombrePaisLlegada) => {
+    if (!nombrePaisLlegada || puertosData.length === 0) return '11.2 días';
 
-    // Buscar puerto principal de salida o el primero disponible del país origen
-    const puertoO = puertosData.find(p => p.pais.toLowerCase() === paisSalida.toLowerCase() && p.principal === 'Y') 
-                 || puertosData.find(p => p.pais.toLowerCase() === paisSalida.toLowerCase());
-
-    // Buscar puerto principal de llegada o el primero disponible del país destino
+    const puertoO = puertosData.find(p => p.principal === 'Y') || puertosData[0];
     const puertoD = puertosData.find(p => p.pais.toLowerCase() === nombrePaisLlegada.toLowerCase() && p.principal === 'Y')
                  || puertosData.find(p => p.pais.toLowerCase() === nombrePaisLlegada.toLowerCase());
 
-    if (!puertoO || !puertoD) {
-      // Valor por defecto si no se encuentran coordenadas en la BD
-      return { dias: '11.2 días', distanciaStr: '8,964 nm' };
-    }
+    if (!puertoO || !puertoD) return '11.2 días';
 
     const distNm = calcularDistanciaNautica(puertoO.latitud, puertoO.longitud, puertoD.latitud, puertoD.longitud);
-    const vel = Number(velocidad) || 15;
-    const horasNavegacion = distNm / vel;
+    const horasNavegacion = distNm / 15; // Velocidad estándar 15 nudos
     const diasNavegacion = horasNavegacion / 24;
-    
     const manejoDias = (puertoD.manejo_dias || 0) + (puertoO.manejo_dias || 0);
     const totalDias = Math.max(1, diasNavegacion + manejoDias);
 
-    return {
-      dias: `${totalDias.toFixed(1)} días`,
-      distanciaStr: `${Math.round(distNm).toLocaleString()} nm`
-    };
+    return `${totalDias.toFixed(1)} días`;
   };
 
   useEffect(() => {
@@ -81,7 +77,19 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           .select('*');
 
         if (errPuertos) throw errPuertos;
-        setPuertosData(puertosRes || []);
+        const listaPuertos = puertosRes || [];
+        setPuertosData(listaPuertos);
+
+        // Extraer lista única de países de los puertos para los selectores
+        const unicosPaises = [...new Set(listaPuertos.map(p => p.pais))].sort();
+        setPaisesDisponibles(unicosPaises);
+
+        if (unicosPaises.length > 0 && !paisSalidaCalc) {
+          setPaisSalidaCalc(unicosPaises[0]);
+        }
+        if (unicosPaises.length > 1 && !paisLlegadaCalc) {
+          setPaisLlegadaCalc(unicosPaises[1]);
+        }
 
         // 2. Cargar tabla logística desde Supabase ("tabLogi")
         const { data: logiData, error: errLogi } = await supabase
@@ -94,13 +102,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         if (logiData && logiData.length > 0) {
           const formateados = logiData.map(item => {
             const nombrePais = item.pais || 'Desconocido';
-            const calculo = calcularItttReal(nombrePais, velocidadBuque);
             return {
               id: item.id,
               Paises: nombrePais,
               'Índice de desempeño logístico (LPIN)': item.lpi !== null ? item.lpi : 0,
               'Tráfico del puerto de contenedores (CPT)': item.cfr !== null ? item.cfr : 0,
-              'Tiempo de tránsito del transporte internacional (ITTT)': calculo.dias
+              'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomaticoTabla(nombrePais)
             };
           });
 
@@ -123,13 +130,33 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
 
     fetchData();
-  }, [paisesDestino, paisSalida, velocidadBuque]);
+  }, [paisesDestino]);
+
+  // Actualizar puertos seleccionados por defecto al cambiar de país
+  useEffect(() => {
+    const pSalida = puertosData.filter(p => p.pais.toLowerCase() === (paisSalidaCalc || '').toLowerCase());
+    if (pSalida.length > 0) {
+      const principal = pSalida.find(p => p.principal === 'Y') || pSalida[0];
+      setPuertoSalidaCalc(principal.puerto);
+    } else {
+      setPuertoSalidaCalc('');
+    }
+  }, [paisSalidaCalc, puertosData]);
+
+  useEffect(() => {
+    const pLlegada = puertosData.filter(p => p.pais.toLowerCase() === (paisLlegadaCalc || '').toLowerCase());
+    if (pLlegada.length > 0) {
+      const principal = pLlegada.find(p => p.principal === 'Y') || pLlegada[0];
+      setPuertoLlegadaCalc(principal.puerto);
+    } else {
+      setPuertoLlegadaCalc('');
+    }
+  }, [paisLlegadaCalc, puertosData]);
 
   useEffect(() => {
     if (tablaLogi.length > 0) {
       if (!paisSeleccionadoEdit) setPaisSeleccionadoEdit(tablaLogi[0].Paises);
       if (!paisSeleccionadoDel) setPaisSeleccionadoDel(tablaLogi[0].Paises);
-      if (!paisLlegada) setPaisLlegada(tablaLogi[0].Paises);
     }
   }, [tablaLogi]);
 
@@ -147,12 +174,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     e.preventDefault();
     if (!nuevoPais.trim()) return;
 
-    const calculo = calcularItttReal(nuevoPais.trim(), velocidadBuque);
+    const itttGen = calcularItttAutomaticoTabla(nuevoPais.trim());
     const nuevoRegistro = {
       Paises: nuevoPais.trim(),
       'Índice de desempeño logístico (LPIN)': Number(nuevoLpin) || 0,
       'Tráfico del puerto de contenedores (CPT)': Number(nuevoCpt) || 0,
-      'Tiempo de tránsito del transporte internacional (ITTT)': calculo.dias
+      'Tiempo de tránsito del transporte internacional (ITTT)': itttGen
     };
 
     try {
@@ -222,10 +249,24 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   const handleCalcularIttt = (e) => {
     e.preventDefault();
-    const res = calcularItttReal(paisLlegada, velocidadBuque);
+    const pO = puertosData.find(p => p.puerto === puertoSalidaCalc);
+    const pD = puertosData.find(p => p.puerto === puertoLlegadaCalc);
+
+    if (!pO || !pD) {
+      setResultadoIttt({ distancia: '0 nm', tiempo: '0 días' });
+      return;
+    }
+
+    const distNm = calcularDistanciaNautica(pO.latitud, pO.longitud, pD.latitud, pD.longitud);
+    const vel = Number(velocidadBuque) || 18;
+    const horasNavegacion = distNm / vel;
+    const diasNavegacion = horasNavegacion / 24;
+    const manejoDias = (pD.manejo_dias || 0) + (pO.manejo_dias || 0);
+    const totalDias = Math.max(1, diasNavegacion + manejoDias);
+
     setResultadoIttt({
-      distancia: res.distanciaStr,
-      tiempo: res.dias
+      distancia: `${Math.round(distNm).toLocaleString()} nm`,
+      tiempo: `${totalDias.toFixed(1)} días`
     });
   };
 
@@ -237,7 +278,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         <div>
           <h2 className="text-xl font-bold text-white">2. Logística (LOGI)</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Producto activo: <strong className="text-white">{productoActivo ? productoActivo.nombre : 'Ninguno'}</strong> | Origen: <strong className="text-white">{paisSalida}</strong>
+            Producto activo: <strong className="text-white">{productoActivo ? productoActivo.nombre : 'Ninguno'}</strong>
           </p>
         </div>
       </div>
@@ -289,7 +330,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
-              <p className="text-[10px] text-emerald-400 italic">* El ITTT se calculará automáticamente con las coordenadas de la tabla puertos.</p>
               <button 
                 type="submit" 
                 className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
@@ -395,41 +435,85 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       </div>
 
-      {/* CÁLCULO ITTT */}
+      {/* ================= CÁLCULO ITTT (ESTILO IDÉNTICO A LA IMAGEN) ================= */}
       <div className="bg-[#16181d] border border-slate-800 p-5 rounded-lg space-y-4">
-        <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito Internacional (ITTT) por Coordenadas</h3>
+        <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito Internacional (ITTT)</h3>
         
         <form onSubmit={handleCalcularIttt} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* País de salida */}
             <div>
               <label className="block text-xs text-slate-400 mb-1">País de salida</label>
-              <input 
-                type="text"
-                value={paisSalida}
-                onChange={(e) => setPaisSalida(e.target.value)}
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">País de llegada</label>
               <select 
-                value={paisLlegada} 
-                onChange={(e) => setPaisLlegada(e.target.value)}
+                value={paisSalidaCalc} 
+                onChange={(e) => setPaisSalidaCalc(e.target.value)}
                 className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
               >
-                {tablaLogi.map((item, idx) => (
-                  <option key={idx} value={item.Paises}>{item.Paises}</option>
+                {paisesDisponibles.map((pais, idx) => (
+                  <option key={idx} value={pais}>{pais}</option>
                 ))}
               </select>
             </div>
+
+            {/* País de llegada */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">País de llegada</label>
+              <select 
+                value={paisLlegadaCalc} 
+                onChange={(e) => setPaisLlegadaCalc(e.target.value)}
+                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+              >
+                {paisesDisponibles.map((pais, idx) => (
+                  <option key={idx} value={pais}>{pais}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Puerto de salida */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Puerto de salida</label>
+              <select 
+                value={puertoSalidaCalc} 
+                onChange={(e) => setPuertoSalidaCalc(e.target.value)}
+                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+              >
+                {puertosSalidaLista.length === 0 ? (
+                  <option value="">Seleccionar puerto</option>
+                ) : (
+                  puertosSalidaLista.map((p, idx) => (
+                    <option key={idx} value={p.puerto}>{p.puerto}</option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {/* Puerto de llegada */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Puerto de llegada</label>
+              <select 
+                value={puertoLlegadaCalc} 
+                onChange={(e) => setPuertoLlegadaCalc(e.target.value)}
+                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+              >
+                {puertosLlegadaLista.length === 0 ? (
+                  <option value="">Seleccionar puerto</option>
+                ) : (
+                  puertosLlegadaLista.map((p, idx) => (
+                    <option key={idx} value={p.puerto}>{p.puerto}</option>
+                  ))
+                )}
+              </select>
+            </div>
+
           </div>
 
-          <div className="flex flex-col md:flex-row items-end gap-4">
+          <div className="flex flex-col md:flex-row items-end gap-4 pt-2">
             <div className="flex-1">
               <label className="block text-xs text-slate-400 mb-1">Velocidad del buque (nudos)</label>
               <input 
                 type="number" 
-                step="0.1" 
+                step="0.01" 
                 value={velocidadBuque} 
                 onChange={(e) => setVelocidadBuque(e.target.value)} 
                 className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
@@ -437,22 +521,22 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             </div>
             <button 
               type="submit" 
-              className="px-5 py-2 bg-[#262730] hover:bg-[#31333f] text-xs font-semibold text-white border border-slate-700/80 rounded transition-colors cursor-pointer"
+              className="px-5 py-2 bg-[#1b1e26] hover:bg-[#252833] text-xs font-semibold text-white border border-slate-700/80 rounded transition-colors cursor-pointer"
             >
-              Calcular ITTT Real
+              Calcular ITTT
             </button>
           </div>
         </form>
 
-        <div className="bg-[#12281d] border border-[#1e4620] px-4 py-2.5 rounded text-xs text-[#a3d9a5]">
-          Distancia náutica estimada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo estimado de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong>
+        <div className="bg-[#12281d] border border-[#1e4620] px-4 py-2.5 rounded text-xs text-[#a3d9a5] mt-3">
+          Distancia calculada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong>
         </div>
       </div>
 
       {/* ================= TABLA LOGÍSTICA BD ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Logística (LOGI) — Base de Datos</h3>
-        <p className="text-xs text-slate-400">Indicadores logísticos registrados (LPI, CFR) y ITTT calculado automáticamente mediante puertos y Haversine.</p>
+        <p className="text-xs text-slate-400">Indicadores logísticos registrados (LPI, CFR) y ITTT calculado automáticamente.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando datos desde Supabase...</div>
@@ -465,7 +549,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   <th className="p-3 bg-[#181a20]">País</th>
                   <th className="p-3 bg-[#181a20]">Índice Logístico (LPI)</th>
                   <th className="p-3 bg-[#181a20]">Tráfico Contenedores (CFR)</th>
-                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT - Real)</th>
+                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
