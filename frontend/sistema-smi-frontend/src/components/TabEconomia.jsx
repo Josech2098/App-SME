@@ -30,25 +30,20 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
   const [cargando, setCargando] = useState(false);
   const [errorEco, setErrorEco] = useState(null);
 
-  // Estado local sincronizado con los datos de Supabase recibidos por props
+  // Estado local sincronizado con Supabase usando rango ampliado (idéntico a comercial)
   const [listaCostoVidaDB, setListaCostoVidaDB] = useState(datosCostoDeVida);
 
   useEffect(() => {
-    async function fetchCostoVida() {
-      if (datosCostoDeVida.length > 0) {
-        setListaCostoVidaDB(datosCostoDeVida);
-        return;
-      }
+    async function fetchCostoVidaDB() {
       try {
-        const { data, error } = await supabase.from('costodevida').select('*').range(0, 999);
-        if (error) throw error;
-        if (data) setListaCostoVidaDB(data);
+        const { data: cvData } = await supabase.from('costodevida').select('*').range(0, 999);
+        if (cvData) setListaCostoVidaDB(cvData);
       } catch (err) {
-        console.error("Error cargando costodevida:", err.message);
+        console.error("Error cargando datos de costo de vida:", err.message);
       }
     }
-    fetchCostoVida();
-  }, [datosCostoDeVida]);
+    fetchCostoVidaDB();
+  }, []);
 
   // Sincronizar selectores de edición/eliminación al cambiar los overrides
   useEffect(() => {
@@ -129,16 +124,14 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento y cruce garantizando la inclusión de TODOS los países destino con normalización avanzada de strings
+  // Procesamiento y cruce garantizando la inclusión de TODOS los países destino con normalización
   useEffect(() => {
     setCargando(true);
     try {
-      // Si paisesDestino está vacío, usamos una lista de respaldo representativa para evitar pantallas en blanco
       const listaPaisesBase = paisesDestino && paisesDestino.length > 0 
         ? paisesDestino 
         : ['España', 'Francia', 'Alemania', 'Países Bajos', 'Italia', 'Portugal', 'Estados Unidos', 'México', 'Colombia', 'Chile'];
 
-      // Función estricta para limpiar tildes, mayúsculas y espacios y lograr un match exacto con Supabase
       const limpiarTexto = (str) => {
         if (!str) return '';
         return str
@@ -151,29 +144,27 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       const dfEcon = listaPaisesBase.map((pais, idx) => {
         const paisLimpio = limpiarTexto(pais);
-        
-        // Búsqueda inteligente tolerante a diferencias de tildes o mayúsculas en Supabase
-        const matchDB = listaCostoVidaDB.find(item => {
-          const itemPaisLimpio = limpiarTexto(item.pais || item.Paises || item.nombre);
-          return itemPaisLimpio === paisLimpio || itemPaisLimpio.includes(paisLimpio) || paisLimpio.includes(itemPaisLimpio);
-        });
-        
-        // Obtener costo de vida real desde Supabase si existe (probando varias propiedades comunes)
-        const valorDB = matchDB ? (matchDB.costo_de_vida ?? matchDB.icv ?? matchDB.ICV ?? matchDB.valor) : null;
 
-        const valorICV = valorDB !== null && valorDB !== undefined && !isNaN(Number(valorDB))
-          ? Number(valorDB) 
+        const matchCV = listaCostoVidaDB.find(item => {
+          const itemPais = limpiarTexto(item.pais || item.Paises || item.nombre);
+          return itemPais === paisLimpio || itemPais.includes(paisLimpio) || paisLimpio.includes(itemPais);
+        });
+
+        const valorCVDB = matchCV ? (matchCV.costo_de_vida ?? matchCV.icv ?? matchCV.ICV ?? matchCV.valor) : null;
+
+        const valorICV = valorCVDB !== null && valorCVDB !== undefined && !isNaN(Number(valorCVDB))
+          ? Number(valorCVDB)
           : Number((40.0 + ((idx * 3.5) % 30.0)).toFixed(2));
 
         return {
           Paises: pais,
           ICV: valorICV,
-          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)), 
-          TAD: Number((5.0 + ((idx * 1.2) % 10.0)).toFixed(2))  
+          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)),
+          TAD: Number((5.0 + ((idx * 1.2) % 10.0)).toFixed(2))
         };
       });
 
-      // Aplicar Overrides del usuario (CRUD local)
+      // Aplicar Overrides del usuario
       econOverrides.forEach(ovr => {
         const index = dfEcon.findIndex(item => limpiarTexto(item.Paises) === limpiarTexto(ovr.Paises));
         if (index !== -1) {
@@ -206,7 +197,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       const minInan = valoresInanPositivos.length > 0 ? Math.min(...valoresInanPositivos) : null;
       const minTad = valoresTadPositivos.length > 0 ? Math.min(...valoresTadPositivos) : null;
 
-      const normFunc = (valor, minimo) => {
+      const normInversa = (valor, minimo) => {
         if (valor === null || valor === undefined || minimo === null || valor <= 0) return null;
         const num = Number(valor);
         if (isNaN(num) || num <= 0) return null;
@@ -218,9 +209,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       const P_TAD = 0.40;
 
       const dfNorm = dfEcon.map(item => {
-        const icvNorm = normFunc(item.ICV, minIcv);
-        const inanNorm = normFunc(item.INAN, minInan);
-        const tadNorm = normFunc(item.TAD, minTad);
+        const icvNorm = normInversa(item.ICV, minIcv);
+        const inanNorm = normInversa(item.INAN, minInan);
+        const tadNorm = normInversa(item.TAD, minTad);
 
         const puntajeEcon = Number((
           (icvNorm !== null ? icvNorm : 0) * P_ICV +
