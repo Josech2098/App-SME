@@ -20,7 +20,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [editLpin, setEditLpin] = useState('');
   const [editCpt, setEditCpt] = useState('');
 
-  // Estados para el calculador de ITTT de la imagen
+  // Estados para el calculador de ITTT
   const [paisesDisponibles, setPaisesDisponibles] = useState([]);
   const [paisSalidaCalc, setPaisSalidaCalc] = useState(paisOrigen || '');
   const [paisLlegadaCalc, setPaisLlegadaCalc] = useState('');
@@ -29,12 +29,23 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [velocidadBuque, setVelocidadBuque] = useState(18.00);
   const [resultadoIttt, setResultadoIttt] = useState({ distancia: '0 nm', tiempo: '0 días' });
 
-  // Almacenar los ITTT calculados por país de llegada para actualizar las tablas en tiempo real
+  // Almacenar los ITTT calculados por país de llegada
   const [itttCalculadosPorPais, setItttCalculadosPorPais] = useState({});
 
-  // Filtrar puertos según el país seleccionado
-  const puertosSalidaLista = puertosData.filter(p => p.pais.toLowerCase() === (paisSalidaCalc || '').toLowerCase());
-  const puertosLlegadaLista = puertosData.filter(p => p.pais.toLowerCase() === (paisLlegadaCalc || '').toLowerCase());
+  // Función auxiliar para normalizar cadenas (quita tildes, pasa a minúsculas y limpia espacios)
+  const normalizarTexto = (texto) => {
+    if (!texto) return '';
+    return texto
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  };
+
+  // Filtrar puertos según el país seleccionado (usando normalización para evitar errores por tildes)
+  const puertosSalidaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
+  const puertosLlegadaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
 
   // Función matemática de Haversine para calcular distancia en Millas Náuticas (nm)
   const calcularDistanciaNautica = (lat1, lon1, lat2, lon2) => {
@@ -53,16 +64,20 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   // Cálculo automático del ITTT por defecto usando puertos principales ('Y')
   const calcularItttAutomaticoTabla = (nombrePaisLlegada) => {
-    // Si el usuario ya calculó un ITTT específico para este país mediante el formulario, usar ese valor
-    if (itttCalculadosPorPais[nombrePaisLlegada]) {
-      return itttCalculadosPorPais[nombrePaisLlegada];
+    const normLlegada = normalizarTexto(nombrePaisLlegada);
+
+    // Si el usuario ya calculó un ITTT específico para este país mediante el formulario
+    for (const [key, value] of Object.entries(itttCalculadosPorPais)) {
+      if (normalizarTexto(key) === normLlegada) {
+        return value;
+      }
     }
 
     if (!nombrePaisLlegada || puertosData.length === 0) return '11.2 días';
 
     const puertoO = puertosData.find(p => p.principal === 'Y') || puertosData[0];
-    const puertoD = puertosData.find(p => p.pais.toLowerCase() === nombrePaisLlegada.toLowerCase() && p.principal === 'Y')
-                 || puertosData.find(p => p.pais.toLowerCase() === nombrePaisLlegada.toLowerCase());
+    const puertoD = puertosData.find(p => normalizarTexto(p.pais) === normLlegada && p.principal === 'Y')
+                 || puertosData.find(p => normalizarTexto(p.pais) === normLlegada);
 
     if (!puertoO || !puertoD) return '11.2 días';
 
@@ -122,7 +137,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           let datosFinales = formateados;
           if (paisesDestino && paisesDestino.length > 0) {
             const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
-            const filtradosPorDestino = formateados.filter(item => nombresDestino.includes(item.Paises));
+            const filtradosPorDestino = formateados.filter(item => 
+              nombresDestino.some(nd => normalizarTexto(nd) === normalizarTexto(item.Paises))
+            );
             if (filtradosPorDestino.length > 0) {
               datosFinales = filtradosPorDestino;
             }
@@ -142,7 +159,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   // Actualizar puertos seleccionados por defecto al cambiar de país
   useEffect(() => {
-    const pSalida = puertosData.filter(p => p.pais.toLowerCase() === (paisSalidaCalc || '').toLowerCase());
+    const pSalida = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
     if (pSalida.length > 0) {
       const principal = pSalida.find(p => p.principal === 'Y') || pSalida[0];
       setPuertoSalidaCalc(principal.puerto);
@@ -152,7 +169,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   }, [paisSalidaCalc, puertosData]);
 
   useEffect(() => {
-    const pLlegada = puertosData.filter(p => p.pais.toLowerCase() === (paisLlegadaCalc || '').toLowerCase());
+    const pLlegada = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
     if (pLlegada.length > 0) {
       const principal = pLlegada.find(p => p.principal === 'Y') || pLlegada[0];
       setPuertoLlegadaCalc(principal.puerto);
@@ -279,16 +296,16 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       tiempo: formatoDias
     });
 
-    // Actualiza inmediatamente el diccionario y refresca las filas de la tabla principal y normalizada correspondientes a este país de llegada
     if (paisLlegadaCalc) {
       setItttCalculadosPorPais(prev => ({
         ...prev,
         [paisLlegadaCalc]: formatoDias
       }));
 
+      // Actualizar de forma insensible a tildes/mayúsculas en las tablas
       setTablaLogi(prevTabla => 
         prevTabla.map(row => {
-          if (row.Paises.toLowerCase() === paisLlegadaCalc.toLowerCase()) {
+          if (normalizarTexto(row.Paises) === normalizarTexto(paisLlegadaCalc)) {
             return {
               ...row,
               'Tiempo de tránsito del transporte internacional (ITTT)': formatoDias
@@ -465,7 +482,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       </div>
 
-      {/* ================= CÁLCULO ITTT (ESTILO IDÉNTICO A LA IMAGEN) ================= */}
+      {/* ================= CÁLCULO ITTT ================= */}
       <div className="bg-[#16181d] border border-slate-800 p-5 rounded-lg space-y-4">
         <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito Internacional (ITTT)</h3>
         
