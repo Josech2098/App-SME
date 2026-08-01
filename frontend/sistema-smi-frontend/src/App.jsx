@@ -30,11 +30,12 @@ export default function App() {
   const [listaSubcategorias, setListaSubcategorias] = useState([]);
   const [listaPaisesOrigen, setListaPaisesOrigen] = useState([]);
 
-  // NUEVOS ESTADOS GLOBALES PARA TAB COMERCIAL (Supabase)
+  // NUEVOS ESTADOS GLOBALES PARA TABS (Supabase)
   const [datosIndicePenetracion, setDatosIndicePenetracion] = useState([]);
   const [datosLibertadEconomica, setDatosLibertadEconomica] = useState([]);
+  const [datosCostoDeVida, setDatosCostoDeVida] = useState([]);
 
-  // 1. Cargar Categorías, Países de Origen y Datos Comerciales Iniciales
+  // 1. Cargar Categorías, Países de Origen y Datos Iniciales de Supabase
   useEffect(() => {
     async function fetchIniciales() {
       // Categorías
@@ -62,6 +63,12 @@ export default function App() {
         .from('libertadeconomica')
         .select('*');
       if (libData) setDatosLibertadEconomica(libData);
+
+      // Costo de Vida (ECON)
+      const { data: costoData } = await supabase
+        .from('costodevida')
+        .select('*');
+      if (costoData) setDatosCostoDeVida(costoData);
     }
     fetchIniciales();
   }, []);
@@ -275,7 +282,7 @@ export default function App() {
             <TabComercial 
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
-              productos={paisesDestino} // Si manejas la lista de productos aquí
+              productos={paisesDestino}
               paisOrigen={paisOrigen}
               datosIndicePenetracion={datosIndicePenetracion}
               datosLibertadEconomica={datosLibertadEconomica}
@@ -287,6 +294,7 @@ export default function App() {
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
+              datosCostoDeVida={datosCostoDeVida}
             />
           )}
 
