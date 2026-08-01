@@ -105,66 +105,76 @@ export default function TabComercial({
     }
   };
 
-  // Carga exhaustiva y flexible de TODOS los países
+  // Carga basada en las dos tablas de índices y conectada con la Pestaña 1 (Productos)
   useEffect(() => {
     setCargando(true);
     try {
       const setPaisesGlobales = new Set();
 
-      // 1. Barrido profundo de productos (revisa CUALQUIER propiedad del objeto producto)
-      if (Array.isArray(productos) && productos.length > 0) {
-        productos.forEach(prod => {
-          if (!prod || typeof prod !== 'object') return;
-
-          // Revisamos todas las propiedades del producto actual de forma dinámica
-          Object.values(prod).forEach(val => {
-            if (Array.isArray(val)) {
-              val.forEach(item => {
-                if (item) {
-                  const nombre = typeof item === 'object' 
-                    ? (item.nombre || item.pais || item.Paises || item.destinos || item.name) 
-                    : item;
-                  if (nombre && typeof nombre === 'string' && nombre.trim().length > 1) {
-                    setPaisesGlobales.add(nombre.trim());
-                  }
-                }
-              });
-            } else if (typeof val === 'string' && val.trim().length > 1) {
-              // Si alguna propiedad de texto parece un país o listado separado por comas
-              val.split(',').forEach(subVal => {
-                if (subVal.trim().length > 1) {
-                  setPaisesGlobales.add(subVal.trim());
-                }
-              });
-            }
-          });
+      // 1. Extraer países disponibles en las dos tablas de índices
+      if (Array.isArray(datosIndicePenetracion)) {
+        datosIndicePenetracion.forEach(item => {
+          const p = item.nombre || item.pais || item.Paises;
+          if (p && typeof p === 'string') setPaisesGlobales.add(p.trim());
         });
       }
 
-      // 2. Extraer desde la prop general de destinos
-      if (Array.isArray(paisesDestino)) {
-        paisesDestino.forEach(p => { 
-          if (p) {
-            const nombrePais = typeof p === 'object' ? (p.nombre || p.pais || p.Paises || p.name) : p;
-            if (nombrePais && typeof nombrePais === 'string') setPaisesGlobales.add(nombrePais.trim()); 
+      if (Array.isArray(datosLibertadEconomica)) {
+        datosLibertadEconomica.forEach(item => {
+          const p = item.pais || item.nombre || item.Paises;
+          if (p && typeof p === 'string') setPaisesGlobales.add(p.trim());
+        });
+      }
+
+      // 2. Conectar y filtrar/corroborar con los productos de la Pestaña 1 (si existen especificaciones por producto)
+      let paisesFiltradosPorProductos = new Set();
+      if (Array.isArray(productos) && productos.length > 0) {
+        productos.forEach(prod => {
+          if (!prod || typeof prod !== 'object') return;
+          const posiblesListas = [prod.paisesDestino, prod.destinos, prod.paises, prod.paises_destino, prod.listaPaises, prod.mercados];
+          posiblesListas.forEach(lista => {
+            if (Array.isArray(lista)) {
+              lista.forEach(p => {
+                const nombre = typeof p === 'object' ? (p.nombre || p.pais || p.Paises) : p;
+                if (nombre && typeof nombre === 'string') paisesFiltradosPorProductos.add(nombre.trim().toLowerCase());
+              });
+            }
+          });
+          const paisUnico = prod.pais || prod.paisDestino || prod.Paises;
+          if (paisUnico && typeof paisUnico === 'string') {
+            paisesFiltradosPorProductos.add(paisUnico.trim().toLowerCase());
           }
         });
       }
 
-      // 3. Añadir países manuales (overrides)
-      commOverrides.forEach(ovr => {
-        if (ovr.Paises) setPaisesGlobales.add(String(ovr.Paises).trim());
-      });
+      // Si la Pestaña 1 tiene productos con destinos definidos, filtramos los índices para mostrar solo los correspondientes; de lo contrario usamos todos los de las tablas.
+      let listaPaisesFinal = [];
+      const todosPaisesArray = Array.from(setPaisesGlobales);
 
-      // Solo si después de todo el escaneo sigue vacío, aplicamos valores mínimos de emergencia
-      if (setPaisesGlobales.size === 0) {
-        ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'].forEach(p => setPaisesGlobales.add(p));
+      if (paisesFiltradosPorProductos.size > 0) {
+        listaPaisesFinal = todosPaisesArray.filter(p => paisesFiltradosPorProductos.has(p.toLowerCase()));
+        // Si por coincidencia estricta no queda nada, mantenemos todos los de las tablas para evitar vacíos
+        if (listaPaisesFinal.length === 0) {
+          listaPaisesFinal = todosPaisesArray;
+        }
+      } else {
+        listaPaisesFinal = todosPaisesArray;
       }
 
-      const listaPaisesUnificados = Array.from(setPaisesGlobales);
+      // 3. Añadir overrides manuales
+      commOverrides.forEach(ovr => {
+        if (ovr.Paises && !listaPaisesFinal.some(p => p.toLowerCase() === ovr.Paises.toLowerCase())) {
+          listaPaisesFinal.push(ovr.Paises.trim());
+        }
+      });
 
-      // Mapeo y cruce de datos para la tabla
-      const dfComm = listaPaisesUnificados.map((pais, idx) => {
+      // Respaldo por defecto si las tablas de índices vinieran vacías
+      if (listaPaisesFinal.length === 0) {
+        listaPaisesFinal = ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'];
+      }
+
+      // Mapeo y cruce de datos para la tabla consolidada
+      const dfComm = listaPaisesFinal.map((pais, idx) => {
         const matchIemp = datosIndicePenetracion.find(
           item => (item.nombre || item.pais || item.Paises)?.toLowerCase() === pais.toLowerCase()
         );
@@ -180,11 +190,11 @@ export default function TabComercial({
 
         const valIemp = overrideMatch 
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp && matchIemp.indice_penetracion !== null ? Number(matchIemp.indice_penetracion) : Number((3.5 + (idx * 0.2)).toFixed(2)));
+          : (matchIemp && matchIemp.indice_penetracion !== null && matchIemp.indice_penetracion !== undefined ? Number(matchIemp.indice_penetracion) : Number((3.5 + (idx * 0.2)).toFixed(2)));
 
         const valIoef = overrideMatch 
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef && matchIoef.indice_de_libertad_economica !== null ? Number(matchIoef.indice_de_libertad_economica) : 60.0);
+          : (matchIoef && matchIoef.indice_de_libertad_economica !== null && matchIoef.indice_de_libertad_economica !== undefined ? Number(matchIoef.indice_de_libertad_economica) : 60.0);
 
         return {
           Paises: pais,
@@ -254,7 +264,7 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado completamente con los países definidos en la Pestaña 1 (Productos).
+          Sincronizado con las tablas de índices y conectado a los productos de la Pestaña 1.
         </p>
       </div>
 
@@ -405,10 +415,10 @@ export default function TabComercial({
       {/* TABLA CONSOLIDADA */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Consolidada (COMM)</h3>
-        <p className="text-xs text-slate-400">Total de países cargados desde Productos: {datosCommConsolidados.length}</p>
+        <p className="text-xs text-slate-400">Total de países sincronizados: {datosCommConsolidados.length}</p>
         
         {cargando ? (
-          <div className="p-4 text-xs text-slate-400 italic">Sincronizando países de productos...</div>
+          <div className="p-4 text-xs text-slate-400 italic">Sincronizando índices y productos...</div>
         ) : (
           <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
             <table className="w-full text-left text-xs text-slate-300">
@@ -459,7 +469,7 @@ export default function TabComercial({
                   <td className="p-3 font-medium text-white">{row.Paises}</td>
                   <td className="p-3">{row.CTCO_norm}</td>
                   <td className="p-3">{row.IEMP_norm}</td>
-                  <td className="p-3">{row.ioef_norm || row.IOEF_norm}</td>
+                  <td className="p-3">{row.IOEF_norm}</td>
                   <td className="p-3 font-bold text-emerald-400">{row.COMM_total}</td>
                 </tr>
               ))}
