@@ -66,7 +66,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const calcularItttAutomaticoTabla = (nombrePaisLlegada) => {
     const normLlegada = normalizarTexto(nombrePaisLlegada);
 
-    // 1. Priorizar siempre si existe un cálculo manual previo para este país
     for (const [key, value] of Object.entries(itttCalculadosPorPais)) {
       if (normalizarTexto(key) === normLlegada) {
         return value;
@@ -90,71 +89,70 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return `${totalDias.toFixed(1)} días`;
   };
 
-  useEffect(() => {
-    async function fetchData() {
-      setCargando(true);
-      try {
-        // 1. Cargar puertos desde Supabase
-        const { data: puertosRes, error: errPuertos } = await supabase
-          .from('puertos')
-          .select('*');
+  // Función centralizada para recargar datos desde Supabase y sincronizar la interfaz
+  const cargarDatos = async () => {
+    try {
+      // 1. Cargar puertos desde Supabase
+      const { data: puertosRes, error: errPuertos } = await supabase
+        .from('puertos')
+        .select('*');
 
-        if (errPuertos) throw errPuertos;
-        const listaPuertos = puertosRes || [];
-        setPuertosData(listaPuertos);
+      if (errPuertos) throw errPuertos;
+      const listaPuertos = puertosRes || [];
+      setPuertosData(listaPuertos);
 
-        // Extraer lista única de países de los puertos para los selectores
-        const unicosPaises = [...new Set(listaPuertos.map(p => p.pais))].sort();
-        setPaisesDisponibles(unicosPaises);
+      const unicosPaises = [...new Set(listaPuertos.map(p => p.pais))].sort();
+      setPaisesDisponibles(unicosPaises);
 
-        if (unicosPaises.length > 0 && !paisSalidaCalc) {
-          setPaisSalidaCalc(unicosPaises[0]);
-        }
-        if (unicosPaises.length > 1 && !paisLlegadaCalc) {
-          setPaisLlegadaCalc(unicosPaises[1]);
-        }
-
-        // 2. Cargar tabla logística desde Supabase ("tabLogi")
-        const { data: logiData, error: errLogi } = await supabase
-          .from('tabLogi')
-          .select('*')
-          .order('pais', { ascending: true });
-
-        if (errLogi) throw errLogi;
-
-        if (logiData && logiData.length > 0) {
-          const formateados = logiData.map(item => {
-            const nombrePais = item.pais || 'Desconocido';
-            return {
-              id: item.id,
-              Paises: nombrePais,
-              'Índice de desempeño logístico (LPIN)': item.lpi !== null ? item.lpi : 0,
-              'Tráfico del puerto de contenedores (CPT)': item.cfr !== null ? item.cfr : 0,
-              'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomaticoTabla(nombrePais)
-            };
-          });
-
-          let datosFinales = formateados;
-          if (paisesDestino && paisesDestino.length > 0) {
-            const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
-            const filtradosPorDestino = formateados.filter(item => 
-              nombresDestino.some(nd => normalizarTexto(nd) === normalizarTexto(item.Paises))
-            );
-            if (filtradosPorDestino.length > 0) {
-              datosFinales = filtradosPorDestino;
-            }
-          }
-
-          setTablaLogi(datosFinales);
-        }
-      } catch (err) {
-        console.error("Error al cargar datos desde Supabase:", err);
-      } finally {
-        setCargando(false);
+      if (unicosPaises.length > 0 && !paisSalidaCalc) {
+        setPaisSalidaCalc(unicosPaises[0]);
       }
-    }
+      if (unicosPaises.length > 1 && !paisLlegadaCalc) {
+        setPaisLlegadaCalc(unicosPaises[1]);
+      }
 
-    fetchData();
+      // 2. Cargar tabla logística desde Supabase ("tabLogi")
+      const { data: logiData, error: errLogi } = await supabase
+        .from('tabLogi')
+        .select('*')
+        .order('pais', { ascending: true });
+
+      if (errLogi) throw errLogi;
+
+      if (logiData) {
+        const formateados = logiData.map(item => {
+          const nombrePais = item.pais || 'Desconocido';
+          return {
+            id: item.id,
+            Paises: nombrePais,
+            'Índice de desempeño logístico (LPIN)': item.lpi !== null ? item.lpi : 0,
+            'Tráfico del puerto de contenedores (CPT)': item.cfr !== null ? item.cfr : 0,
+            'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomaticoTabla(nombrePais)
+          };
+        });
+
+        let datosFinales = formateados;
+        if (paisesDestino && paisesDestino.length > 0) {
+          const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
+          const filtradosPorDestino = formateados.filter(item => 
+            nombresDestino.some(nd => normalizarTexto(nd) === normalizarTexto(item.Paises))
+          );
+          if (filtradosPorDestino.length > 0) {
+            datosFinales = filtradosPorDestino;
+          }
+        }
+
+        setTablaLogi(datosFinales);
+      }
+    } catch (err) {
+      console.error("Error al cargar datos desde Supabase:", err);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarDatos();
   }, [paisesDestino, itttCalculadosPorPais]);
 
   // Actualizar puertos seleccionados por defecto al cambiar de país
@@ -199,77 +197,65 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     e.preventDefault();
     if (!nuevoPais.trim()) return;
 
-    const itttGen = calcularItttAutomaticoTabla(nuevoPais.trim());
-    const nuevoRegistro = {
-      Paises: nuevoPais.trim(),
-      'Índice de desempeño logístico (LPIN)': Number(nuevoLpin) || 0,
-      'Tráfico del puerto de contenedores (CPT)': Number(nuevoCpt) || 0,
-      'Tiempo de tránsito del transporte internacional (ITTT)': itttGen
-    };
-
     try {
-      await supabase.from('tabLogi').insert([
+      const { error } = await supabase.from('tabLogi').insert([
         {
           pais: nuevoPais.trim(),
           lpi: Number(nuevoLpin) || 0,
           cfr: Number(nuevoCpt) || 0
         }
       ]);
+      if (error) throw error;
+
+      setNuevoPais('');
+      setNuevoLpin('');
+      setNuevoCpt('');
+      setOpenAdd(false);
+
+      // Recargar datos directamente desde Supabase
+      await cargarDatos();
     } catch (err) {
       console.error("Error insertando en tabLogi:", err);
     }
-
-    setTablaLogi([...tablaLogi, nuevoRegistro]);
-    setNuevoPais('');
-    setNuevoLpin('');
-    setNuevoCpt('');
-    setOpenAdd(false);
   };
 
   const handleUpdatePais = async (e) => {
     e.preventDefault();
-    const actualizado = tablaLogi.map((item) => {
-      if (item.Paises === paisSeleccionadoEdit) {
-        return {
-          ...item,
-          'Índice de desempeño logístico (LPIN)': Number(editLpin),
-          'Tráfico del puerto de contenedores (CPT)': Number(editCpt)
-        };
-      }
-      return item;
-    });
-
     try {
-      await supabase
+      const { error } = await supabase
         .from('tabLogi')
         .update({
           lpi: Number(editLpin),
           cfr: Number(editCpt)
         })
         .eq('pais', paisSeleccionadoEdit);
+
+      if (error) throw error;
+
+      setOpenEdit(false);
+      // Recargar datos directamente desde Supabase
+      await cargarDatos();
     } catch (err) {
       console.error("Error actualizando tabLogi:", err);
     }
-
-    setTablaLogi(actualizado);
-    setOpenEdit(false);
   };
 
   const handleDeletePais = async (e) => {
     e.preventDefault();
-    const filtrado = tablaLogi.filter((item) => item.Paises !== paisSeleccionadoDel);
-    
     try {
-      await supabase
+      const { error } = await supabase
         .from('tabLogi')
         .delete()
         .eq('pais', paisSeleccionadoDel);
+
+      if (error) throw error;
+
+      setOpenDel(false);
+      // Recargar datos directamente desde Supabase
+      await cargarDatos();
     } catch (err) {
       console.error("Error eliminando de tabLogi:", err);
     }
-
-    setTablaLogi(filtrado);
-    setOpenDel(false);
   };
 
   const handleCalcularIttt = (e) => {
@@ -304,7 +290,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         [paisLlegadaCalc]: formatoDias
       }));
 
-      // Actualizar inmediatamente la tabla principal y normalizada mediante una copia nueva
       setTablaLogi(prevTabla => 
         prevTabla.map(row => {
           const paisFila = row.pais || row.Paises;
