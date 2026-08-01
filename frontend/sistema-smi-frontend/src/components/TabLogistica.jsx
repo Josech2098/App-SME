@@ -62,11 +62,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return R * c;
   };
 
-  // Cálculo automático del ITTT por defecto usando puertos principales ('Y')
+  // Cálculo automático del ITTT priorizando el diccionario manual o usando puertos principales ('Y')
   const calcularItttAutomaticoTabla = (nombrePaisLlegada) => {
     const normLlegada = normalizarTexto(nombrePaisLlegada);
 
-    // Revisar si existe un cálculo manual previo para este país
+    // 1. Priorizar siempre si existe un cálculo manual previo para este país
     for (const [key, value] of Object.entries(itttCalculadosPorPais)) {
       if (normalizarTexto(key) === normLlegada) {
         return value;
@@ -307,7 +307,8 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       // Actualizar inmediatamente la tabla principal y normalizada mediante una copia nueva
       setTablaLogi(prevTabla => 
         prevTabla.map(row => {
-          if (normalizarTexto(row.Paises) === normDestino) {
+          const paisFila = row.pais || row.Paises;
+          if (normalizarTexto(paisFila) === normDestino) {
             return {
               ...row,
               'Tiempo de tránsito del transporte internacional (ITTT)': formatoDias
