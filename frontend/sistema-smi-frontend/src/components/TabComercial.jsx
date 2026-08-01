@@ -105,7 +105,7 @@ export default function TabComercial({
     }
   };
 
-  // Sincronización completa utilizando paisesDestino y las tablas de índices sin restricciones de cantidad
+  // Sincronización basada estrictamente en UNA SOLA tabla (datosIndicePenetracion)
   useEffect(() => {
     setCargando(true);
     try {
@@ -117,15 +117,7 @@ export default function TabComercial({
         return item.pais || item.nombre || item.Paises || item.country || item.Country || item.paisDestino || item.Mercado || item.mercado || null;
       };
 
-      // 1. Priorizar la lista completa de países destino configurada en la aplicación
-      if (Array.isArray(paisesDestino) && paisesDestino.length > 0) {
-        paisesDestino.forEach(p => {
-          const nombre = extraerNombrePais(p);
-          if (nombre) setPaisesGlobales.add(nombre);
-        });
-      }
-
-      // 2. Extraer de datosIndicePenetracion
+      // Tomar países exclusivamente de datosIndicePenetracion
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
           const p = extraerNombrePais(item);
@@ -133,15 +125,7 @@ export default function TabComercial({
         });
       }
 
-      // 3. Extraer de datosLibertadEconomica
-      if (Array.isArray(datosLibertadEconomica)) {
-        datosLibertadEconomica.forEach(item => {
-          const p = extraerNombrePais(item);
-          if (p) setPaisesGlobales.add(p);
-        });
-      }
-
-      // 4. Agregar overrides manuales
+      // Agregar overrides manuales si los hubiera
       commOverrides.forEach(ovr => {
         if (ovr.Paises) setPaisesGlobales.add(ovr.Paises.trim());
       });
@@ -237,14 +221,14 @@ export default function TabComercial({
     } finally {
       setCargando(false);
     }
-  }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica, paisesDestino]);
+  }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con todos los países destino y las tablas de índices.
+          Sincronizado únicamente con los países de la tabla de Índice de Penetración.
         </p>
       </div>
 
