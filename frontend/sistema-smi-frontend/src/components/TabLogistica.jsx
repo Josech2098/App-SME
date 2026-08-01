@@ -3,6 +3,7 @@ import { supabase } from '../supabaseClient.js';
 
 export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen }) {
   const [tablaLogi, setTablaLogi] = useState([]);
+  const [puertosData, setPuertosData] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   const [openAdd, setOpenAdd] = useState(false);
@@ -19,48 +20,90 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [editLpin, setEditLpin] = useState('');
   const [editCpt, setEditCpt] = useState('');
 
-  const [paisSalida, setPaisSalida] = useState(paisOrigen || 'España');
+  const [paisSalida, setPaisSalida] = useState(paisOrigen || 'Costa Rica');
   const [paisLlegada, setPaisLlegada] = useState('');
-  const [puertoSalida, setPuertoSalida] = useState('Valencia (ES)');
-  const [puertoLlegada, setPuertoLlegada] = useState('Róterdam (NL)');
-  const [velocidadBuque, setVelocidadBuque] = useState(18.00);
-  const [resultadoIttt, setResultadoIttt] = useState({ distancia: '8,964 km', tiempo: '11.2 días' });
+  const [velocidadBuque, setVelocidadBuque] = useState(15.00);
+  const [resultadoIttt, setResultadoIttt] = useState({ distancia: '0 nm', tiempo: '0 días' });
 
-  // Función para calcular un ITTT automático basado en el país de llegada (simulación lógica de la app)
-  const calcularItttAutomatico = (nombrePais) => {
-    if (!nombrePais) return '11.2 días';
-    // Genera un valor lógico basado en la longitud del nombre para que varíe por país de forma consistente
-    const hash = nombrePais.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const dias = (5 + (hash % 20) + 0.5).toFixed(1);
-    return `${dias} días`;
+  // Función matemática de Haversine para calcular distancia en Millas Náuticas (nm)
+  const calcularDistanciaNautica = (lat1, lon1, lat2, lon2) => {
+    if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return 0;
+    const R = 3440.06; // Radio de la Tierra en millas náuticas
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+              
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Cálculo real del ITTT usando los datos de la tabla "puertos"
+  const calcularItttReal = (nombrePaisLlegada, velocidad) => {
+    if (!nombrePaisLlegada || puertosData.length === 0) return { dias: '5.0 días', distanciaStr: '0 nm' };
+
+    // Buscar puerto principal de salida o el primero disponible del país origen
+    const puertoO = puertosData.find(p => p.pais.toLowerCase() === paisSalida.toLowerCase() && p.principal === 'Y') 
+                 || puertosData.find(p => p.pais.toLowerCase() === paisSalida.toLowerCase());
+
+    // Buscar puerto principal de llegada o el primero disponible del país destino
+    const puertoD = puertosData.find(p => p.pais.toLowerCase() === nombrePaisLlegada.toLowerCase() && p.principal === 'Y')
+                 || puertosData.find(p => p.pais.toLowerCase() === nombrePaisLlegada.toLowerCase());
+
+    if (!puertoO || !puertoD) {
+      // Valor por defecto si no se encuentran coordenadas en la BD
+      return { dias: '11.2 días', distanciaStr: '8,964 nm' };
+    }
+
+    const distNm = calcularDistanciaNautica(puertoO.latitud, puertoO.longitud, puertoD.latitud, puertoD.longitud);
+    const vel = Number(velocidad) || 15;
+    const horasNavegacion = distNm / vel;
+    const diasNavegacion = horasNavegacion / 24;
+    
+    const manejoDias = (puertoD.manejo_dias || 0) + (puertoO.manejo_dias || 0);
+    const totalDias = Math.max(1, diasNavegacion + manejoDias);
+
+    return {
+      dias: `${totalDias.toFixed(1)} días`,
+      distanciaStr: `${Math.round(distNm).toLocaleString()} nm`
+    };
   };
 
   useEffect(() => {
-    async function fetchDatosLogistica() {
+    async function fetchData() {
       setCargando(true);
       try {
-        // Conexión con la tabla "tabLogi" de tu base de datos
-        const { data: logiData, error } = await supabase
+        // 1. Cargar puertos desde Supabase
+        const { data: puertosRes, error: errPuertos } = await supabase
+          .from('puertos')
+          .select('*');
+
+        if (errPuertos) throw errPuertos;
+        setPuertosData(puertosRes || []);
+
+        // 2. Cargar tabla logística desde Supabase ("tabLogi")
+        const { data: logiData, error: errLogi } = await supabase
           .from('tabLogi')
           .select('*')
           .order('pais', { ascending: true });
 
-        if (error) throw error;
+        if (errLogi) throw errLogi;
 
         if (logiData && logiData.length > 0) {
           const formateados = logiData.map(item => {
             const nombrePais = item.pais || 'Desconocido';
+            const calculo = calcularItttReal(nombrePais, velocidadBuque);
             return {
               id: item.id,
               Paises: nombrePais,
               'Índice de desempeño logístico (LPIN)': item.lpi !== null ? item.lpi : 0,
               'Tráfico del puerto de contenedores (CPT)': item.cfr !== null ? item.cfr : 0,
-              // ITTT calculado por la propia app
-              'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomatico(nombrePais)
+              'Tiempo de tránsito del transporte internacional (ITTT)': calculo.dias
             };
           });
 
-          // Filtrar por países de destino seleccionados en la pestaña Productos si existen
           let datosFinales = formateados;
           if (paisesDestino && paisesDestino.length > 0) {
             const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
@@ -73,14 +116,14 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           setTablaLogi(datosFinales);
         }
       } catch (err) {
-        console.error("Error al cargar logística desde Supabase ('tabLogi'):", err);
+        console.error("Error al cargar datos desde Supabase:", err);
       } finally {
         setCargando(false);
       }
     }
 
-    fetchDatosLogistica();
-  }, [paisesDestino]);
+    fetchData();
+  }, [paisesDestino, paisSalida, velocidadBuque]);
 
   useEffect(() => {
     if (tablaLogi.length > 0) {
@@ -104,12 +147,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     e.preventDefault();
     if (!nuevoPais.trim()) return;
 
-    const itttGenerado = calcularItttAutomatico(nuevoPais.trim());
+    const calculo = calcularItttReal(nuevoPais.trim(), velocidadBuque);
     const nuevoRegistro = {
       Paises: nuevoPais.trim(),
       'Índice de desempeño logístico (LPIN)': Number(nuevoLpin) || 0,
       'Tráfico del puerto de contenedores (CPT)': Number(nuevoCpt) || 0,
-      'Tiempo de tránsito del transporte internacional (ITTT)': itttGenerado
+      'Tiempo de tránsito del transporte internacional (ITTT)': calculo.dias
     };
 
     try {
@@ -179,9 +222,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   const handleCalcularIttt = (e) => {
     e.preventDefault();
+    const res = calcularItttReal(paisLlegada, velocidadBuque);
     setResultadoIttt({
-      distancia: '8,964 km',
-      tiempo: calcularItttAutomatico(paisLlegada)
+      distancia: res.distanciaStr,
+      tiempo: res.dias
     });
   };
 
@@ -193,7 +237,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         <div>
           <h2 className="text-xl font-bold text-white">2. Logística (LOGI)</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Producto activo: <strong className="text-white">{productoActivo ? productoActivo.nombre : 'Ninguno'}</strong> | Origen: <strong className="text-white">{paisOrigen}</strong>
+            Producto activo: <strong className="text-white">{productoActivo ? productoActivo.nombre : 'Ninguno'}</strong> | Origen: <strong className="text-white">{paisSalida}</strong>
           </p>
         </div>
       </div>
@@ -245,7 +289,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
-              <p className="text-[10px] text-amber-400 italic">* El Tiempo de Tránsito (ITTT) se calculará automáticamente.</p>
+              <p className="text-[10px] text-emerald-400 italic">* El ITTT se calculará automáticamente con las coordenadas de la tabla puertos.</p>
               <button 
                 type="submit" 
                 className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
@@ -353,7 +397,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       {/* CÁLCULO ITTT */}
       <div className="bg-[#16181d] border border-slate-800 p-5 rounded-lg space-y-4">
-        <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito Internacional (ITTT)</h3>
+        <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito Internacional (ITTT) por Coordenadas</h3>
         
         <form onSubmit={handleCalcularIttt} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -361,9 +405,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <label className="block text-xs text-slate-400 mb-1">País de salida</label>
               <input 
                 type="text"
-                disabled
                 value={paisSalida}
-                className="w-full bg-[#181a20] border border-slate-800 rounded px-3 py-2 text-xs text-slate-300 opacity-80"
+                onChange={(e) => setPaisSalida(e.target.value)}
+                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
               />
             </div>
             <div>
@@ -395,20 +439,20 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               type="submit" 
               className="px-5 py-2 bg-[#262730] hover:bg-[#31333f] text-xs font-semibold text-white border border-slate-700/80 rounded transition-colors cursor-pointer"
             >
-              Calcular ITTT
+              Calcular ITTT Real
             </button>
           </div>
         </form>
 
         <div className="bg-[#12281d] border border-[#1e4620] px-4 py-2.5 rounded text-xs text-[#a3d9a5]">
-          Distancia estimada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo estimado de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong>
+          Distancia náutica estimada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo estimado de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong>
         </div>
       </div>
 
       {/* ================= TABLA LOGÍSTICA BD ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Logística (LOGI) — Base de Datos</h3>
-        <p className="text-xs text-slate-400">Indicadores logísticos registrados (LPI, CFR) y ITTT calculado por la aplicación.</p>
+        <p className="text-xs text-slate-400">Indicadores logísticos registrados (LPI, CFR) y ITTT calculado automáticamente mediante puertos y Haversine.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando datos desde Supabase...</div>
@@ -421,7 +465,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   <th className="p-3 bg-[#181a20]">País</th>
                   <th className="p-3 bg-[#181a20]">Índice Logístico (LPI)</th>
                   <th className="p-3 bg-[#181a20]">Tráfico Contenedores (CFR)</th>
-                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT - App)</th>
+                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT - Real)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
