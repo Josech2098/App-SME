@@ -43,7 +43,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       .trim();
   };
 
-  // Filtrar puertos según el país seleccionado (usando normalización)
+  // Filtrar puertos según el país seleccionado
   const puertosSalidaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
   const puertosLlegadaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
 
@@ -62,11 +62,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return R * c;
   };
 
-  // Cálculo automático del ITTT priorizando el diccionario manual o usando puertos principales ('Y')
-  const calcularItttAutomaticoTabla = (nombrePaisLlegada) => {
+  // Cálculo automático del ITTT evaluando primero el diccionario manual actual
+  const calcularItttAutomaticoTabla = (nombrePaisLlegada, diccionarioIttt) => {
     const normLlegada = normalizarTexto(nombrePaisLlegada);
 
-    for (const [key, value] of Object.entries(itttCalculadosPorPais)) {
+    // 1. Revisar si existe un cálculo manual para este país en el diccionario actual
+    for (const [key, value] of Object.entries(diccionarioIttt)) {
       if (normalizarTexto(key) === normLlegada) {
         return value;
       }
@@ -81,7 +82,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     if (!puertoO || !puertoD) return '11.2 días';
 
     const distNm = calcularDistanciaNautica(puertoO.latitud, puertoO.longitud, puertoD.latitud, puertoD.longitud);
-    const horasNavegacion = distNm / 15; // Velocidad estándar 15 nudos
+    const horasNavegacion = distNm / 15; 
     const diasNavegacion = horasNavegacion / 24;
     const manejoDias = (puertoD.manejo_dias || 0) + (puertoO.manejo_dias || 0);
     const totalDias = Math.max(1, diasNavegacion + manejoDias);
@@ -89,10 +90,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return `${totalDias.toFixed(1)} días`;
   };
 
-  // Función centralizada para recargar datos desde Supabase y sincronizar la interfaz
-  const cargarDatos = async () => {
+  // Función centralizada para recargar datos desde Supabase y aplicar el diccionario actual
+  const cargarDatos = async (diccionarioActual = itttCalculadosPorPais) => {
     try {
-      // 1. Cargar puertos desde Supabase
+      setCargando(true);
       const { data: puertosRes, error: errPuertos } = await supabase
         .from('puertos')
         .select('*');
@@ -111,7 +112,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         setPaisLlegadaCalc(unicosPaises[1]);
       }
 
-      // 2. Cargar tabla logística desde Supabase ("tabLogi")
       const { data: logiData, error: errLogi } = await supabase
         .from('tabLogi')
         .select('*')
@@ -127,7 +127,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             Paises: nombrePais,
             'Índice de desempeño logístico (LPIN)': item.lpi !== null ? item.lpi : 0,
             'Tráfico del puerto de contenedores (CPT)': item.cfr !== null ? item.cfr : 0,
-            'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomaticoTabla(nombrePais)
+            'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomaticoTabla(nombrePais, diccionarioActual)
           };
         });
 
@@ -153,7 +153,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   useEffect(() => {
     cargarDatos();
-  }, [paisesDestino, itttCalculadosPorPais]);
+  }, [paisesDestino]);
 
   // Actualizar puertos seleccionados por defecto al cambiar de país
   useEffect(() => {
@@ -212,7 +212,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       setNuevoCpt('');
       setOpenAdd(false);
 
-      // Recargar datos directamente desde Supabase
       await cargarDatos();
     } catch (err) {
       console.error("Error insertando en tabLogi:", err);
@@ -233,7 +232,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       if (error) throw error;
 
       setOpenEdit(false);
-      // Recargar datos directamente desde Supabase
       await cargarDatos();
     } catch (err) {
       console.error("Error actualizando tabLogi:", err);
@@ -251,7 +249,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       if (error) throw error;
 
       setOpenDel(false);
-      // Recargar datos directamente desde Supabase
       await cargarDatos();
     } catch (err) {
       console.error("Error eliminando de tabLogi:", err);
@@ -283,25 +280,16 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     });
 
     if (paisLlegadaCalc) {
-      const normDestino = normalizarTexto(paisLlegadaCalc);
-
-      setItttCalculadosPorPais(prev => ({
-        ...prev,
+      // Construir el nuevo diccionario con el país recién calculado
+      const nuevoDiccionario = {
+        ...itttCalculadosPorPais,
         [paisLlegadaCalc]: formatoDias
-      }));
+      };
 
-      setTablaLogi(prevTabla => 
-        prevTabla.map(row => {
-          const paisFila = row.pais || row.Paises;
-          if (normalizarTexto(paisFila) === normDestino) {
-            return {
-              ...row,
-              'Tiempo de tránsito del transporte internacional (ITTT)': formatoDias
-            };
-          }
-          return { ...row };
-        })
-      );
+      setItttCalculadosPorPais(nuevoDiccionario);
+
+      // Recargar la tabla pasando directamente el diccionario actualizado para forzar el cambio visual inmediato
+      cargarDatos(nuevoDiccionario);
     }
   };
 
