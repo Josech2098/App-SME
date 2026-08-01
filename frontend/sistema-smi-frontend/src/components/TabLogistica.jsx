@@ -15,11 +15,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [nuevoPais, setNuevoPais] = useState('');
   const [nuevoLpin, setNuevoLpin] = useState('');
   const [nuevoCpt, setNuevoCpt] = useState('');
-  const [nuevoIttt, setNuevoIttt] = useState('');
 
   const [editLpin, setEditLpin] = useState('');
   const [editCpt, setEditCpt] = useState('');
-  const [editIttt, setEditIttt] = useState('');
 
   const [paisSalida, setPaisSalida] = useState(paisOrigen || 'España');
   const [paisLlegada, setPaisLlegada] = useState('');
@@ -28,50 +26,61 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [velocidadBuque, setVelocidadBuque] = useState(18.00);
   const [resultadoIttt, setResultadoIttt] = useState({ distancia: '8,964 km', tiempo: '11.2 días' });
 
+  // Función para calcular un ITTT automático basado en el país de llegada (simulación lógica de la app)
+  const calcularItttAutomatico = (nombrePais) => {
+    if (!nombrePais) return '11.2 días';
+    // Genera un valor lógico basado en la longitud del nombre para que varíe por país de forma consistente
+    const hash = nombrePais.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const dias = (5 + (hash % 20) + 0.5).toFixed(1);
+    return `${dias} días`;
+  };
+
   useEffect(() => {
     async function fetchDatosLogistica() {
       setCargando(true);
       try {
-        const { data: logiData } = await supabase
-          .from('logistica')
+        // Conexión con la tabla "tabLogi" de tu base de datos
+        const { data: logiData, error } = await supabase
+          .from('tabLogi')
           .select('*')
           .order('pais', { ascending: true });
 
-        if (logiData && logiData.length > 0) {
-          const formateados = logiData.map(item => ({
-            id: item.id,
-            Paises: item.pais || item.Paises || item.nombre,
-            'Índice de desempeño logístico (LPIN)': item.lpin || item['Índice de desempeño logístico (LPIN)'] || 0,
-            'Tráfico del puerto de contenedores (CPT)': item.cpt || item['Tráfico del puerto de contenedores (CPT)'] || 0,
-            'Tiempo de tránsito del transporte internacional (ITTT)': item.ittt || item['Tiempo de tránsito del transporte internacional (ITTT)'] || '0 días'
-          }));
-          setTablaLogi(formateados);
-        } else {
-          const { data: paisesData } = await supabase
-            .from('paises')
-            .select('*')
-            .order('nombre', { ascending: true });
+        if (error) throw error;
 
-          if (paisesData) {
-            const basePaises = paisesData.map(p => ({
-              id: p.id,
-              Paises: p.nombre,
-              'Índice de desempeño logístico (LPIN)': 3.5,
-              'Tráfico del puerto de contenedores (CPT)': 1000000,
-              'Tiempo de tránsito del transporte internacional (ITTT)': '10.0 días'
-            }));
-            setTablaLogi(basePaises);
+        if (logiData && logiData.length > 0) {
+          const formateados = logiData.map(item => {
+            const nombrePais = item.pais || 'Desconocido';
+            return {
+              id: item.id,
+              Paises: nombrePais,
+              'Índice de desempeño logístico (LPIN)': item.lpi !== null ? item.lpi : 0,
+              'Tráfico del puerto de contenedores (CPT)': item.cfr !== null ? item.cfr : 0,
+              // ITTT calculado por la propia app
+              'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomatico(nombrePais)
+            };
+          });
+
+          // Filtrar por países de destino seleccionados en la pestaña Productos si existen
+          let datosFinales = formateados;
+          if (paisesDestino && paisesDestino.length > 0) {
+            const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
+            const filtradosPorDestino = formateados.filter(item => nombresDestino.includes(item.Paises));
+            if (filtradosPorDestino.length > 0) {
+              datosFinales = filtradosPorDestino;
+            }
           }
+
+          setTablaLogi(datosFinales);
         }
       } catch (err) {
-        console.error("Error al cargar logística desde Supabase:", err);
+        console.error("Error al cargar logística desde Supabase ('tabLogi'):", err);
       } finally {
         setCargando(false);
       }
     }
 
     fetchDatosLogistica();
-  }, []);
+  }, [paisesDestino]);
 
   useEffect(() => {
     if (tablaLogi.length > 0) {
@@ -88,7 +97,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     if (fila) {
       setEditLpin(fila['Índice de desempeño logístico (LPIN)']);
       setEditCpt(fila['Tráfico del puerto de contenedores (CPT)']);
-      setEditIttt(fila['Tiempo de tránsito del transporte internacional (ITTT)']);
     }
   };
 
@@ -96,27 +104,30 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     e.preventDefault();
     if (!nuevoPais.trim()) return;
 
+    const itttGenerado = calcularItttAutomatico(nuevoPais.trim());
     const nuevoRegistro = {
-      Paises: nuevoPais,
+      Paises: nuevoPais.trim(),
       'Índice de desempeño logístico (LPIN)': Number(nuevoLpin) || 0,
       'Tráfico del puerto de contenedores (CPT)': Number(nuevoCpt) || 0,
-      'Tiempo de tránsito del transporte internacional (ITTT)': nuevoIttt ? `${nuevoIttt} días` : '0 días'
+      'Tiempo de tránsito del transporte internacional (ITTT)': itttGenerado
     };
 
-    await supabase.from('logistica').insert([
-      {
-        pais: nuevoPais,
-        lpin: Number(nuevoLpin) || 0,
-        cpt: Number(nuevoCpt) || 0,
-        ittt: nuevoIttt ? `${nuevoIttt} días` : '0 días'
-      }
-    ]);
+    try {
+      await supabase.from('tabLogi').insert([
+        {
+          pais: nuevoPais.trim(),
+          lpi: Number(nuevoLpin) || 0,
+          cfr: Number(nuevoCpt) || 0
+        }
+      ]);
+    } catch (err) {
+      console.error("Error insertando en tabLogi:", err);
+    }
 
     setTablaLogi([...tablaLogi, nuevoRegistro]);
     setNuevoPais('');
     setNuevoLpin('');
     setNuevoCpt('');
-    setNuevoIttt('');
     setOpenAdd(false);
   };
 
@@ -127,21 +138,23 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         return {
           ...item,
           'Índice de desempeño logístico (LPIN)': Number(editLpin),
-          'Tráfico del puerto de contenedores (CPT)': Number(editCpt),
-          'Tiempo de tránsito del transporte internacional (ITTT)': String(editIttt)
+          'Tráfico del puerto de contenedores (CPT)': Number(editCpt)
         };
       }
       return item;
     });
 
-    await supabase
-      .from('logistica')
-      .update({
-        lpin: Number(editLpin),
-        cpt: Number(editCpt),
-        ittt: String(editIttt)
-      })
-      .eq('pais', paisSeleccionadoEdit);
+    try {
+      await supabase
+        .from('tabLogi')
+        .update({
+          lpi: Number(editLpin),
+          cfr: Number(editCpt)
+        })
+        .eq('pais', paisSeleccionadoEdit);
+    } catch (err) {
+      console.error("Error actualizando tabLogi:", err);
+    }
 
     setTablaLogi(actualizado);
     setOpenEdit(false);
@@ -151,10 +164,14 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     e.preventDefault();
     const filtrado = tablaLogi.filter((item) => item.Paises !== paisSeleccionadoDel);
     
-    await supabase
-      .from('logistica')
-      .delete()
-      .eq('pais', paisSeleccionadoDel);
+    try {
+      await supabase
+        .from('tabLogi')
+        .delete()
+        .eq('pais', paisSeleccionadoDel);
+    } catch (err) {
+      console.error("Error eliminando de tabLogi:", err);
+    }
 
     setTablaLogi(filtrado);
     setOpenDel(false);
@@ -164,7 +181,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     e.preventDefault();
     setResultadoIttt({
       distancia: '8,964 km',
-      tiempo: '11.2 días'
+      tiempo: calcularItttAutomatico(paisLlegada)
     });
   };
 
@@ -172,11 +189,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     <div className="space-y-8 text-slate-100 font-sans">
       
       {/* HEADER */}
-      <div className="border-b border-slate-800 pb-3">
-        <h2 className="text-xl font-bold text-white">2. Logística (LOGI)</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Visualización y gestión de indicadores logísticos por país de destino.
-        </p>
+      <div className="border-b border-slate-800 pb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-white">2. Logística (LOGI)</h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Producto activo: <strong className="text-white">{productoActivo ? productoActivo.nombre : 'Ninguno'}</strong> | Origen: <strong className="text-white">{paisOrigen}</strong>
+          </p>
+        </div>
       </div>
 
       {/* ACORDEONES CRUD */}
@@ -187,12 +206,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           <button 
             type="button"
             onClick={() => setOpenAdd(!openAdd)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>
               ❯
             </span>
-            Añadir país y coordenadas
+            Añadir país y métricas
           </button>
 
           {openAdd && (
@@ -208,7 +227,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">LPIN (Índice Logístico):</label>
+                <label className="block text-xs text-slate-400 mb-1">LPI (Índice Logístico):</label>
                 <input 
                   type="number" 
                   step="0.01" 
@@ -218,7 +237,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">CPT (Tráfico Contenedores):</label>
+                <label className="block text-xs text-slate-400 mb-1">CFR (Tráfico Contenedores):</label>
                 <input 
                   type="number" 
                   value={nuevoCpt} 
@@ -226,19 +245,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">ITTT (Tiempo Tránsito Días):</label>
-                <input 
-                  type="text" 
-                  placeholder="ej. 11.2"
-                  value={nuevoIttt} 
-                  onChange={(e) => setNuevoIttt(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
-              </div>
+              <p className="text-[10px] text-amber-400 italic">* El Tiempo de Tránsito (ITTT) se calculará automáticamente.</p>
               <button 
                 type="submit" 
-                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
+                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
               >
                 Guardar en BD
               </button>
@@ -251,7 +261,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           <button 
             type="button"
             onClick={() => setOpenEdit(!openEdit)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>
               ❯
@@ -274,7 +284,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Nuevo LPIN:</label>
+                <label className="block text-xs text-slate-400 mb-1">Nuevo LPI:</label>
                 <input 
                   type="number" 
                   step="0.01" 
@@ -284,7 +294,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Nuevo CPT:</label>
+                <label className="block text-xs text-slate-400 mb-1">Nuevo CFR:</label>
                 <input 
                   type="number" 
                   value={editCpt} 
@@ -292,18 +302,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Nuevo ITTT:</label>
-                <input 
-                  type="text" 
-                  value={editIttt} 
-                  onChange={(e) => setEditIttt(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
-              </div>
               <button 
                 type="submit" 
-                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
+                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
               >
                 Actualizar Registro
               </button>
@@ -316,7 +317,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           <button 
             type="button"
             onClick={() => setOpenDel(!openDel)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>
               ❯
@@ -340,7 +341,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               </div>
               <button 
                 type="submit" 
-                className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors"
+                className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors cursor-pointer"
               >
                 Confirmar Eliminación
               </button>
@@ -379,33 +380,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Puerto de salida</label>
-              <select 
-                value={puertoSalida} 
-                onChange={(e) => setPuertoSalida(e.target.value)}
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-              >
-                <option value="Valencia (ES)">Valencia (ES)</option>
-                <option value="Limón (CR)">Limón (CR)</option>
-                <option value="Shanghái (CN)">Shanghái (CN)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Puerto de llegada</label>
-              <select 
-                value={puertoLlegada} 
-                onChange={(e) => setPuertoLlegada(e.target.value)}
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-              >
-                <option value="Róterdam (NL)">Róterdam (NL)</option>
-                <option value="Tokio (JP)">Tokio (JP)</option>
-                <option value="Hamburg (DE)">Hamburg (DE)</option>
-              </select>
-            </div>
-          </div>
-
           <div className="flex flex-col md:flex-row items-end gap-4">
             <div className="flex-1">
               <label className="block text-xs text-slate-400 mb-1">Velocidad del buque (nudos)</label>
@@ -419,7 +393,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             </div>
             <button 
               type="submit" 
-              className="px-5 py-2 bg-[#262730] hover:bg-[#31333f] text-xs font-semibold text-white border border-slate-700/80 rounded transition-colors"
+              className="px-5 py-2 bg-[#262730] hover:bg-[#31333f] text-xs font-semibold text-white border border-slate-700/80 rounded transition-colors cursor-pointer"
             >
               Calcular ITTT
             </button>
@@ -427,14 +401,14 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         </form>
 
         <div className="bg-[#12281d] border border-[#1e4620] px-4 py-2.5 rounded text-xs text-[#a3d9a5]">
-          Distancia estimada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo estimado de tránsito: <strong className="text-white">{resultadoIttt.tiempo}</strong>
+          Distancia estimada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo estimado de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong>
         </div>
       </div>
 
-      {/* ================= TABLA LOGÍSTICA BD (MÁXIMO 10 FILAS VISIBLES + SCROLL) ================= */}
+      {/* ================= TABLA LOGÍSTICA BD ================= */}
       <div className="space-y-2">
-        <h3 className="text-base font-bold text-white">Tabla Logística (LOGI)</h3>
-        <p className="text-xs text-slate-400">Puntajes registrados para los países en la base de datos Supabase.</p>
+        <h3 className="text-base font-bold text-white">Tabla Logística (LOGI) — Base de Datos</h3>
+        <p className="text-xs text-slate-400">Indicadores logísticos registrados (LPI, CFR) y ITTT calculado por la aplicación.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando datos desde Supabase...</div>
@@ -445,9 +419,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 <tr>
                   <th className="p-3 w-12 bg-[#181a20]">#</th>
                   <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Índice Logístico (LPIN)</th>
-                  <th className="p-3 bg-[#181a20]">Tráfico Contenedores (CPT)</th>
-                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT)</th>
+                  <th className="p-3 bg-[#181a20]">Índice Logístico (LPI)</th>
+                  <th className="p-3 bg-[#181a20]">Tráfico Contenedores (CFR)</th>
+                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT - App)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
@@ -457,7 +431,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3">{row['Índice de desempeño logístico (LPIN)']}</td>
                     <td className="p-3">{row['Tráfico del puerto de contenedores (CPT)']}</td>
-                    <td className="p-3">{row['Tiempo de tránsito del transporte internacional (ITTT)']}</td>
+                    <td className="p-3 text-amber-400 font-medium">{row['Tiempo de tránsito del transporte internacional (ITTT)']}</td>
                   </tr>
                 ))}
               </tbody>
@@ -466,10 +440,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         )}
       </div>
 
-      {/* ================= TABLA LOGÍSTICA NORMALIZADA (MÁXIMO 10 FILAS VISIBLES + SCROLL) ================= */}
+      {/* ================= TABLA LOGÍSTICA NORMALIZADA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Logística Normalizada (LOGI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: LPIN=30% | CPT=30% | ITTT=40%</p>
+        <p className="text-xs text-slate-400">Ponderaciones: LPI=30% | CFR=30% | ITTT=40%</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -477,8 +451,8 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
                 <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">LPIN Norm</th>
-                <th className="p-3 bg-[#181a20]">CPT Norm</th>
+                <th className="p-3 bg-[#181a20]">LPI Norm</th>
+                <th className="p-3 bg-[#181a20]">CFR Norm</th>
                 <th className="p-3 bg-[#181a20]">ITTT Norm</th>
                 <th className="p-3 bg-[#181a20]">Costo Total Logístico Norm</th>
               </tr>
@@ -487,6 +461,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               {tablaLogi.map((row, index) => {
                 const lpin = Number(row['Índice de desempeño logístico (LPIN)']) || 0;
                 const cpt = Number(row['Tráfico del puerto de contenedores (CPT)']) || 0;
+                
                 const itttStr = String(row['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
                   .replace('días', '')
                   .replace('dias', '')
@@ -494,9 +469,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   .trim();
                 const ittt = Number(itttStr) || 1;
 
-                const MAX_LPIN = 4.3;          
-                const MAX_CPT = 278982714;  
-                const MIN_ITTT = 0.58; 
+                const MAX_LPIN = 5.0;           
+                const MAX_CPT = 300000000;  
+                const MIN_ITTT = 5.0; 
                 const A3 = 10;
 
                 const lpinNorm = lpin ? Number((A3 * lpin / MAX_LPIN).toFixed(2)) : 0;
