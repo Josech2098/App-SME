@@ -115,7 +115,7 @@ export default function TabComercial({
     }
   };
 
-  // Sincronización robusta extrayendo países directamente desde la tabla de productos y fuentes de apoyo
+  // Sincronización extrayendo países desde la tabla de productos y fuentes de apoyo
   useEffect(() => {
     setCargando(true);
     try {
@@ -124,7 +124,6 @@ export default function TabComercial({
       const registrarPais = (textoOriginal) => {
         if (!textoOriginal || typeof textoOriginal !== 'string') return;
         const limpio = textoOriginal.trim();
-        // Filtramos para evitar cazar números puros, celdas vacías o palabras clave de cabecera
         if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice') && !limpio.toLowerCase().includes('producto')) {
           const claveNorm = normalizarTexto(limpio);
           if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
@@ -133,17 +132,13 @@ export default function TabComercial({
         }
       };
 
-      // 1. Extracción directa y profunda del array de productos (filas/columnas)
+      // 1. Extracción desde la tabla de productos
       if (Array.isArray(productos)) {
         productos.forEach(prod => {
           if (!prod) return;
-          
-          // Si el producto es directamente un string (nombre de país o producto)
           if (typeof prod === 'string') {
             registrarPais(prod);
-          } 
-          else if (typeof prod === 'object') {
-            // Revisar cada propiedad en busca de claves que suenen a país, destino o mercado
+          } else if (typeof prod === 'object') {
             Object.entries(prod).forEach(([key, val]) => {
               const kNorm = key.toLowerCase();
               if (
@@ -158,20 +153,16 @@ export default function TabComercial({
               }
             });
 
-            // Si no encontró por nombre de clave estricto, evaluar todos los valores de texto del objeto producto
             Object.values(prod).forEach(val => {
-              if (typeof val === 'string' && val.trim().length > 2) {
-                // Descartar descripciones muy largas que parezcan texto de párrafos
-                if (val.length < 50 && !val.includes('{') && !val.includes('[')) {
-                  registrarPais(val);
-                }
+              if (typeof val === 'string' && val.trim().length > 2 && val.length < 50 && !val.includes('{') && !val.includes('[')) {
+                registrarPais(val);
               }
             });
           }
         });
       }
 
-      // 2. Capturar desde paisesDestino generales si existen
+      // 2. Capturar desde paisesDestino generales
       if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => {
           if (typeof p === 'string') registrarPais(p);
@@ -194,21 +185,12 @@ export default function TabComercial({
         });
       }
 
-      // 4. Agregar overrides manuales del usuario
+      // 4. Agregar overrides manuales
       commOverrides.forEach(ovr => {
         if (ovr.Paises) registrarPais(ovr.Paises);
       });
 
       let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
-
-      // Si aun así la lista está vacía, generamos un respaldo automático de emergencia basado en los índices para evitar que quede totalmente en blanco
-      if (listaPaisesFinal.length === 0 && datosIndicePenetracion.length > 0) {
-        datosIndicePenetracion.forEach(item => {
-          const possibleCountry = Object.values(item).find(v => typeof v === 'string' && v.trim().length > 1);
-          if (possibleCountry) registrarPais(possibleCountry);
-        });
-        listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
-      }
 
       const dfComm = listaPaisesFinal.map((paisOriginal, idx) => {
         const paisNorm = normalizarTexto(paisOriginal);
@@ -248,7 +230,6 @@ export default function TabComercial({
         };
       });
 
-      // Ordenar resultados
       dfComm.sort((a, b) => {
         if (a['Aranceles aduaneros por país de origen (CTCO)'] !== b['Aranceles aduaneros por país de origen (CTCO)']) {
           return a['Aranceles aduaneros por país de origen (CTCO)'] - b['Aranceles aduaneros por país de origen (CTCO)'];
@@ -261,7 +242,7 @@ export default function TabComercial({
 
       setDatosCommConsolidados(dfComm);
 
-      // Normalización matemática de datos para la tabla final
+      // Normalización matemática
       const A3 = 10;
       const getMinMax = (arr, key) => {
         const values = arr.map(item => item[key]).filter(v => v !== null && !isNaN(v));
@@ -304,12 +285,45 @@ export default function TabComercial({
   }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica, paisesDestino, productos]);
 
   return (
-    <div className="space-y-8 text-slate-100 font-sans">
+    <div className="space-y-6 text-slate-100 font-sans p-2">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con los países definidos en la tabla de productos.
+          Sincronizado con la tabla de productos.
         </p>
+      </div>
+
+      {/* PANEL DE DIAGNÓSTICO EN PANTALLA */}
+      <div className="bg-slate-900 border border-amber-500/40 rounded-lg p-3 text-xs space-y-1">
+        <p className="font-bold text-amber-400 flex items-center gap-1.5">
+          <span>⚠️</span> Panel de Diagnóstico de Datos de Entrada:
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-slate-300 pt-1">
+          <div className="bg-slate-950 p-2 rounded border border-slate-800">
+            <span className="text-slate-500 block">productos:</span> 
+            <strong className="text-white">{Array.isArray(productos) ? productos.length : 'No es array'} elementos</strong>
+          </div>
+          <div className="bg-slate-950 p-2 rounded border border-slate-800">
+            <span className="text-slate-500 block">paisesDestino:</span> 
+            <strong className="text-white">{Array.isArray(paisesDestino) ? paisesDestino.length : 'No es array'} elementos</strong>
+          </div>
+          <div className="bg-slate-950 p-2 rounded border border-slate-800">
+            <span className="text-slate-500 block">datosIndicePenetracion:</span> 
+            <strong className="text-white">{Array.isArray(datosIndicePenetracion) ? datosIndicePenetracion.length : 'No es array'} elementos</strong>
+          </div>
+          <div className="bg-slate-950 p-2 rounded border border-slate-800">
+            <span className="text-slate-500 block">Overrides manuales:</span> 
+            <strong className="text-white">{commOverrides.length} añadidos</strong>
+          </div>
+        </div>
+        {Array.isArray(productos) && productos.length > 0 && (
+          <details className="pt-1 text-[10px] text-slate-400 cursor-pointer">
+            <summary>Ver estructura cruda del primer producto recibido</summary>
+            <pre className="mt-1 bg-black p-2 rounded overflow-x-auto text-emerald-400">
+              {JSON.stringify(productos[0], null, 2)}
+            </pre>
+          </details>
+        )}
       </div>
 
       {/* CRUD ACORDEONES */}
@@ -321,7 +335,7 @@ export default function TabComercial({
             className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029]"
           >
             <span className={`text-slate-400 text-xs transition-transform ${openAdd ? 'rotate-90' : ''}`}>❯</span>
-            Añadir país
+            Añadir país manual
           </button>
           {openAdd && (
             <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800 space-y-3 bg-[#0e1117]/50">
@@ -488,7 +502,9 @@ export default function TabComercial({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="p-4 text-center text-slate-500 italic">No hay países detectados en la tabla de productos.</td>
+                    <td colSpan="5" className="p-6 text-center text-amber-400 italic bg-amber-950/20">
+                      No se detectaron países en la prop <code className="text-white bg-slate-800 px-1 py-0.5 rounded">productos</code>. Verifica arriba en el panel de diagnóstico si la fuente está vacía o si las propiedades del objeto de productos tienen otro nombre.
+                    </td>
                   </tr>
                 )}
               </tbody>
