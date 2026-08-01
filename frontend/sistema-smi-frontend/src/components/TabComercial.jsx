@@ -105,7 +105,7 @@ export default function TabComercial({
     }
   };
 
-  // Extracción robusta de los países de las tablas de índices (o respaldo si están vacías)
+  // Sincronización completa utilizando paisesDestino y las tablas de índices sin restricciones de cantidad
   useEffect(() => {
     setCargando(true);
     try {
@@ -114,11 +114,18 @@ export default function TabComercial({
       const extraerNombrePais = (item) => {
         if (!item) return null;
         if (typeof item === 'string') return item.trim();
-        // Busca cualquier propiedad común que almacene el nombre del país
         return item.pais || item.nombre || item.Paises || item.country || item.Country || item.paisDestino || item.Mercado || item.mercado || null;
       };
 
-      // 1. Extraer de datosIndicePenetracion
+      // 1. Priorizar la lista completa de países destino configurada en la aplicación
+      if (Array.isArray(paisesDestino) && paisesDestino.length > 0) {
+        paisesDestino.forEach(p => {
+          const nombre = extraerNombrePais(p);
+          if (nombre) setPaisesGlobales.add(nombre);
+        });
+      }
+
+      // 2. Extraer de datosIndicePenetracion
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
           const p = extraerNombrePais(item);
@@ -126,7 +133,7 @@ export default function TabComercial({
         });
       }
 
-      // 2. Extraer de datosLibertadEconomica
+      // 3. Extraer de datosLibertadEconomica
       if (Array.isArray(datosLibertadEconomica)) {
         datosLibertadEconomica.forEach(item => {
           const p = extraerNombrePais(item);
@@ -134,17 +141,12 @@ export default function TabComercial({
         });
       }
 
-      // Añadir overrides manuales
+      // 4. Agregar overrides manuales
       commOverrides.forEach(ovr => {
         if (ovr.Paises) setPaisesGlobales.add(ovr.Paises.trim());
       });
 
       let listaPaisesFinal = Array.from(setPaisesGlobales);
-
-      // Si las tablas de índices aún no tienen datos cargados, usamos los países por defecto para evitar que quede vacía
-      if (listaPaisesFinal.length === 0) {
-        listaPaisesFinal = ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'];
-      }
 
       const dfComm = listaPaisesFinal.map((pais, idx) => {
         const matchIemp = datosIndicePenetracion.find(
@@ -168,11 +170,11 @@ export default function TabComercial({
 
         const valIemp = overrideMatch 
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? 3.5) : 3.5);
+          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? 0) : 0);
 
         const valIoef = overrideMatch 
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? 60.0) : 60.0);
+          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? 0) : 0);
 
         return {
           Paises: pais,
@@ -235,14 +237,14 @@ export default function TabComercial({
     } finally {
       setCargando(false);
     }
-  }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica]);
+  }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica, paisesDestino]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con los países de las tablas de índices.
+          Sincronizado con todos los países destino y las tablas de índices.
         </p>
       </div>
 
