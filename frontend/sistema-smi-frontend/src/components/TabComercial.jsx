@@ -31,7 +31,7 @@ export default function TabComercial({
   const [cargando, setCargando] = useState(false);
   const [errorExcel, setErrorExcel] = useState(null);
 
-  // Función auxiliar para normalizar texto (quita tildes, espacios extras y pasa a minúsculas)
+  // Función auxiliar para normalizar texto
   const normalizarTexto = (texto) => {
     if (!texto || typeof texto !== 'string') return '';
     return texto
@@ -115,7 +115,7 @@ export default function TabComercial({
     }
   };
 
-  // Sincronización extrayendo los países directamente del array de productos y filtros generales
+  // Sincronización robusta extrayendo países directamente desde la tabla de productos y fuentes de apoyo
   useEffect(() => {
     setCargando(true);
     try {
@@ -124,7 +124,8 @@ export default function TabComercial({
       const registrarPais = (textoOriginal) => {
         if (!textoOriginal || typeof textoOriginal !== 'string') return;
         const limpio = textoOriginal.trim();
-        if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice')) {
+        // Filtramos para evitar cazar números puros, celdas vacías o palabras clave de cabecera
+        if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice') && !limpio.toLowerCase().includes('producto')) {
           const claveNorm = normalizarTexto(limpio);
           if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
             mapaPaisesUnicos.set(claveNorm, limpio);
@@ -132,29 +133,45 @@ export default function TabComercial({
         }
       };
 
-      // 1. Extraer países específicamente desde la tabla / array de productos
+      // 1. Extracción directa y profunda del array de productos (filas/columnas)
       if (Array.isArray(productos)) {
         productos.forEach(prod => {
-          if (prod && typeof prod === 'object') {
-            // Buscar en propiedades comunes de país dentro de los productos (ej. pais, paisDestino, mercado, etc.)
+          if (!prod) return;
+          
+          // Si el producto es directamente un string (nombre de país o producto)
+          if (typeof prod === 'string') {
+            registrarPais(prod);
+          } 
+          else if (typeof prod === 'object') {
+            // Revisar cada propiedad en busca de claves que suenen a país, destino o mercado
             Object.entries(prod).forEach(([key, val]) => {
               const kNorm = key.toLowerCase();
-              if ((kNorm.includes('pais') || kNorm.includes('destino') || kNorm.includes('mercado') || kNorm.includes('country')) && typeof val === 'string') {
-                registrarPais(val);
+              if (
+                kNorm.includes('pais') || 
+                kNorm.includes('destino') || 
+                kNorm.includes('mercado') || 
+                kNorm.includes('country') ||
+                kNorm.includes('nacion') ||
+                kNorm.includes('ubicacion')
+              ) {
+                if (typeof val === 'string') registrarPais(val);
               }
             });
-            // Si el producto en sí mismo o alguna de sus propiedades contiene listas o cadenas de texto de países
+
+            // Si no encontró por nombre de clave estricto, evaluar todos los valores de texto del objeto producto
             Object.values(prod).forEach(val => {
-              if (typeof val === 'string' && val.length > 2 && !val.includes('{') && !val.includes('[')) {
-                // Opcional: si la celda parece un país individual
-                // registrarPais(val);
+              if (typeof val === 'string' && val.trim().length > 2) {
+                // Descartar descripciones muy largas que parezcan texto de párrafos
+                if (val.length < 50 && !val.includes('{') && !val.includes('[')) {
+                  registrarPais(val);
+                }
               }
             });
           }
         });
       }
 
-      // 2. Capturar desde paisesDestino generales
+      // 2. Capturar desde paisesDestino generales si existen
       if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => {
           if (typeof p === 'string') registrarPais(p);
@@ -166,15 +183,12 @@ export default function TabComercial({
         });
       }
 
-      // 3. Capturar desde datosIndicePenetracion por si contienen nombres de países
+      // 3. Capturar desde datosIndicePenetracion
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
           if (item && typeof item === 'object') {
-            Object.entries(item).forEach(([key, val]) => {
-              const kNorm = key.toLowerCase();
-              if ((kNorm.includes('pais') || kNorm.includes('mercado') || kNorm.includes('country')) && typeof val === 'string') {
-                registrarPais(val);
-              }
+            Object.values(item).forEach(val => {
+              if (typeof val === 'string') registrarPais(val);
             });
           }
         });
@@ -186,6 +200,15 @@ export default function TabComercial({
       });
 
       let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
+
+      // Si aun así la lista está vacía, generamos un respaldo automático de emergencia basado en los índices para evitar que quede totalmente en blanco
+      if (listaPaisesFinal.length === 0 && datosIndicePenetracion.length > 0) {
+        datosIndicePenetracion.forEach(item => {
+          const possibleCountry = Object.values(item).find(v => typeof v === 'string' && v.trim().length > 1);
+          if (possibleCountry) registrarPais(possibleCountry);
+        });
+        listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
+      }
 
       const dfComm = listaPaisesFinal.map((paisOriginal, idx) => {
         const paisNorm = normalizarTexto(paisOriginal);
