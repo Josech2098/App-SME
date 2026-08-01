@@ -323,7 +323,7 @@ export default function App() {
               <div className="bg-[#1c2c3d] border border-[#2b4259] text-[#71b1ea] px-4 py-3 rounded flex items-center gap-2 text-sm">
                 <span>ℹ️</span>
                 <span>
-                  Sección en desarrollo. Evaluando datos exportables desde {paisOrigen} for{' '}
+                  Sección en desarrollo. Evaluando datos exportables desde {paisOrigen} para{' '}
                   <strong className="text-white">
                     {productoSeleccionado ? productoSeleccionado.nombre : 'Producto sin seleccionar'}
                   </strong>.
