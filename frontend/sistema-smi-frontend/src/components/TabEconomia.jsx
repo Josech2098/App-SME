@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient.js'; // Ajusta la ruta según donde tengas tu cliente
 
-export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, archivoExcelBytes }) {
+export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [] }) {
   const [econOverrides, setEconOverrides] = useState([]);
   
   const [openAdd, setOpenAdd] = useState(false);
@@ -9,16 +10,16 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
   // Estados para añadir
   const [paisAdd, setPaisAdd] = useState('');
-  const [inraAdd, setInraAdd] = useState('');
+  const [icvAdd, setIcvAdd] = useState('');
   const [inanAdd, setInanAdd] = useState('');
-  const [dgdpAdd, setDgdpAdd] = useState('');
+  const [tadAdd, setTadAdd] = useState('');
 
   // Estados para editar
   const [paisSeleccionadoEdit, setPaisSeleccionadoEdit] = useState('');
   const [editPaisNombre, setEditPaisNombre] = useState('');
-  const [editInra, setEditInra] = useState('');
+  const [editIcv, setEditIcv] = useState('');
   const [editInan, setEditInan] = useState('');
-  const [editDgdp, setEditDgdp] = useState('');
+  const [editTad, setEditTad] = useState('');
 
   // Estados para eliminar
   const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
@@ -27,17 +28,37 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
   const [datosEconConsolidados, setDatosEconConsolidados] = useState([]);
   const [datosEconNormalizados, setDatosEconNormalizados] = useState([]);
   const [cargando, setCargando] = useState(false);
-  const [errorExcel, setErrorExcel] = useState(null);
+  const [errorEco, setErrorEco] = useState(null);
 
-  // Sincronizar selectores de edición/eliminación al cambiar los overrides o datos
+  // Estado local por si no se pasa como prop y se quiere consultar directo
+  const [listaCostoVidaDB, setListaCostoVidaDB] = useState(datosCostoDeVida);
+
+  useEffect(() => {
+    async function fetchCostoVida() {
+      if (datosCostoDeVida.length > 0) {
+        setListaCostoVidaDB(datosCostoDeVida);
+        return;
+      }
+      try {
+        const { data, error } = await supabase.from('costodevida').select('*');
+        if (error) throw error;
+        if (data) setListaCostoVidaDB(data);
+      } catch (err) {
+        console.error("Error cargando costodevida:", err.message);
+      }
+    }
+    fetchCostoVida();
+  }, [datosCostoDeVida]);
+
+  // Sincronizar selectores de edición/eliminación al cambiar los overrides
   useEffect(() => {
     if (econOverrides.length > 0) {
       if (!paisSeleccionadoEdit) {
         setPaisSeleccionadoEdit(econOverrides[0].Paises);
         setEditPaisNombre(econOverrides[0].Paises);
-        setEditInra(econOverrides[0].INRA);
+        setEditIcv(econOverrides[0].ICV);
         setEditInan(econOverrides[0].INAN);
-        setEditDgdp(econOverrides[0].DGDP);
+        setEditTad(econOverrides[0].TAD);
       }
       if (!paisSeleccionadoDel) {
         setPaisSeleccionadoDel(econOverrides[0].Paises);
@@ -51,9 +72,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     const fila = econOverrides.find(item => item.Paises === nombre);
     if (fila) {
       setEditPaisNombre(fila.Paises);
-      setEditInra(fila.INRA);
+      setEditIcv(fila.ICV);
       setEditInan(fila.INAN);
-      setEditDgdp(fila.DGDP);
+      setEditTad(fila.TAD);
     }
   };
 
@@ -63,16 +84,16 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
     const nuevoRegistro = {
       Paises: paisAdd.trim(),
-      INRA: Number(inraAdd) || 0,
+      ICV: Number(icvAdd) || 0,
       INAN: Number(inanAdd) || 0,
-      DGDP: Number(dgdpAdd) || 0
+      TAD: Number(tadAdd) || 0
     };
 
     setEconOverrides([...econOverrides, nuevoRegistro]);
     setPaisAdd('');
-    setInraAdd('');
+    setIcvAdd('');
     setInanAdd('');
-    setDgdpAdd('');
+    setTadAdd('');
     setOpenAdd(false);
   };
 
@@ -83,9 +104,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         return {
           ...item,
           Paises: editPaisNombre.trim(),
-          INRA: Number(editInra) || 0,
+          ICV: Number(editIcv) || 0,
           INAN: Number(editInan) || 0,
-          DGDP: Number(editDgdp) || 0
+          TAD: Number(editTad) || 0
         };
       }
       return item;
@@ -108,7 +129,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento equivalente a Python / Streamlit para Económica (ECON)
+  // Procesamiento y cruce con Supabase (costodevida)
   useEffect(() => {
     setCargando(true);
     try {
@@ -116,13 +137,19 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         ? paisesDestino 
         : ['España', 'Francia', 'Alemania', 'Países Bajos', 'Italia', 'Portugal', 'Estados Unidos', 'México', 'Colombia', 'Chile'];
 
-      // Generación inicial simulada equivalente al Excel modificado
+      const normalizar = (str) => (str || '').trim().toLowerCase();
+
       const dfEcon = listaPaisesBase.map((pais, idx) => {
+        // Buscar coincidencia en la tabla costodevida de Supabase
+        const matchDB = listaCostoVidaDB.find(item => normalizar(item.pais) === normalizar(pais));
+        
+        const valorICV = matchDB ? Number(matchDB.costo_de_vida) : Number((40.0 + ((idx * 3.5) % 30.0)).toFixed(2));
+
         return {
           Paises: pais,
-          INRA: Number((1.5 + ((idx * 1.2) % 5.0)).toFixed(2)),
-          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)),
-          DGDP: Number((40.0 + ((idx * 4.5) % 50.0)).toFixed(2))
+          ICV: valorICV,
+          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)), // Simulado o pendiente de otra tabla
+          TAD: Number((5.0 + ((idx * 1.2) % 10.0)).toFixed(2))  // Simulado o pendiente de otra tabla
         };
       });
 
@@ -130,36 +157,34 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       econOverrides.forEach(ovr => {
         const index = dfEcon.findIndex(item => item.Paises.toLowerCase() === ovr.Paises.toLowerCase());
         if (index !== -1) {
-          dfEcon[index].INRA = ovr.INRA;
+          dfEcon[index].ICV = ovr.ICV;
           dfEcon[index].INAN = ovr.INAN;
-          dfEcon[index].DGDP = ovr.DGDP;
+          dfEcon[index].TAD = ovr.TAD;
         } else {
           dfEcon.push({
             Paises: ovr.Paises,
-            INRA: ovr.INRA,
+            ICV: ovr.ICV,
             INAN: ovr.INAN,
-            DGDP: ovr.DGDP
+            TAD: ovr.TAD
           });
         }
       });
 
-      // Ordenar original (completos primero)
       dfEcon.forEach(item => {
-        item.completos = item.INRA !== null && item.INAN !== null && item.DGDP !== null;
+        item.completos = item.ICV !== null && item.INAN !== null && item.TAD !== null;
       });
       dfEcon.sort((a, b) => (b.completos === a.completos ? 0 : b.completos ? 1 : -1));
 
       setDatosEconConsolidados(dfEcon);
 
       // ================= NORMALIZACIÓN =================
-      // Obtener valores positivos mínimos para normalización inversa
-      const valoresInraPositivos = dfEcon.map(i => i.INRA).filter(v => v !== null && v > 0);
+      const valoresIcvPositivos = dfEcon.map(i => i.ICV).filter(v => v !== null && v > 0);
       const valoresInanPositivos = dfEcon.map(i => i.INAN).filter(v => v !== null && v > 0);
-      const valoresDgdpPositivos = dfEcon.map(i => i.DGDP).filter(v => v !== null && v > 0);
+      const valoresTadPositivos = dfEcon.map(i => i.TAD).filter(v => v !== null && v > 0);
 
-      const minInra = valoresInraPositivos.length > 0 ? Math.min(...valoresInraPositivos) : null;
+      const minIcv = valoresIcvPositivos.length > 0 ? Math.min(...valoresIcvPositivos) : null;
       const minInan = valoresInanPositivos.length > 0 ? Math.min(...valoresInanPositivos) : null;
-      const minDgdp = valoresDgdpPositivos.length > 0 ? Math.min(...valoresDgdpPositivos) : null;
+      const minTad = valoresTadPositivos.length > 0 ? Math.min(...valoresTadPositivos) : null;
 
       const normFunc = (valor, minimo) => {
         if (valor === null || valor === undefined || minimo === null || valor <= 0) return null;
@@ -168,48 +193,47 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         return Number(((10 * minimo) / num).toFixed(4));
       };
 
-      const P_INRA = 0.30;
+      const P_ICV = 0.30;
       const P_INAN = 0.30;
-      const P_DGDP = 0.40;
+      const P_TAD = 0.40;
 
       const dfNorm = dfEcon.map(item => {
-        const inraNorm = normFunc(item.INRA, minInra);
+        const icvNorm = normFunc(item.ICV, minIcv);
         const inanNorm = normFunc(item.INAN, minInan);
-        const dgdpNorm = normFunc(item.DGDP, minDgdp);
+        const tadNorm = normFunc(item.TAD, minTad);
 
         const puntajeEcon = Number((
-          (inraNorm !== null ? inraNorm : 0) * P_INRA +
+          (icvNorm !== null ? icvNorm : 0) * P_ICV +
           (inanNorm !== null ? inanNorm : 0) * P_INAN +
-          (dgdpNorm !== null ? dgdpNorm : 0) * P_DGDP
+          (tadNorm !== null ? tadNorm : 0) * P_TAD
         ).toFixed(4));
 
-        const completosNorm = inraNorm !== null && inanNorm !== null && dgdpNorm !== null;
+        const completosNorm = icvNorm !== null && inanNorm !== null && tadNorm !== null;
 
         return {
           Paises: item.Paises,
-          INRA_norm: inraNorm,
+          ICV_norm: icvNorm,
           INAN_norm: inanNorm,
-          DGDP_norm: dgdpNorm,
+          TAD_norm: tadNorm,
           Puntaje_ECON_Normalizado: puntajeEcon,
           completos: completosNorm
         };
       });
 
-      // Ordenar por completos y Puntaje descendente
       dfNorm.sort((a, b) => {
         if (b.completos !== a.completos) return b.completos ? 1 : -1;
         return b.Puntaje_ECON_Normalizado - a.Puntaje_ECON_Normalizado;
       });
 
       setDatosEconNormalizados(dfNorm);
-      setErrorExcel(null);
+      setErrorEco(null);
     } catch (err) {
       console.error("Error al procesar datos económicos:", err);
-      setErrorExcel(err.message);
+      setErrorEco(err.message);
     } finally {
       setCargando(false);
     }
-  }, [econOverrides, paisesDestino, archivoExcelBytes]);
+  }, [econOverrides, paisesDestino, listaCostoVidaDB]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -218,7 +242,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y normalización de indicadores macroeconómicos: Tasa de interés (INRA), Inflación anual (INAN) y Relación deuda/PIB (DGDP).
+          Gestión y normalización de indicadores macroeconómicos: Índice del Costo de Vida (ICV) desde Supabase, Inflación Anual (IAN) y Tasa de Desempleo (TAD).
         </p>
       </div>
 
@@ -232,9 +256,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
             onClick={() => setOpenAdd(!openAdd)}
             className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
           >
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>
-              ❯
-            </span>
+            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>❯</span>
             Añadir país
           </button>
 
@@ -242,51 +264,21 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
             <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">País nuevo:</label>
-                <input 
-                  type="text" 
-                  value={paisAdd} 
-                  onChange={(e) => setPaisAdd(e.target.value)} 
-                  required 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
+                <input type="text" value={paisAdd} onChange={(e) => setPaisAdd(e.target.value)} required className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">INRA (Tasa de interés):</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  min="0"
-                  value={inraAdd} 
-                  onChange={(e) => setInraAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
+                <label className="block text-xs text-slate-400 mb-1">ICV (Costo de Vida):</label>
+                <input type="number" step="0.01" min="0" value={icvAdd} onChange={(e) => setIcvAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">INAN (Inflación anual):</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  min="0"
-                  value={inanAdd} 
-                  onChange={(e) => setInanAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
+                <label className="block text-xs text-slate-400 mb-1">IAN (Inflación Anual):</label>
+                <input type="number" step="0.01" min="0" value={inanAdd} onChange={(e) => setInanAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">DGDP (Deuda/PIB):</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  min="0"
-                  value={dgdpAdd} 
-                  onChange={(e) => setDgdpAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
+                <label className="block text-xs text-slate-400 mb-1">TAD (Tasa de Desempleo):</label>
+                <input type="number" step="0.01" min="0" value={tadAdd} onChange={(e) => setTadAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
               </div>
-              <button 
-                type="submit" 
-                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
-              >
+              <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors">
                 Guardar país ECON
               </button>
             </form>
@@ -300,9 +292,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
             onClick={() => setOpenEdit(!openEdit)}
             className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
           >
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>
-              ❯
-            </span>
+            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>❯</span>
             Editar país
           </button>
 
@@ -311,11 +301,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
               <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Selecciona país a editar:</label>
-                  <select 
-                    value={paisSeleccionadoEdit} 
-                    onChange={handleSelectEditPais}
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  >
+                  <select value={paisSeleccionadoEdit} onChange={handleSelectEditPais} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500">
                     {econOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
                     ))}
@@ -323,50 +309,21 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Nuevo país:</label>
-                  <input 
-                    type="text" 
-                    value={editPaisNombre} 
-                    onChange={(e) => setEditPaisNombre(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
+                  <input type="text" value={editPaisNombre} onChange={(e) => setEditPaisNombre(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo INRA:</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    min="0"
-                    value={editInra} 
-                    onChange={(e) => setEditInra(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo ICV:</label>
+                  <input type="number" step="0.01" min="0" value={editIcv} onChange={(e) => setEditIcv(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo INAN:</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    min="0"
-                    value={editInan} 
-                    onChange={(e) => setEditInan(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo IAN:</label>
+                  <input type="number" step="0.01" min="0" value={editInan} onChange={(e) => setEditInan(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo DGDP:</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    min="0"
-                    value={editDgdp} 
-                    onChange={(e) => setEditDgdp(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo TAD:</label>
+                  <input type="number" step="0.01" min="0" value={editTad} onChange={(e) => setEditTad(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
                 </div>
-                <button 
-                  type="submit" 
-                  className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
-                >
+                <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors">
                   Actualizar país ECON
                 </button>
               </form>
@@ -385,9 +342,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
             onClick={() => setOpenDel(!openDel)}
             className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
           >
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>
-              ❯
-            </span>
+            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>❯</span>
             Eliminar país
           </button>
 
@@ -396,20 +351,13 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
               <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Selecciona país a eliminar:</label>
-                  <select 
-                    value={paisSeleccionadoDel} 
-                    onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  >
+                  <select value={paisSeleccionadoDel} onChange={(e) => setPaisSeleccionadoDel(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500">
                     {econOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
                     ))}
                   </select>
                 </div>
-                <button 
-                  type="submit" 
-                  className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors"
-                >
+                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors">
                   Eliminar país ECON
                 </button>
               </form>
@@ -423,16 +371,16 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       </div>
 
-      {errorExcel && (
+      {errorEco && (
         <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
-          {errorExcel}
+          {errorEco}
         </div>
       )}
 
       {/* ================= TABLA ECONÓMICA DATOS ORIGINALES ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Económica (ECON) — Datos originales</h3>
-        <p className="text-xs text-slate-400">Tasas de interés, inflación anual y relación deuda / PIB por país.</p>
+        <p className="text-xs text-slate-400">Índice del Costo de Vida (ICV) obtenido de Supabase, Inflación Anual (IAN) y Tasa de Desempleo (TAD).</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Procesando datos económicos...</div>
@@ -453,9 +401,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                   <tr key={index} className="hover:bg-[#16181d] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{row.INRA !== null ? row.INRA : '-'}</td>
+                    <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : '-'}</td>
                     <td className="p-3">{row.INAN !== null ? row.INAN : '-'}</td>
-                    <td className="p-3">{row.DGDP !== null ? row.DGDP : '-'}</td>
+                    <td className="p-3">{row.TAD !== null ? row.TAD : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -467,7 +415,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA DE NORMALIZACIÓN ECONÓMICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla de Normalización Económica (ECON)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: INRA = 30% | INAN = 30% | DGDP = 40% (Normalización Inversa)</p>
+        <p className="text-xs text-slate-400">Ponderaciones: ICV = 30% | IAN = 30% | TAD = 40% (Normalización Inversa)</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -475,9 +423,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
                 <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">INRA Norm</th>
-                <th className="p-3 bg-[#181a20]">INAN Norm</th>
-                <th className="p-3 bg-[#181a20]">DGDP Norm</th>
+                <th className="p-3 bg-[#181a20]">ICV Norm</th>
+                <th className="p-3 bg-[#181a20]">IAN Norm</th>
+                <th className="p-3 bg-[#181a20]">TAD Norm</th>
                 <th className="p-3 bg-[#181a20]">Puntaje ECON Normalizado</th>
               </tr>
             </thead>
@@ -486,9 +434,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 <tr key={index} className="hover:bg-[#16181d] transition-colors">
                   <td className="p-3 text-slate-500">{index + 1}</td>
                   <td className="p-3 font-medium text-white">{row.Paises}</td>
-                  <td className="p-3">{row.INRA_norm !== null ? row.INRA_norm : '-'}</td>
+                  <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : '-'}</td>
                   <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : '-'}</td>
-                  <td className="p-3">{row.DGDP_norm !== null ? row.DGDP_norm : '-'}</td>
+                  <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : '-'}</td>
                   <td className="p-3 font-bold text-emerald-400">{row.Puntaje_ECON_Normalizado}</td>
                 </tr>
               ))}
