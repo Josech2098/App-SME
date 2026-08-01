@@ -115,7 +115,7 @@ export default function TabComercial({
     }
   };
 
-  // Detección estricta basada 100% en las fuentes reales (sin elementos inventados por defecto)
+  // Sincronización extrayendo los países directamente del array de productos y filtros generales
   useEffect(() => {
     setCargando(true);
     try {
@@ -132,7 +132,29 @@ export default function TabComercial({
         }
       };
 
-      // 1. Capturar desde paisesDestino
+      // 1. Extraer países específicamente desde la tabla / array de productos
+      if (Array.isArray(productos)) {
+        productos.forEach(prod => {
+          if (prod && typeof prod === 'object') {
+            // Buscar en propiedades comunes de país dentro de los productos (ej. pais, paisDestino, mercado, etc.)
+            Object.entries(prod).forEach(([key, val]) => {
+              const kNorm = key.toLowerCase();
+              if ((kNorm.includes('pais') || kNorm.includes('destino') || kNorm.includes('mercado') || kNorm.includes('country')) && typeof val === 'string') {
+                registrarPais(val);
+              }
+            });
+            // Si el producto en sí mismo o alguna de sus propiedades contiene listas o cadenas de texto de países
+            Object.values(prod).forEach(val => {
+              if (typeof val === 'string' && val.length > 2 && !val.includes('{') && !val.includes('[')) {
+                // Opcional: si la celda parece un país individual
+                // registrarPais(val);
+              }
+            });
+          }
+        });
+      }
+
+      // 2. Capturar desde paisesDestino generales
       if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => {
           if (typeof p === 'string') registrarPais(p);
@@ -144,18 +166,21 @@ export default function TabComercial({
         });
       }
 
-      // 2. Capturar desde datosIndicePenetracion
+      // 3. Capturar desde datosIndicePenetracion por si contienen nombres de países
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
           if (item && typeof item === 'object') {
             Object.entries(item).forEach(([key, val]) => {
-              if (typeof val === 'string') registrarPais(val);
+              const kNorm = key.toLowerCase();
+              if ((kNorm.includes('pais') || kNorm.includes('mercado') || kNorm.includes('country')) && typeof val === 'string') {
+                registrarPais(val);
+              }
             });
           }
         });
       }
 
-      // 3. Agregar overrides manuales del usuario
+      // 4. Agregar overrides manuales del usuario
       commOverrides.forEach(ovr => {
         if (ovr.Paises) registrarPais(ovr.Paises);
       });
@@ -253,14 +278,14 @@ export default function TabComercial({
     } finally {
       setCargando(false);
     }
-  }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica, paisesDestino]);
+  }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica, paisesDestino, productos]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado estrictamente con los datos de entrada.
+          Sincronizado con los países definidos en la tabla de productos.
         </p>
       </div>
 
@@ -440,7 +465,7 @@ export default function TabComercial({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="p-4 text-center text-slate-500 italic">No hay países detectados ni datos disponibles.</td>
+                    <td colSpan="5" className="p-4 text-center text-slate-500 italic">No hay países detectados en la tabla de productos.</td>
                   </tr>
                 )}
               </tbody>
