@@ -291,27 +291,30 @@ export default function TabComercial({
         </p>
       </div>
 
-      {/* PANEL DE DIAGNÓSTICO EN PANTALLA */}
-      <div className="bg-slate-900 border border-amber-500/40 rounded-lg p-3 text-xs space-y-1">
-        <p className="font-bold text-amber-400 flex items-center gap-1.5">
-          <span>⚠️</span> Panel de Diagnóstico de Datos de Entrada:
+      {/* MENSAJE EXPLICATIVO DE ERROR / DIAGNÓSTICO */}
+      <div className="bg-amber-950/40 border border-amber-500/50 rounded-lg p-4 text-xs space-y-2">
+        <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
+          <span>⚠️</span> Motivo por el cual no cargaban los datos originales:
+        </div>
+        <p className="text-slate-300 leading-relaxed">
+          Las propiedades principales que provienen del componente padre (<code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">productos</code>, <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">paisesDestino</code> y <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">datosIndicePenetracion</code>) están llegando vacías o con <strong className="text-white">0 elementos</strong>. Como consecuencia, el componente no detecta registros de origen y está empleando una lista de respaldo predeterminada para evitar que la interfaz falle.
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-slate-300 pt-1">
-          <div className="bg-slate-950 p-2 rounded border border-slate-800">
-            <span className="text-slate-500 block">productos:</span> 
-            <strong className="text-white">{Array.isArray(productos) ? productos.length : 'No es array'} elementos</strong>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-slate-300 pt-2 border-t border-amber-500/20">
+          <div className="bg-black/30 p-2 rounded border border-amber-500/20">
+            <span className="text-slate-400 block">productos:</span> 
+            <strong className="text-amber-200">{Array.isArray(productos) ? productos.length : 'No es array'}</strong>
           </div>
-          <div className="bg-slate-950 p-2 rounded border border-slate-800">
-            <span className="text-slate-500 block">paisesDestino:</span> 
-            <strong className="text-white">{Array.isArray(paisesDestino) ? paisesDestino.length : 'No es array'} elementos</strong>
+          <div className="bg-black/30 p-2 rounded border border-amber-500/20">
+            <span className="text-slate-400 block">paisesDestino:</span> 
+            <strong className="text-amber-200">{Array.isArray(paisesDestino) ? paisesDestino.length : 'No es array'}</strong>
           </div>
-          <div className="bg-slate-950 p-2 rounded border border-slate-800">
-            <span className="text-slate-500 block">datosIndicePenetracion:</span> 
-            <strong className="text-white">{Array.isArray(datosIndicePenetracion) ? datosIndicePenetracion.length : 'No es array'} elementos</strong>
+          <div className="bg-black/30 p-2 rounded border border-amber-500/20">
+            <span className="text-slate-400 block">datosIndicePenetracion:</span> 
+            <strong className="text-amber-200">{Array.isArray(datosIndicePenetracion) ? datosIndicePenetracion.length : 'No es array'}</strong>
           </div>
-          <div className="bg-slate-950 p-2 rounded border border-slate-800">
-            <span className="text-slate-500 block">Overrides manuales:</span> 
-            <strong className="text-white">{commOverrides.length} añadidos</strong>
+          <div className="bg-black/30 p-2 rounded border border-amber-500/20">
+            <span className="text-slate-400 block">Modo activo:</span> 
+            <strong className="text-emerald-400">Respaldo (Fallback)</strong>
           </div>
         </div>
       </div>
