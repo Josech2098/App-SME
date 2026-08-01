@@ -105,103 +105,69 @@ export default function TabComercial({
     }
   };
 
-  // Carga robusta uniendo índices y productos sin bloqueos
+  // Carga exclusiva basada estrictamente en datosIndicePenetracion y datosLibertadEconomica
   useEffect(() => {
     setCargando(true);
     try {
       const setPaisesGlobales = new Set();
 
-      // Función auxiliar para extraer nombres de propiedades de forma flexible
-      const extraerNombrePais = (item) => {
+      const extraerNombre = (item) => {
         if (!item) return null;
         if (typeof item === 'string') return item.trim();
-        return item.pais || item.nombre || item.Paises || item.paisDestino || item.country || item.Country || null;
+        return item.pais || item.nombre || item.Paises || item.country || item.Country || item.paisDestino || null;
       };
 
-      // 1. Extraer de datosIndicePenetracion
+      // 1. Extraer países de datosIndicePenetracion
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
-          const p = extraerNombrePais(item);
+          const p = extraerNombre(item);
           if (p) setPaisesGlobales.add(p);
         });
       }
 
-      // 2. Extraer de datosLibertadEconomica
+      // 2. Extraer países de datosLibertadEconomica
       if (Array.isArray(datosLibertadEconomica)) {
         datosLibertadEconomica.forEach(item => {
-          const p = extraerNombrePais(item);
+          const p = extraerNombre(item);
           if (p) setPaisesGlobales.add(p);
         });
       }
 
-      // 3. Extraer de productos (Pestaña 1)
-      if (Array.isArray(productos) && productos.length > 0) {
-        productos.forEach(prod => {
-          if (!prod || typeof prod !== 'object') return;
-          const posiblesListas = [prod.paisesDestino, prod.destinos, prod.paises, prod.paises_destino, prod.listaPaises, prod.mercados];
-          posiblesListas.forEach(lista => {
-            if (Array.isArray(lista)) {
-              lista.forEach(p => {
-                const nombre = extraerNombrePais(p);
-                if (nombre) setPaisesGlobales.add(nombre);
-              });
-            }
-          });
-          const paisUnico = extraerNombrePais(prod);
-          if (paisUnico) setPaisesGlobales.add(paisUnico);
-        });
-      }
-
-      // Si aún así no hay países en las tablas, usamos un set inicial más amplio o permitimos overrides
+      // Añadir overrides manuales si los hay
       commOverrides.forEach(ovr => {
         if (ovr.Paises) setPaisesGlobales.add(ovr.Paises.trim());
       });
 
       let listaPaisesFinal = Array.from(setPaisesGlobales);
 
-      // Respaldo de emergencia absoluto solo si todo lo demás viene totalmente vacío
-      if (listaPaisesFinal.length === 0) {
-        listaPaisesFinal = ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'];
-      }
-
-      // Mapeo y cruce de datos con búsqueda flexible en las tablas de índices
+      // Mapeo conectando los valores reales de las dos tablas
       const dfComm = listaPaisesFinal.map((pais, idx) => {
         const matchIemp = datosIndicePenetracion.find(
-          item => extraerNombrePais(item)?.toLowerCase() === pais.toLowerCase()
+          item => extraerNombre(item)?.toLowerCase() === pais.toLowerCase()
         );
         const matchIoef = datosLibertadEconomica.find(
-          item => extraerNombrePais(item)?.toLowerCase() === pais.toLowerCase()
+          item => extraerNombre(item)?.toLowerCase() === pais.toLowerCase()
         );
 
         const overrideMatch = commOverrides.find(
           ovr => ovr.Paises?.toLowerCase() === pais.toLowerCase()
         );
 
-        const calculoArancelCTCO = Number((2.0 + (idx * 0.7) % 5.0).toFixed(2));
-
-        // Buscar valores numéricos de forma dinámica en las propiedades del objeto de índice
-        const obtenerValorNumerico = (obj, posiblesClaves) => {
+        const obtenerValorNumerico = (obj) => {
           if (!obj) return null;
-          for (let clave of posiblesClaves) {
-            if (obj[clave] !== undefined && obj[clave] !== null && !isNaN(obj[clave])) {
-              return Number(obj[clave]);
-            }
-          }
-          // Si no encuentra por clave exacta, busca cualquier propiedad numérica que no sea el nombre
           const valNum = Object.values(obj).find(v => typeof v === 'number' && !isNaN(v));
           return valNum !== undefined ? Number(valNum) : null;
         };
 
-        const valIempFromTable = obtenerValorNumerico(matchIemp, ['indice_penetracion', 'iemp', 'Penetracion', 'Índice de penetración en el mercado de exportación (IEMP)']);
-        const valIoefFromTable = obtenerValorNumerico(matchIoef, ['indice_de_libertad_economica', 'ioef', 'Libertad', 'Índice de Libertad Económica (IOEF)']);
+        const calculoArancelCTCO = Number((2.0 + (idx * 0.7) % 5.0).toFixed(2));
 
         const valIemp = overrideMatch 
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (valIempFromTable !== null ? valIempFromTable : Number((3.5 + (idx * 0.2)).toFixed(2)));
+          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? 0) : 0);
 
         const valIoef = overrideMatch 
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (valIoefFromTable !== null ? valIoefFromTable : 60.0);
+          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? 0) : 0);
 
         return {
           Paises: pais,
@@ -264,14 +230,14 @@ export default function TabComercial({
     } finally {
       setCargando(false);
     }
-  }, [commOverrides, paisesDestino, productos, productoActivo, archivoExcelBytes, datosIndicePenetracion, datosLibertadEconomica]);
+  }, [commOverrides, datosIndicePenetracion, datosLibertadEconomica]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con las tablas de índices y conectado a los productos de la Pestaña 1.
+          Sincronizado estrictamente con los países de las dos tablas de índices.
         </p>
       </div>
 
@@ -425,7 +391,7 @@ export default function TabComercial({
         <p className="text-xs text-slate-400">Total de países sincronizados: {datosCommConsolidados.length}</p>
         
         {cargando ? (
-          <div className="p-4 text-xs text-slate-400 italic">Sincronizando índices y productos...</div>
+          <div className="p-4 text-xs text-slate-400 italic">Sincronizando índices...</div>
         ) : (
           <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
             <table className="w-full text-left text-xs text-slate-300">
