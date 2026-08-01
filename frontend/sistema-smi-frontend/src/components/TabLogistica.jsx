@@ -43,7 +43,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       .trim();
   };
 
-  // Filtrar puertos según el país seleccionado (usando normalización para evitar errores por tildes)
+  // Filtrar puertos según el país seleccionado (usando normalización)
   const puertosSalidaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
   const puertosLlegadaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
 
@@ -66,7 +66,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const calcularItttAutomaticoTabla = (nombrePaisLlegada) => {
     const normLlegada = normalizarTexto(nombrePaisLlegada);
 
-    // Si el usuario ya calculó un ITTT específico para este país mediante el formulario
+    // Revisar si existe un cálculo manual previo para este país
     for (const [key, value] of Object.entries(itttCalculadosPorPais)) {
       if (normalizarTexto(key) === normLlegada) {
         return value;
@@ -297,21 +297,23 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     });
 
     if (paisLlegadaCalc) {
+      const normDestino = normalizarTexto(paisLlegadaCalc);
+
       setItttCalculadosPorPais(prev => ({
         ...prev,
         [paisLlegadaCalc]: formatoDias
       }));
 
-      // Actualizar de forma insensible a tildes/mayúsculas en las tablas
+      // Actualizar inmediatamente la tabla principal y normalizada mediante una copia nueva
       setTablaLogi(prevTabla => 
         prevTabla.map(row => {
-          if (normalizarTexto(row.Paises) === normalizarTexto(paisLlegadaCalc)) {
+          if (normalizarTexto(row.Paises) === normDestino) {
             return {
               ...row,
               'Tiempo de tránsito del transporte internacional (ITTT)': formatoDias
             };
           }
-          return row;
+          return { ...row };
         })
       );
     }
