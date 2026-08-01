@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicialización de cliente de Supabase de respaldo por si el padre no provee los datos
-const supabaseUrl = 'TU_SUPABASE_URL'; // Reemplaza o asegúrate que tome las variables de entorno
-const supabaseAnonKey = 'TU_SUPABASE_ANON_KEY';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 export default function TabComercial({ 
   productoActivo, 
   paisesDestino = [], 
@@ -15,63 +10,51 @@ export default function TabComercial({
   datosIndicePenetracion = [], 
   datosLibertadEconomica = []   
 }) {
-  // Estados internos para almacenar los datos si el padre los envía vacíos
+  // Estados para almacenar los datos obtenidos de Supabase si las props llegan vacías
   const [dbPenetracion, setDbPenetracion] = useState(datosIndicePenetracion);
   const [dbLibertad, setDbLibertad] = useState(datosLibertadEconomica);
-  const [autoFetched, setAutoFetched] = useState(false);
+  const [cargandoSupabase, setCargandoSupabase] = useState(false);
 
-  // Efecto para autoejecutar la consulta a Supabase si las props del padre llegan vacías
+  // Efecto para consultar directamente a Supabase si las props del padre están vacías
   useEffect(() => {
-    async function fetchDataDirect() {
+    async function fetchDataFromSupabase() {
       if ((!datosIndicePenetracion || datosIndicePenetracion.length === 0) || 
           (!datosLibertadEconomica || datosLibertadEconomica.length === 0)) {
+        setCargandoSupabase(true);
         try {
-          const { data: penData } = await supabase.from('indicepenetracion').select('*');
-          const { data: libData } = await supabase.from('libertadeconomica').select('*');
+          // Nota: Asegúrate de importar o recibir el cliente de Supabase globalmente o inicializarlo mediante tus variables de entorno reales si es necesario.
+          const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
+          const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
           
-          if (penData && penData.length > 0) setDbPenetracion(penData);
-          if (libData && libData.length > 0) setDbLibertad(libData);
-          setAutoFetched(true);
+          if (supabaseUrl && supabaseKey) {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            const { data: penData, error: penError } = await supabase.from('indicepenetracion').select('*');
+            if (penError) console.error('Error al consultar indicepenetracion:', penError);
+            else if (penData) setDbPenetracion(penData);
+
+            const { data: libData, error: libError } = await supabase.from('libertadeconomica').select('*');
+            if (libError) console.error('Error al consultar liberdadeconomica:', libError);
+            else if (libData) setDbLibertad(libData);
+          }
         } catch (e) {
-          console.error("Error al autoconectar con Supabase:", e);
+          console.error("Excepción al conectar con Supabase:", e);
+        } finally {
+          setCargandoSupabase(false);
         }
       }
     }
-    fetchDataDirect();
+    fetchDataFromSupabase();
   }, [datosIndicePenetracion, datosLibertadEconomica]);
 
   const effectivePenetracion = (datosIndicePenetracion && datosIndicePenetracion.length > 0) ? datosIndicePenetracion : dbPenetracion;
   const effectiveLibertad = (datosLibertadEconomica && datosLibertadEconomica.length > 0) ? datosLibertadEconomica : dbLibertad;
 
-  // Lista de respaldo manual final por defecto
-  const [commOverrides, setCommOverrides] = useState([
-    { Paises: 'Costa Rica', 'Índice de penetración en el mercado de exportación (IEMP)': 5.5, 'Índice de Libertad Económica (IOEF)': 6.8 },
-    { Paises: 'Estados Unidos', 'Índice de penetración en el mercado de exportación (IEMP)': 8.2, 'Índice de Libertad Económica (IOEF)': 7.5 },
-    { Paises: 'Panamá', 'Índice de penetración en el mercado de exportación (IEMP)': 6.0, 'Índice de Libertad Económica (IOEF)': 6.5 },
-    { Paises: 'México', 'Índice de penetración en el mercado de exportación (IEMP)': 7.1, 'Índice de Libertad Económica (IOEF)': 6.0 }
-  ]);
-  
-  const [openAdd, setOpenAdd] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [openDel, setOpenDel] = useState(false);
-
-  const [paisAdd, setPaisAdd] = useState('');
-  const [iempAdd, setIempAdd] = useState('');
-  const [ioefAdd, setIoefAdd] = useState('');
-
-  const [paisSeleccionadoEdit, setPaisSeleccionadoEdit] = useState('');
-  const [editPaisNombre, setEditPaisNombre] = useState('');
-  const [editIemp, setEditIemp] = useState('');
-  const [editIoef, setEditIoef] = useState('');
-
-  const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
-
+  const [commOverrides, setCommOverrides] = useState([]);
   const [datosCommConsolidados, setDatosCommConsolidados] = useState([]);
   const [datosCommNormalizados, setDatosCommNormalizados] = useState([]);
-  const [cargando, setCargando] = useState(false);
-  const [errorExcel, setErrorExcel] = useState(null);
+  const [errorProceso, setErrorProceso] = useState(null);
 
-  // Función auxiliar para normalizar texto
+  // Función auxiliar para normalizar texto (quitar tildes, espacios y minúsculas)
   const normalizarTexto = (texto) => {
     if (!texto || typeof texto !== 'string') return '';
     return texto
@@ -81,83 +64,8 @@ export default function TabComercial({
       .replace(/[\u0300-\u036f]/g, '');
   };
 
-  // Sincronizar selectores de edición/eliminación
+  // Sincronización principal: Extracción de países desde 'productos' y fusión con Supabase
   useEffect(() => {
-    if (commOverrides.length > 0) {
-      if (!paisSeleccionadoEdit) {
-        setPaisSeleccionadoEdit(commOverrides[0].Paises);
-        setEditPaisNombre(commOverrides[0].Paises);
-        setEditIemp(commOverrides[0]['Índice de penetración en el mercado de exportación (IEMP)']);
-        setEditIoef(commOverrides[0]['Índice de Libertad Económica (IOEF)']);
-      }
-      if (!paisSeleccionadoDel) {
-        setPaisSeleccionadoDel(commOverrides[0].Paises);
-      }
-    }
-  }, [commOverrides]);
-
-  const handleSelectEditPais = (e) => {
-    const nombre = e.target.value;
-    setPaisSeleccionadoEdit(nombre);
-    const fila = commOverrides.find(item => item.Paises === nombre);
-    if (fila) {
-      setEditPaisNombre(fila.Paises);
-      setEditIemp(fila['Índice de penetración en el mercado de exportación (IEMP)']);
-      setEditIoef(fila['Índice de Libertad Económica (IOEF)']);
-    }
-  };
-
-  const handleAddPais = (e) => {
-    e.preventDefault();
-    if (!paisAdd.trim()) return;
-
-    const nuevoRegistro = {
-      Paises: paisAdd.trim(),
-      'Índice de penetración en el mercado de exportación (IEMP)': Number(iempAdd) || 0,
-      'Índice de Libertad Económica (IOEF)': Number(ioefAdd) || 0
-    };
-
-    setCommOverrides([...commOverrides, nuevoRegistro]);
-    setPaisAdd('');
-    setIempAdd('');
-    setIoefAdd('');
-    setOpenAdd(false);
-  };
-
-  const handleUpdatePais = (e) => {
-    e.preventDefault();
-    const actualizados = commOverrides.map(item => {
-      if (item.Paises === paisSeleccionadoEdit) {
-        return {
-          ...item,
-          Paises: editPaisNombre.trim(),
-          'Índice de penetración en el mercado de exportación (IEMP)': Number(editIemp) || 0,
-          'Índice de Libertad Económica (IOEF)': Number(editIoef) || 0
-        };
-      }
-      return item;
-    });
-
-    setCommOverrides(actualizados);
-    setPaisSeleccionadoEdit(editPaisNombre.trim());
-    setOpenEdit(false);
-  };
-
-  const handleDeletePais = (e) => {
-    e.preventDefault();
-    const filtrados = commOverrides.filter(item => item.Paises !== paisSeleccionadoDel);
-    setCommOverrides(filtrados);
-    setOpenDel(false);
-    if (filtrados.length > 0) {
-      setPaisSeleccionadoDel(filtrados[0].Paises);
-    } else {
-      setPaisSeleccionadoDel('');
-    }
-  };
-
-  // Sincronización extrayendo países y fusionándolos con las tablas
-  useEffect(() => {
-    setCargando(true);
     try {
       const mapaPaisesUnicos = new Map();
 
@@ -172,70 +80,74 @@ export default function TabComercial({
         }
       };
 
-      // 1. Capturar desde effectivePenetracion (Supabase)
-      if (Array.isArray(effectivePenetracion)) {
-        effectivePenetracion.forEach(item => {
-          if (item && typeof item === 'object') {
-            const nombrePais = item.nombre || item.pais || item.Paises || item.Nombre;
-            if (nombrePais) registrarPais(nombrePais);
-          }
-        });
-      }
-
-      // 2. Capturar desde effectiveLibertad (Supabase)
-      if (Array.isArray(effectiveLibertad)) {
-        effectiveLibertad.forEach(item => {
-          if (item && typeof item === 'object') {
-            const nombrePais = item.pais || item.nombre || item.Paises || item.Nombre;
-            if (nombrePais) registrarPais(nombrePais);
-          }
-        });
-      }
-
-      // 3. Capturar desde productos o paisesDestino si existen
+      // 1. Extraer nombres de países directamente desde la prop 'productos'
       if (Array.isArray(productos)) {
         productos.forEach(prod => {
           if (!prod) return;
-          if (typeof prod === 'string') registrarPais(prod);
-          else if (typeof prod === 'object') {
+          if (typeof prod === 'string') {
+            registrarPais(prod);
+          } else if (typeof prod === 'object') {
+            Object.entries(prod).forEach(([key, val]) => {
+              const kNorm = key.toLowerCase();
+              if (kNorm.includes('pais') || kNorm.includes('destino') || kNorm.includes('country') || kNorm.includes('nombre')) {
+                if (typeof val === 'string') registrarPais(val);
+              }
+            });
             Object.values(prod).forEach(val => {
-              if (typeof val === 'string' && val.trim().length > 2 && val.length < 50) registrarPais(val);
+              if (typeof val === 'string' && val.trim().length > 2 && val.length < 50) {
+                registrarPais(val);
+              }
             });
           }
         });
       }
 
+      // 2. Extraer desde paisesDestino si existen
       if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => {
           if (typeof p === 'string') registrarPais(p);
+          else if (p && typeof p === 'object') {
+            Object.values(p).forEach(val => { if (typeof val === 'string') registrarPais(val); });
+          }
         });
       }
 
-      // Si aún no hay países, usar los overrides
+      // 3. Extraer también desde los registros de Supabase si la lista de productos viniera vacía
       if (mapaPaisesUnicos.size === 0) {
-        commOverrides.forEach(ovr => {
-          if (ovr.Paises) registrarPais(ovr.Paises);
+        effectivePenetracion.forEach(item => {
+          const pais = item.nombre || item.pais || item.Paises || item.Nombre;
+          if (pais) registrarPais(pais);
+        });
+        effectiveLibertad.forEach(item => {
+          const pais = item.pais || item.nombre || item.Paises || item.Nombre;
+          if (pais) registrarPais(pais);
         });
       }
 
       let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
 
+      commOverrides.forEach(ovr => {
+        const normOvr = normalizarTexto(ovr.Paises);
+        if (!Array.from(mapaPaisesUnicos.keys()).includes(normOvr)) {
+          listaPaisesFinal.push(ovr.Paises);
+        }
+      });
+
+      // 4. Cruzar y conectar con los índices correspondientes
       const dfComm = listaPaisesFinal.map((paisOriginal, idx) => {
         const paisNorm = normalizarTexto(paisOriginal);
 
         const matchIemp = effectivePenetracion.find(item => {
-          const valPais = item.nombre || item.pais || item.Paises || Object.values(item)[0];
+          const valPais = item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0];
           return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
         });
 
         const matchIoef = effectiveLibertad.find(item => {
-          const valPais = item.pais || item.nombre || item.Paises || Object.values(item)[0];
+          const valPais = item.pais || item.nombre || item.Paises || item.Nombre || Object.values(item)[0];
           return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
         });
 
-        const overrideMatch = commOverrides.find(
-          ovr => normalizarTexto(ovr.Paises) === paisNorm
-        );
+        const overrideMatch = commOverrides.find(ovr => normalizarTexto(ovr.Paises) === paisNorm);
 
         const extraerNumero = (obj, clavesPosibles) => {
           if (!obj) return null;
@@ -252,11 +164,11 @@ export default function TabComercial({
 
         const valIemp = overrideMatch && overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] !== undefined
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp ? extraerNumero(matchIemp, ['indice_penetracion', 'Indice_penetracion', 'IEMP']) ?? 5.0 : 5.0);
+          : (matchIemp ? extraerNumero(matchIemp, ['indice_penetracion', 'Indice_penetracion', 'IEMP', 'indice']) ?? 5.0 : 5.0);
 
         const valIoef = overrideMatch && overrideMatch['Índice de Libertad Económica (IOEF)'] !== undefined
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef ? extraerNumero(matchIoef, ['indice_de_libertad_economica', 'Indice_de_libertad_economica', 'IOEF']) ?? 6.0 : 6.0);
+          : (matchIoef ? extraerNumero(matchIoef, ['indice_de_libertad_economica', 'Indice_de_libertad_economica', 'IOEF', 'indice']) ?? 6.0 : 6.0);
 
         return {
           Paises: paisOriginal,
@@ -270,15 +182,12 @@ export default function TabComercial({
         if (a['Aranceles aduaneros por país de origen (CTCO)'] !== b['Aranceles aduaneros por país de origen (CTCO)']) {
           return a['Aranceles aduaneros por país de origen (CTCO)'] - b['Aranceles aduaneros por país de origen (CTCO)'];
         }
-        if (b['Índice de penetración en el mercado de exportación (IEMP)'] !== a['Índice de penetración en el mercado de exportación (IEMP)']) {
-          return b['Índice de penetración en el mercado de exportación (IEMP)'] - a['Índice de penetración en el mercado de exportación (IEMP)'];
-        }
-        return b['Índice de Libertad Económica (IOEF)'] - a['Índice de Libertad Económica (IOEF)'];
+        return b['Índice de penetración en el mercado de exportación (IEMP)'] - a['Índice de penetración en el mercado de exportación (IEMP)'];
       });
 
       setDatosCommConsolidados(dfComm);
 
-      // Normalización matemática
+      // 5. Normalización matemática de los datos
       const A3 = 10;
       const getMinMax = (arr, key) => {
         const values = arr.map(item => item[key]).filter(v => v !== null && !isNaN(v));
@@ -311,235 +220,68 @@ export default function TabComercial({
 
       dfNorm.sort((a, b) => b.COMM_total - a.COMM_total);
       setDatosCommNormalizados(dfNorm);
-      setErrorExcel(null);
+      setErrorProceso(null);
     } catch (err) {
-      console.error("Error al procesar la hoja COMM:", err);
-      setErrorExcel(err.message);
-    } finally {
-      setCargando(false);
+      console.error("Error al procesar la sincronización:", err);
+      setErrorProceso(err.message);
     }
-  }, [commOverrides, effectivePenetracion, effectiveLibertad, paisesDestino, productos]);
+  }, [productos, paisesDestino, effectivePenetracion, effectiveLibertad, commOverrides]);
 
   return (
     <div className="space-y-6 text-slate-100 font-sans p-2">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con Supabase y tablas de índices.
+          Extracción de países desde productos y conexión con Supabase.
         </p>
       </div>
 
-      {/* PANEL DE DIAGNÓSTICO E INFORMACIÓN */}
-      <div className="bg-emerald-950/40 border border-emerald-500/50 rounded-lg p-4 text-xs space-y-2">
-        <div className="flex items-center gap-2 font-bold text-emerald-400 text-sm">
-          <span>✅</span> Estado de Carga y Conexión:
+      {/* ESTADO DE CONEXIÓN */}
+      <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs flex items-center justify-between">
+        <div>
+          <span className="text-slate-400">Productos analizados:</span> <strong className="text-white">{productos.length}</strong> | 
+          <span className="text-slate-400 ml-2">Países detectados:</span> <strong className="text-emerald-400">{datosCommConsolidados.length}</strong>
         </div>
-        <p className="text-slate-300 leading-relaxed">
-          {autoFetched ? 'Se han recuperado los datos de Supabase de manera automática directamente desde este componente debido a que el componente padre los enviaba vacíos.' : 'Datos recibidos correctamente y sincronizados con éxito.'}
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-slate-300 pt-2 border-t border-emerald-500/20">
-          <div className="bg-black/30 p-2 rounded border border-emerald-500/20">
-            <span className="text-slate-400 block">Penetración (IEMP):</span> 
-            <strong className="text-emerald-200">{effectivePenetracion.length} registros</strong>
-          </div>
-          <div className="bg-black/30 p-2 rounded border border-emerald-500/20">
-            <span className="text-slate-400 block">Libertad Económica (IOEF):</span> 
-            <strong className="text-emerald-200">{effectiveLibertad.length} registros</strong>
-          </div>
-          <div className="bg-black/30 p-2 rounded border border-emerald-500/20">
-            <span className="text-slate-400 block">Países Totales Listos:</span> 
-            <strong className="text-emerald-200">{datosCommConsolidados.length}</strong>
-          </div>
-          <div className="bg-black/30 p-2 rounded border border-emerald-500/20">
-            <span className="text-slate-400 block">Modo:</span> 
-            <strong className="text-emerald-400">Activo y Sincronizado</strong>
-          </div>
+        <div>
+          {cargandoSupabase && <span className="text-amber-400 animate-pulse">Cargando datos de Supabase...</span>}
         </div>
       </div>
 
-      {/* CRUD ACORDEONES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden">
-          <button 
-            type="button"
-            onClick={() => setOpenAdd(!openAdd)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029]"
-          >
-            <span className={`text-slate-400 text-xs transition-transform ${openAdd ? 'rotate-90' : ''}`}>❯</span>
-            Añadir país manual
-          </button>
-          {openAdd && (
-            <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800 space-y-3 bg-[#0e1117]/50">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">País:</label>
-                <input 
-                  type="text" 
-                  value={paisAdd} 
-                  onChange={(e) => setPaisAdd(e.target.value)} 
-                  required 
-                  className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">IEMP:</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  value={iempAdd} 
-                  onChange={(e) => setIempAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">IOEF:</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  value={ioefAdd} 
-                  onChange={(e) => setIoefAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                />
-              </div>
-              <button type="submit" className="w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded">Guardar</button>
-            </form>
-          )}
-        </div>
-
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden">
-          <button 
-            type="button"
-            onClick={() => setOpenEdit(!openEdit)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029]"
-          >
-            <span className={`text-slate-400 text-xs transition-transform ${openEdit ? 'rotate-90' : ''}`}>❯</span>
-            Editar país
-          </button>
-          {openEdit && (
-            commOverrides.length > 0 ? (
-              <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800 space-y-3 bg-[#0e1117]/50">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Seleccionar:</label>
-                  <select 
-                    value={paisSeleccionadoEdit} 
-                    onChange={handleSelectEditPais}
-                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  >
-                    {commOverrides.map((item, idx) => (
-                      <option key={idx} value={item.Paises}>{item.Paises}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo nombre:</label>
-                  <input 
-                    type="text" 
-                    value={editPaisNombre} 
-                    onChange={(e) => setEditPaisNombre(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo IEMP:</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={editIemp} 
-                    onChange={(e) => setEditIemp(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo IOEF:</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={editIoef} 
-                    onChange={(e) => setEditIoef(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  />
-                </div>
-                <button type="submit" className="w-full py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs rounded">Actualizar</button>
-              </form>
-            ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">No hay registros.</div>
-            )
-          )}
-        </div>
-
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden">
-          <button 
-            type="button"
-            onClick={() => setOpenDel(!openDel)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029]"
-          >
-            <span className={`text-slate-400 text-xs transition-transform ${openDel ? 'rotate-90' : ''}`}>❯</span>
-            Eliminar país
-          </button>
-          {openDel && (
-            commOverrides.length > 0 ? (
-              <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800 space-y-3 bg-[#0e1117]/50">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Seleccionar:</label>
-                  <select 
-                    value={paisSeleccionadoDel} 
-                    onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
-                    className="w-full bg-[#181a20] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
-                  >
-                    {commOverrides.map((item, idx) => (
-                      <option key={idx} value={item.Paises}>{item.Paises}</option>
-                    ))}
-                  </select>
-                </div>
-                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white text-xs rounded">Eliminar</button>
-              </form>
-            ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">No hay elementos para eliminar.</div>
-            )
-          )}
-        </div>
-      </div>
-
-      {errorExcel && <div className="bg-red-950 p-3 rounded text-xs text-red-400">{errorExcel}</div>}
+      {errorProceso && <div className="bg-red-950 p-3 rounded text-xs text-red-400">{errorProceso}</div>}
 
       {/* TABLA CONSOLIDADA */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Consolidada (COMM)</h3>
-        <p className="text-xs text-slate-400">Total de países sincronizados: {datosCommConsolidados.length}</p>
-        
-        {cargando ? (
-          <div className="p-4 text-xs text-slate-400 italic">Sincronizando índices...</div>
-        ) : (
-          <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
-                <tr>
-                  <th className="p-3 w-12 bg-[#181a20]">#</th>
-                  <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Aranceles (CTCO)</th>
-                  <th className="p-3 bg-[#181a20]">Penetración (IEMP)</th>
-                  <th className="p-3 bg-[#181a20]">Libertad Económica (IOEF)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
-                {datosCommConsolidados.length > 0 ? (
-                  datosCommConsolidados.map((row, index) => (
-                    <tr key={index} className="hover:bg-[#16181d]">
-                      <td className="p-3 text-slate-500">{index + 1}</td>
-                      <td className="p-3 font-medium text-white">{row.Paises}</td>
-                      <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
-                      <td className="p-3">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
-                      <td className="p-3">{row['Índice de Libertad Económica (IOEF)']}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="p-6 text-center text-slate-500 italic">No hay países disponibles.</td>
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
+              <tr>
+                <th className="p-3 w-12">#</th>
+                <th className="p-3">País (desde Productos)</th>
+                <th className="p-3">Aranceles (CTCO)</th>
+                <th className="p-3">Penetración (IEMP)</th>
+                <th className="p-3">Libertad Económica (IOEF)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+              {datosCommConsolidados.length > 0 ? (
+                datosCommConsolidados.map((row, index) => (
+                  <tr key={index} className="hover:bg-[#16181d]">
+                    <td className="p-3 text-slate-500">{index + 1}</td>
+                    <td className="p-3 font-medium text-white">{row.Paises}</td>
+                    <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
+                    <td className="p-3">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
+                    <td className="p-3">{row['Índice de Libertad Económica (IOEF)']}</td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="p-6 text-center text-slate-500 italic">No hay países detectados en los productos o tablas.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* TABLA NORMALIZADA */}
@@ -549,12 +291,12 @@ export default function TabComercial({
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
               <tr>
-                <th className="p-3 w-12 bg-[#181a20]">#</th>
-                <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">CTCO Norm</th>
-                <th className="p-3 bg-[#181a20]">IEMP Norm</th>
-                <th className="p-3 bg-[#181a20]">IOEF Norm</th>
-                <th className="p-3 bg-[#181a20]">COMM Total</th>
+                <th className="p-3 w-12">#</th>
+                <th className="p-3">País</th>
+                <th className="p-3">CTCO Norm</th>
+                <th className="p-3">IEMP Norm</th>
+                <th className="p-3">IOEF Norm</th>
+                <th className="p-3">COMM Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
