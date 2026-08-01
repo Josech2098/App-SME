@@ -115,11 +115,11 @@ export default function TabComercial({
     }
   };
 
-  // Sincronización y detección automática con normalización de tildes y mayúsculas
+  // Detección estricta basada 100% en las fuentes reales (sin elementos inventados por defecto)
   useEffect(() => {
     setCargando(true);
     try {
-      const mapaPaisesUnicos = new Map(); // Clave normalizada -> Nombre original bonito
+      const mapaPaisesUnicos = new Map();
 
       const registrarPais = (textoOriginal) => {
         if (!textoOriginal || typeof textoOriginal !== 'string') return;
@@ -127,7 +127,6 @@ export default function TabComercial({
         if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice')) {
           const claveNorm = normalizarTexto(limpio);
           if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
-            // Guardamos con la primera letra en mayúscula o tal como viene para presentación limpia
             mapaPaisesUnicos.set(claveNorm, limpio);
           }
         }
@@ -156,12 +155,7 @@ export default function TabComercial({
         });
       }
 
-      // 3. Respaldo por defecto si no hay datos iniciales
-      if (mapaPaisesUnicos.size === 0) {
-        ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia', 'Guatemala', 'Chile', 'Perú'].forEach(p => registrarPais(p));
-      }
-
-      // 4. Agregar overrides manuales
+      // 3. Agregar overrides manuales del usuario
       commOverrides.forEach(ovr => {
         if (ovr.Paises) registrarPais(ovr.Paises);
       });
@@ -192,11 +186,11 @@ export default function TabComercial({
 
         const valIemp = overrideMatch 
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? 25) : 25);
+          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? 0) : 0);
 
         const valIoef = overrideMatch 
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? 60) : 60);
+          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? 0) : 0);
 
         return {
           Paises: paisOriginal,
@@ -266,7 +260,7 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Detección automática con unificación de tildes y mayúsculas.
+          Sincronizado estrictamente con los datos de entrada.
         </p>
       </div>
 
@@ -434,15 +428,21 @@ export default function TabComercial({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
-                {datosCommConsolidados.map((row, index) => (
-                  <tr key={index} className="hover:bg-[#16181d]">
-                    <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
-                    <td className="p-3">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
-                    <td className="p-3">{row['Índice de Libertad Económica (IOEF)']}</td>
+                {datosCommConsolidados.length > 0 ? (
+                  datosCommConsolidados.map((row, index) => (
+                    <tr key={index} className="hover:bg-[#16181d]">
+                      <td className="p-3 text-slate-500">{index + 1}</td>
+                      <td className="p-3 font-medium text-white">{row.Paises}</td>
+                      <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
+                      <td className="p-3">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
+                      <td className="p-3">{row['Índice de Libertad Económica (IOEF)']}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="p-4 text-center text-slate-500 italic">No hay países detectados ni datos disponibles.</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -465,16 +465,22 @@ export default function TabComercial({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
-              {datosCommNormalizados.map((row, index) => (
-                <tr key={index} className="hover:bg-[#16181d]">
-                  <td className="p-3 text-slate-500">{index + 1}</td>
-                  <td className="p-3 font-medium text-white">{row.Paises}</td>
-                  <td className="p-3">{row.CTCO_norm}</td>
-                  <td className="p-3">{row.IEMP_norm}</td>
-                  <td className="p-3">{row.IOEF_norm}</td>
-                  <td className="p-3 font-bold text-emerald-400">{row.COMM_total}</td>
+              {datosCommNormalizados.length > 0 ? (
+                datosCommNormalizados.map((row, index) => (
+                  <tr key={index} className="hover:bg-[#16181d]">
+                    <td className="p-3 text-slate-500">{index + 1}</td>
+                    <td className="p-3 font-medium text-white">{row.Paises}</td>
+                    <td className="p-3">{row.CTCO_norm}</td>
+                    <td className="p-3">{row.IEMP_norm}</td>
+                    <td className="p-3">{row.IOEF_norm}</td>
+                    <td className="p-3 font-bold text-emerald-400">{row.COMM_total}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="p-4 text-center text-slate-500 italic">No hay registros normalizados disponibles.</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
