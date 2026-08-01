@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 export default function TabComercial({ 
   productoActivo, 
   paisesDestino = [], 
-  productos = [], // <-- Nueva prop para conectar con la primera pestaña de Productos
+  productos = [], 
   paisOrigen, 
   archivoExcelBytes,
   datosIndicePenetracion = [], 
@@ -105,38 +105,60 @@ export default function TabComercial({
     }
   };
 
-  // Conexión y carga unificada de países basados estrictamente en la Pestaña 1 (Productos / Destinos)
+  // Carga exhaustiva y unificada de TODOS los países de la Pestaña 1 (Productos) sin exclusiones
   useEffect(() => {
     setCargando(true);
     try {
       const setPaisesGlobales = new Set();
 
-      // 1. Extraer países directamente desde la estructura de la pestaña 1 (productos y sus destinos asociados)
+      // 1. Extraer de forma exhaustiva todos los países de todos los productos de la pestaña 1
       if (Array.isArray(productos) && productos.length > 0) {
         productos.forEach(prod => {
-          // Si el producto activo coincide (o si se evalúan todos los productos de la app)
-          if (!productoActivo || prod.id === productoActivo.id || prod.nombre === productoActivo?.nombre) {
-            if (Array.isArray(prod.paisesDestino)) {
-              prod.paisesDestino.forEach(p => { if (p) setPaisesGlobales.add(String(p).trim()); });
+          const posiblesArraysDestinos = [
+            prod.paisesDestino,
+            prod.destinos,
+            prod.paises,
+            prod.paises_destino,
+            prod.listaPaises,
+            prod.mercados
+          ];
+
+          posiblesArraysDestinos.forEach(lista => {
+            if (Array.isArray(lista)) {
+              lista.forEach(p => {
+                if (p) {
+                  const nombrePais = typeof p === 'object' ? (p.nombre || p.pais || p.Paises) : p;
+                  if (nombrePais && typeof nombrePais === 'string') {
+                    setPaisesGlobales.add(nombrePais.trim());
+                  }
+                }
+              });
             }
-            if (Array.isArray(prod.destinos)) {
-              prod.destinos.forEach(p => { if (p) setPaisesGlobales.add(String(p).trim()); });
-            }
+          });
+
+          const posiblePaisUnico = prod.pais || prod.paisDestino || prod.Paises;
+          if (posiblePaisUnico && typeof posiblePaisUnico === 'string') {
+            setPaisesGlobales.add(posiblePaisUnico.trim());
           }
         });
       }
 
-      // 2. Extraer desde la prop general de destinos de la app
+      // 2. Extraer desde la prop general de destinos
       if (Array.isArray(paisesDestino)) {
-        paisesDestino.forEach(p => { if (p) setPaisesGlobales.add(String(p).trim()); });
+        paisesDestino.forEach(p => { 
+          if (p) {
+            const nombrePais = typeof p === 'object' ? (p.nombre || p.pais || p.Paises) : p;
+            if (nombrePais) setPaisesGlobales.add(String(nombrePais).trim()); 
+          }
+        });
       }
 
-      // 3. Añadir países manuales agregados en esta pestaña (overrides)
+      // 3. Añadir países manuales (overrides)
       commOverrides.forEach(ovr => {
         if (ovr.Paises) setPaisesGlobales.add(String(ovr.Paises).trim());
       });
 
-      // Respaldo por defecto si aún no hay países configurados en la pestaña 1
+      // Respaldo por defecto solo si la lista está completamente vacía
       if (setPaisesGlobales.size === 0) {
         ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia'].forEach(p => setPaisesGlobales.add(p));
       }
@@ -174,7 +196,7 @@ export default function TabComercial({
         };
       });
 
-      // Ordenar por CTCO, luego IEMP, luego IOEF
+      // Ordenar resultados
       dfComm.sort((a, b) => {
         if (a['Aranceles aduaneros por país de origen (CTCO)'] !== b['Aranceles aduaneros por país de origen (CTCO)']) {
           return a['Aranceles aduaneros por país de origen (CTCO)'] - b['Aranceles aduaneros por país de origen (CTCO)'];
@@ -234,7 +256,7 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con los países definidos en la Pestaña 1 (Productos).
+          Sincronizado completamente con los países definidos en la Pestaña 1 (Productos).
         </p>
       </div>
 
