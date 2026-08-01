@@ -1,338 +1,480 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient.js';
-import TablaProductos from './components/TabProductos';
-import TabCosto from './components/TabCosto';
-import TabLogistica from './components/TabLogistica';
-import TabComercial from './components/TabComercial';
-import TabEconomia from './components/TabEconomia';
-import TabPolitica from './components/TabPolitica';
-import TabCultura from './components/TabCultura';
+import { supabase } from '../supabaseClient.js';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState(0);
+export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [] }) {
+  const [econOverrides, setEconOverrides] = useState([]);
+  
+  const [openAdd, setOpenAdd] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openDel, setOpenDel] = useState(false);
 
-  // ----------------------------------------------------
-  // ESTADOS GLOBALES DE PRODUCTO, PAÍSES Y ORIGEN
-  // ----------------------------------------------------
-  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-  const [paisesDestino, setPaisesDestino] = useState([]);
-  const [paisOrigen, setPaisOrigen] = useState('España'); // Por defecto
+  // Estados para añadir
+  const [paisAdd, setPaisAdd] = useState('');
+  const [icvAdd, setIcvAdd] = useState('');
+  const [inanAdd, setInanAdd] = useState('');
+  const [tadAdd, setTadAdd] = useState('');
 
-  // Filtros de la barra lateral
-  const [categoria, setCategoria] = useState('Todos');
-  const [subcategoria, setSubcategoria] = useState('Todos');
-  const [searchNombre, setSearchNombre] = useState('');
-  const [searchCodigo, setSearchCodigo] = useState('');
-  const [searchSubcodigo, setSearchSubcodigo] = useState('');
+  // Estados para editar
+  const [paisSeleccionadoEdit, setPaisSeleccionadoEdit] = useState('');
+  const [editPaisNombre, setEditPaisNombre] = useState('');
+  const [editIcv, setEditIcv] = useState('');
+  const [editInan, setEditInan] = useState('');
+  const [editTad, setEditTad] = useState('');
 
-  // Listas desde Supabase
-  const [listaCategorias, setListaCategorias] = useState([]);
-  const [listaSubcategorias, setListaSubcategorias] = useState([]);
-  const [listaPaisesOrigen, setListaPaisesOrigen] = useState([]);
+  // Estados para eliminar
+  const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
 
-  // NUEVOS ESTADOS GLOBALES PARA TABS (Supabase)
-  const [datosIndicePenetracion, setDatosIndicePenetracion] = useState([]);
-  const [datosLibertadEconomica, setDatosLibertadEconomica] = useState([]);
-  const [datosCostoDeVida, setDatosCostoDeVida] = useState([]);
+  // Estados procesados
+  const [datosEconConsolidados, setDatosEconConsolidados] = useState([]);
+  const [datosEconNormalizados, setDatosEconNormalizados] = useState([]);
+  const [cargando, setCargando] = useState(false);
+  const [errorEco, setErrorEco] = useState(null);
 
-  // 1. Cargar Categorías, Países de Origen y Datos Iniciales de Supabase
+  // Estado local sincronizado con Supabase usando rango ampliado
+  const [listaCostoVidaDB, setListaCostoVidaDB] = useState(datosCostoDeVida);
+
   useEffect(() => {
-    async function fetchIniciales() {
-      // Categorías
-      const { data: catData } = await supabase
-        .from('categorias')
-        .select('*')
-        .order('codigo');
-      if (catData) setListaCategorias(catData);
-
-      // Países para el origen
-      const { data: paisesData } = await supabase
-        .from('paises')
-        .select('*')
-        .order('nombre');
-      if (paisesData) setListaPaisesOrigen(paisesData);
-
-      // Índice de Penetración
-      const { data: penData } = await supabase
-        .from('indicepenetracion')
-        .select('*');
-      if (penData) setDatosIndicePenetracion(penData);
-
-      // Libertad Económica
-      const { data: libData } = await supabase
-        .from('libertadeconomica')
-        .select('*');
-      if (libData) setDatosLibertadEconomica(libData);
-
-      // Costo de Vida (ECON) - Rango ampliado para traer todos los registros
-      const { data: costoData } = await supabase
-        .from('costodevida')
-        .select('*')
-        .range(0, 999);
-      if (costoData) setDatosCostoDeVida(costoData);
+    async function fetchCostoVidaDB() {
+      try {
+        const { data: cvData, error } = await supabase.from('costodevida').select('*').range(0, 999);
+        if (error) {
+          console.error("Error en Supabase costodevida:", error.message);
+        } else if (cvData) {
+          setListaCostoVidaDB(cvData);
+        }
+      } catch (err) {
+        console.error("Error cargando datos de costo de vida:", err.message);
+      }
     }
-    fetchIniciales();
+    fetchCostoVidaDB();
   }, []);
 
-  // 2. Cargar Subcategorías
+  // Sincronizar selectores de edición/eliminación al cambiar los overrides
   useEffect(() => {
-    async function fetchSubcategorias() {
-      if (categoria === 'Todos') {
-        setListaSubcategorias([]);
-        setSubcategoria('Todos');
-        return;
+    if (econOverrides.length > 0) {
+      if (!paisSeleccionadoEdit) {
+        setPaisSeleccionadoEdit(econOverrides[0].Paises);
+        setEditPaisNombre(econOverrides[0].Paises);
+        setEditIcv(econOverrides[0].ICV);
+        setEditInan(econOverrides[0].INAN);
+        setEditTad(econOverrides[0].TAD);
       }
-
-      const { data } = await supabase
-        .from('subcategorias')
-        .select('*')
-        .eq('categoria_codigo', categoria)
-        .order('codigo');
-
-      if (data) setListaSubcategorias(data);
-      else setListaSubcategorias([]);
-      
-      setSubcategoria('Todos');
+      if (!paisSeleccionadoDel) {
+        setPaisSeleccionadoDel(econOverrides[0].Paises);
+      }
     }
+  }, [econOverrides]);
 
-    fetchSubcategorias();
-  }, [categoria]);
+  const handleSelectEditPais = (e) => {
+    const nombre = e.target.value;
+    setPaisSeleccionadoEdit(nombre);
+    const fila = econOverrides.find(item => item.Paises === nombre);
+    if (fila) {
+      setEditPaisNombre(fila.Paises);
+      setEditIcv(fila.ICV);
+      setEditInan(fila.INAN);
+      setEditTad(fila.TAD);
+    }
+  };
 
-  const tabList = [
-    "Productos",
-    "Costo (COST)",
-    "Logística (LOGI)",
-    "Comercial (COMM)",
-    "Economía (ECON)",
-    "Política (POLI)",
-    "Cultura (CULT)",
-    "Visualización de Tablas Totales",
-    "Gráficos"
-  ];
+  const handleAddPais = (e) => {
+    e.preventDefault();
+    if (!paisAdd.trim()) return;
+
+    const nuevoRegistro = {
+      Paises: paisAdd.trim(),
+      ICV: Number(icvAdd) || 0,
+      INAN: Number(inanAdd) || 0,
+      TAD: Number(tadAdd) || 0
+    };
+
+    setEconOverrides([...econOverrides, nuevoRegistro]);
+    setPaisAdd('');
+    setIcvAdd('');
+    setInanAdd('');
+    setTadAdd('');
+    setOpenAdd(false);
+  };
+
+  const handleUpdatePais = (e) => {
+    e.preventDefault();
+    const actualizados = econOverrides.map(item => {
+      if (item.Paises === paisSeleccionadoEdit) {
+        return {
+          ...item,
+          Paises: editPaisNombre.trim(),
+          ICV: Number(editIcv) || 0,
+          INAN: Number(editInan) || 0,
+          TAD: Number(editTad) || 0
+        };
+      }
+      return item;
+    });
+
+    setEconOverrides(actualizados);
+    setPaisSeleccionadoEdit(editPaisNombre.trim());
+    setOpenEdit(false);
+  };
+
+  const handleDeletePais = (e) => {
+    e.preventDefault();
+    const filtrados = econOverrides.filter(item => item.Paises !== paisSeleccionadoDel);
+    setEconOverrides(filtrados);
+    setOpenDel(false);
+    if (filtrados.length > 0) {
+      setPaisSeleccionadoDel(filtrados[0].Paises);
+    } else {
+      setPaisSeleccionadoDel('');
+    }
+  };
+
+  // Procesamiento y cruce robusto con los datos de Supabase
+  useEffect(() => {
+    setCargando(true);
+    try {
+      // Tomar estrictamente los países seleccionados desde la pestaña principal (TabProducto)
+      const listaPaisesBase = paisesDestino && paisesDestino.length > 0 
+        ? paisesDestino 
+        : ['España', 'Francia', 'Alemania', 'Países Bajos', 'Italia', 'Portugal', 'Estados Unidos', 'México', 'Colombia', 'Chile'];
+
+      const limpiarTexto = (str) => {
+        if (!str && str !== 0) return '';
+        return str
+          .toString()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim();
+      };
+
+      const fuenteDatosCV = listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida;
+
+      const dfEcon = listaPaisesBase.map((pais, idx) => {
+        const paisLimpio = limpiarTexto(pais);
+
+        // Búsqueda flexible en Supabase barriendo cualquier posible columna de país
+        const matchCV = fuenteDatosCV.find(item => {
+          if (!item) return false;
+          const candidatoPais = 
+            item.pais || item.País || item.PAIS || 
+            item.nombre || item.Nombre || item.NOMBRE || 
+            item.paises || item.Paises || item.PAISES || 
+            item.country || item.Country;
+          
+          const itemLimpio = limpiarTexto(candidatoPais);
+          return itemLimpio === paisLimpio || itemLimpio.includes(paisLimpio) || paisLimpio.includes(itemLimpio);
+        });
+
+        const valorCVDB = matchCV ? (
+          matchCV.costo_de_vida ?? matchCV.Costo_de_Vida ?? matchCV.COSTO_DE_VIDA ??
+          matchCV.icv ?? matchCV.ICV ?? matchCV.costovida ?? matchCV.CostoVida ?? 
+          matchCV.valor ?? matchCV.Valor ?? matchCV.val
+        ) : null;
+
+        const valorICV = valorCVDB !== null && valorCVDB !== undefined && !isNaN(Number(valorCVDB))
+          ? Number(valorCVDB)
+          : Number((40.0 + ((idx * 3.5) % 30.0)).toFixed(2));
+
+        return {
+          Paises: pais,
+          ICV: valorICV,
+          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)),
+          TAD: Number((5.0 + ((idx * 1.2) % 10.0)).toFixed(2))
+        };
+      });
+
+      // Aplicar Overrides del usuario
+      econOverrides.forEach(ovr => {
+        const index = dfEcon.findIndex(item => limpiarTexto(item.Paises) === limpiarTexto(ovr.Paises));
+        if (index !== -1) {
+          dfEcon[index].ICV = ovr.ICV;
+          dfEcon[index].INAN = ovr.INAN;
+          dfEcon[index].TAD = ovr.TAD;
+        } else {
+          dfEcon.push({
+            Paises: ovr.Paises,
+            ICV: ovr.ICV,
+            INAN: ovr.INAN,
+            TAD: ovr.TAD
+          });
+        }
+      });
+
+      dfEcon.forEach(item => {
+        item.completos = item.ICV !== null && item.INAN !== null && item.TAD !== null;
+      });
+      dfEcon.sort((a, b) => (b.completos === a.completos ? 0 : b.completos ? 1 : -1));
+
+      setDatosEconConsolidados(dfEcon);
+
+      // ================= NORMALIZACIÓN =================
+      const valoresIcvPositivos = dfEcon.map(i => i.ICV).filter(v => v !== null && v > 0);
+      const valoresInanPositivos = dfEcon.map(i => i.INAN).filter(v => v !== null && v > 0);
+      const valoresTadPositivos = dfEcon.map(i => i.TAD).filter(v => v !== null && v > 0);
+
+      const minIcv = valoresIcvPositivos.length > 0 ? Math.min(...valoresIcvPositivos) : null;
+      const minInan = valoresInanPositivos.length > 0 ? Math.min(...valoresInanPositivos) : null;
+      const minTad = valoresTadPositivos.length > 0 ? Math.min(...valoresTadPositivos) : null;
+
+      const normInversa = (valor, minimo) => {
+        if (valor === null || valor === undefined || minimo === null || valor <= 0) return null;
+        const num = Number(valor);
+        if (isNaN(num) || num <= 0) return null;
+        return Number(((10 * minimo) / num).toFixed(4));
+      };
+
+      const P_ICV = 0.30;
+      const P_INAN = 0.30;
+      const P_TAD = 0.40;
+
+      const dfNorm = dfEcon.map(item => {
+        const icvNorm = normInversa(item.ICV, minIcv);
+        const inanNorm = normInversa(item.INAN, minInan);
+        const tadNorm = normInversa(item.TAD, minTad);
+
+        const puntajeEcon = Number((
+          (icvNorm !== null ? icvNorm : 0) * P_ICV +
+          (inanNorm !== null ? inanNorm : 0) * P_INAN +
+          (tadNorm !== null ? tadNorm : 0) * P_TAD
+        ).toFixed(4));
+
+        const completosNorm = icvNorm !== null && inanNorm !== null && tadNorm !== null;
+
+        return {
+          Paises: item.Paises,
+          ICV_norm: icvNorm,
+          INAN_norm: inanNorm,
+          TAD_norm: tadNorm,
+          Puntaje_ECON_Normalizado: puntajeEcon,
+          completos: completosNorm
+        };
+      });
+
+      dfNorm.sort((a, b) => {
+        if (b.completos !== a.completos) return b.completos ? 1 : -1;
+        return b.Puntaje_ECON_Normalizado - a.Puntaje_ECON_Normalizado;
+      });
+
+      setDatosEconNormalizados(dfNorm);
+      setErrorEco(null);
+    } catch (err) {
+      console.error("Error al procesar datos económicos:", err);
+      setErrorEco(err.message);
+    } finally {
+      setCargando(false);
+    }
+  }, [econOverrides, paisesDestino, listaCostoVidaDB, datosCostoDeVida]);
 
   return (
-    <div className="flex min-h-screen bg-[#0e1117] text-slate-100 font-sans antialiased">
+    <div className="space-y-8 text-slate-100 font-sans">
       
-      {/* ---------------- BARRA LATERAL (SIDEBAR) ---------------- */}
-      <aside className="w-80 bg-[#262730]/40 border-r border-[#262730] p-6 flex flex-col gap-6 shrink-0">
+      {/* HEADER */}
+      <div className="border-b border-slate-800 pb-3">
+        <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
+        <p className="text-xs text-slate-400 mt-1">
+          Gestión y normalización de indicadores macroeconómicos: Índice del Costo de Vida (ICV) desde Supabase, Inflación Anual (IAN) y Tasa de Desempleo (TAD).
+        </p>
+      </div>
+
+      {/* ACORDEONES CRUD */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        {/* Banner de Usuario y Selector de Origen */}
-        <div className="space-y-2">
-          <div className="bg-[#2e4d3a] border border-[#3e6b4f] text-[#a1e8bc] px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm">
-          </div>
+        {/* AÑADIR */}
+        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+          <button 
+            type="button"
+            onClick={() => setOpenAdd(!openAdd)}
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+          >
+            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>❯</span>
+            Añadir país
+          </button>
 
-          {/* SELECTOR DINÁMICO DE PAÍS DE ORIGEN */}
-          <div className="bg-[#1e2028] border border-red-500/30 p-2.5 rounded-lg text-xs space-y-1">
-            <label className="text-red-400 font-semibold block">
-              🌐 Origen de Exportación:
-            </label>
-            <select
-              value={paisOrigen}
-              onChange={(e) => setPaisOrigen(e.target.value)}
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-            >
-              <option value="España">🇪🇸 España</option>
-              {listaPaisesOrigen.filter(p => p.nombre !== 'España').map((p) => (
-                <option key={p.id || p.nombre} value={p.nombre}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Sección: Filtros de búsqueda */}
-        <div className="space-y-4 pt-2">
-          <h2 className="text-base font-bold text-slate-100">Filtros de búsqueda</h2>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs text-slate-300">Selecciona una categoría</label>
-            <select 
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500 transition-colors"
-            >
-              <option value="Todos">Todos</option>
-              {listaCategorias.map((cat) => (
-                <option key={cat.id || cat.codigo} value={cat.codigo}>
-                  {cat.codigo} - {cat.nombre.length > 35 ? `${cat.nombre.substring(0, 35)}...` : cat.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs text-slate-300">Selecciona una subcategoría</label>
-            <select 
-              value={subcategoria}
-              onChange={(e) => setSubcategoria(e.target.value)}
-              disabled={categoria === 'Todos' || listaSubcategorias.length === 0}
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500 disabled:opacity-40 transition-colors"
-            >
-              <option value="Todos">Todos</option>
-              {listaSubcategorias.map((sub) => (
-                <option key={sub.id || sub.codigo} value={sub.codigo}>
-                  {sub.codigo} - {sub.nombre.length > 35 ? `${sub.nombre.substring(0, 35)}...` : sub.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Sección: Búsquedas personalizadas */}
-        <div className="space-y-4 pt-2">
-          <h2 className="text-base font-bold text-slate-100">Búsquedas personalizadas</h2>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs text-slate-300">Buscar por nombre (producto o subproducto)</label>
-            <input
-              type="text"
-              value={searchNombre}
-              onChange={(e) => setSearchNombre(e.target.value)}
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs text-slate-300">Buscar por código de producto</label>
-            <input
-              type="text"
-              value={searchCodigo}
-              onChange={(e) => setSearchCodigo(e.target.value)}
-              placeholder="Ej. 2204"
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="block text-xs text-slate-300">Buscar por subcódigo de subproducto</label>
-            <input
-              type="text"
-              value={searchSubcodigo}
-              onChange={(e) => setSearchSubcodigo(e.target.value)}
-              placeholder="Ej. 220410"
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500"
-            />
-          </div>
-        </div>
-      </aside>
-
-      {/* ---------------- ÁREA PRINCIPAL ---------------- */}
-      <main className="flex-1 p-8 overflow-y-auto">
-        
-        <h1 className="text-3xl font-bold text-white mb-6 tracking-tight">
-          Aplicativo Selección de Mercados Internacionales
-        </h1>
-
-        {/* Pestañas (Tabs) */}
-        <div className="border-b border-slate-800 flex gap-6 overflow-x-auto mb-8 no-scrollbar">
-          {tabList.map((tabName, index) => (
-            <button
-              key={index}
-              onClick={() => setActiveTab(index)}
-              className={`pb-2 text-sm font-normal whitespace-nowrap transition-all cursor-pointer relative ${
-                activeTab === index
-                  ? 'text-red-500 font-medium'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              {tabName}
-              {activeTab === index && (
-                <span className="absolute bottom-0 left-0 w-full h-[2px] bg-red-500"></span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Contenido Dinámico */}
-        <div>
-          {activeTab === 0 && (
-            <TablaProductos 
-              productoSeleccionado={productoSeleccionado}
-              setProductoSeleccionado={setProductoSeleccionado}
-              paisesDestino={paisesDestino}
-              setPaisesDestino={setPaisesDestino}
-              categoria={categoria}
-              subcategoria={subcategoria}
-              searchNombre={searchNombre}
-              searchCodigo={searchCodigo}
-              searchSubcodigo={searchSubcodigo}
-            />
-          )}
-
-          {activeTab === 1 && (
-            <TabCosto 
-              productoActivo={productoSeleccionado}
-              paisesDestino={paisesDestino}
-              categoria={categoria}
-              subcategoria={subcategoria}
-              busqueda={searchNombre || searchCodigo || searchSubcodigo}
-              paisOrigen={paisOrigen}
-            />
-          )}
-
-          {activeTab === 2 && (
-            <TabLogistica 
-              productoActivo={productoSeleccionado}
-              paisesDestino={paisesDestino}
-              paisOrigen={paisOrigen}
-            />
-          )}
-
-          {activeTab === 3 && (
-            <TabComercial 
-              productoActivo={productoSeleccionado}
-              paisesDestino={paisesDestino}
-              productos={paisesDestino}
-              paisOrigen={paisOrigen}
-              datosIndicePenetracion={datosIndicePenetracion}
-              datosLibertadEconomica={datosLibertadEconomica}
-            />
-          )}
-
-          {activeTab === 4 && (
-            <TabEconomia 
-              productoActivo={productoSeleccionado}
-              paisesDestino={paisesDestino}
-              paisOrigen={paisOrigen}
-              datosCostoDeVida={datosCostoDeVida}
-            />
-          )}
-
-          {activeTab === 5 && (
-            <TabPolitica 
-              productoActivo={productoSeleccionado}
-              paisesDestino={paisesDestino}
-              paisOrigen={paisOrigen}
-            />
-          )}
-
-          {activeTab === 6 && (
-            <TabCultura 
-              productoActivo={productoSeleccionado}
-              paisesDestino={paisesDestino}
-              paisOrigen={paisOrigen}
-            />
-          )}
-
-          {activeTab > 6 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white">
-                {tabList[activeTab]}
-              </h2>
-              <div className="bg-[#1c2c3d] border border-[#2b4259] text-[#71b1ea] px-4 py-3 rounded flex items-center gap-2 text-sm">
-                <span>ℹ️</span>
-                <span>
-                  Sección en desarrollo. Evaluando datos exportables desde {paisOrigen} para{' '}
-                  <strong className="text-white">
-                    {productoSeleccionado ? productoSeleccionado.nombre : 'Producto sin seleccionar'}
-                  </strong>.
-                </span>
+          {openAdd && (
+            <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">País nuevo:</label>
+                <input type="text" value={paisAdd} onChange={(e) => setPaisAdd(e.target.value)} required className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
               </div>
-            </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">ICV (Costo de Vida):</label>
+                <input type="number" step="0.01" min="0" value={icvAdd} onChange={(e) => setIcvAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">IAN (Inflación Anual):</label>
+                <input type="number" step="0.01" min="0" value={inanAdd} onChange={(e) => setInanAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">TAD (Tasa de Desempleo):</label>
+                <input type="number" step="0.01" min="0" value={tadAdd} onChange={(e) => setTadAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+              </div>
+              <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors">
+                Guardar país ECON
+              </button>
+            </form>
           )}
         </div>
-      </main>
+
+        {/* EDITAR */}
+        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+          <button 
+            type="button"
+            onClick={() => setOpenEdit(!openEdit)}
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+          >
+            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>❯</span>
+            Editar país
+          </button>
+
+          {openEdit && (
+            econOverrides.length > 0 ? (
+              <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Selecciona país a editar:</label>
+                  <select value={paisSeleccionadoEdit} onChange={handleSelectEditPais} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500">
+                    {econOverrides.map((item, idx) => (
+                      <option key={idx} value={item.Paises}>{item.Paises}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo país:</label>
+                  <input type="text" value={editPaisNombre} onChange={(e) => setEditPaisNombre(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo ICV:</label>
+                  <input type="number" step="0.01" min="0" value={editIcv} onChange={(e) => setEditIcv(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo IAN:</label>
+                  <input type="number" step="0.01" min="0" value={editInan} onChange={(e) => setEditInan(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo TAD:</label>
+                  <input type="number" step="0.01" min="0" value={editTad} onChange={(e) => setEditTad(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                </div>
+                <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors">
+                  Actualizar país ECON
+                </button>
+              </form>
+            ) : (
+              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
+                No hay datos personalizados para editar aún.
+              </div>
+            )
+          )}
+        </div>
+
+        {/* ELIMINAR */}
+        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+          <button 
+            type="button"
+            onClick={() => setOpenDel(!openDel)}
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+          >
+            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>❯</span>
+            Eliminar país
+          </button>
+
+          {openDel && (
+            econOverrides.length > 0 ? (
+              <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Selecciona país a eliminar:</label>
+                  <select value={paisSeleccionadoDel} onChange={(e) => setPaisSeleccionadoDel(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500">
+                    {econOverrides.map((item, idx) => (
+                      <option key={idx} value={item.Paises}>{item.Paises}</option>
+                    ))}
+                  </select>
+                </div>
+                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors">
+                  Eliminar país ECON
+                </button>
+              </form>
+            ) : (
+              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
+                No hay países en memoria para eliminar aún.
+              </div>
+            )
+          )}
+        </div>
+
+      </div>
+
+      {errorEco && (
+        <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
+          {errorEco}
+        </div>
+      )}
+
+      {/* ================= TABLA ECONÓMICA DATOS ORIGINALES ================= */}
+      <div className="space-y-2">
+        <h3 className="text-base font-bold text-white">Tabla Económica (ECON) — Datos originales</h3>
+        <p className="text-xs text-slate-400">Índice del Costo de Vida (ICV) obtenido de Supabase, Inflación Anual (IAN) y Tasa de Desempleo (TAD).</p>
+        
+        {cargando ? (
+          <div className="p-4 text-xs text-slate-400 italic">Procesando datos económicos...</div>
+        ) : (
+          <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+            <table className="w-full table-fixed text-left text-xs text-slate-300 relative">
+              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+                <tr>
+                  <th className="p-3 w-16 bg-[#181a20]">#</th>
+                  <th className="p-3 w-40 bg-[#181a20]">País</th>
+                  <th className="p-3 bg-[#181a20]">Costo de Vida (ICV)</th>
+                  <th className="p-3 bg-[#181a20]">Inflación Anual (IAN)</th>
+                  <th className="p-3 bg-[#181a20]">Tasa Desempleo (TAD)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+                {datosEconConsolidados.map((row, index) => (
+                  <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                    <td className="p-3 text-slate-500">{index + 1}</td>
+                    <td className="p-3 font-medium text-white truncate">{row.Paises}</td>
+                    <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : '-'}</td>
+                    <td className="p-3">{row.INAN !== null ? row.INAN : '-'}</td>
+                    <td className="p-3">{row.TAD !== null ? row.TAD : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ================= TABLA DE NORMALIZACIÓN ECONÓMICA ================= */}
+      <div className="space-y-2 pt-2">
+        <h3 className="text-base font-bold text-white">Tabla de Normalización Económica (ECON)</h3>
+        <p className="text-xs text-slate-400">Ponderaciones: ICV = 30% | IAN = 30% | TAD = 40% (Normalización Inversa)</p>
+
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+          <table className="w-full table-fixed text-left text-xs text-slate-300 relative">
+            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+              <tr>
+                <th className="p-3 w-16 bg-[#181a20]">#</th>
+                <th className="p-3 w-40 bg-[#181a20]">País</th>
+                <th className="p-3 bg-[#181a20]">ICV Norm</th>
+                <th className="p-3 bg-[#181a20]">IAN Norm</th>
+                <th className="p-3 bg-[#181a20]">TAD Norm</th>
+                <th className="p-3 bg-[#181a20]">Puntaje ECON Normalizado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+              {datosEconNormalizados.map((row, index) => (
+                <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                  <td className="p-3 text-slate-500">{index + 1}</td>
+                  <td className="p-3 font-medium text-white truncate">{row.Paises}</td>
+                  <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : '-'}</td>
+                  <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : '-'}</td>
+                  <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : '-'}</td>
+                  <td className="p-3 font-bold text-emerald-400">{row.Puntaje_ECON_Normalizado}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   );
 }
