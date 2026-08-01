@@ -145,13 +145,27 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       const fuenteDatosCV = listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida;
 
-      // Construcción directa de dfEcon a partir de Supabase sin países estáticos predeterminados
+      // Construcción directa de dfEcon barriendo múltiples variantes de nombres de columnas de Supabase
       let dfEcon = fuenteDatosCV.map((item, idx) => {
-        const nombrePais = item.pais || item.País || item.PAIS || item.nombre || item.Nombre || item.paises || item.Paises || `País ${idx + 1}`;
+        const nombrePais = 
+          item.pais || item.País || item.PAIS || 
+          item.nombre || item.Nombre || item.NOMBRE || 
+          item.paises || item.Paises || item.PAISES || 
+          item.country || item.Country || `País ${idx + 1}`;
         
-        const valorICV = item.costo_de_vida ?? item.Costo_de_Vida ?? item.COSTO_DE_VIDA ?? item.icv ?? item.ICV ?? item.costovida;
-        const valorIAN = item.inflacion_anual ?? item.Inflacion_Anual ?? item.INFLACION_ANUAL ?? item.inan ?? item.INAN;
-        const valorTAD = item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.TASA_DE_DESEMPLEO ?? item.tad ?? item.TAD;
+        const valorICV = 
+          item.costo_de_vida ?? item.Costo_de_Vida ?? item.COSTO_DE_VIDA ?? 
+          item.icv ?? item.ICV ?? item.costovida ?? item.CostoVida;
+
+        const valorIAN = 
+          item.inflacion_anual ?? item.Inflacion_Anual ?? item.INFLACION_ANUAL ?? 
+          item.inflacion ?? item.Inflacion ?? item.INFLACION ?? 
+          item.inan ?? item.INAN;
+
+        const valorTAD = 
+          item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.TASA_DE_DESEMPLEO ?? 
+          item.desempleo ?? item.Desempleo ?? item.DESEMPLEO ?? 
+          item.tad ?? item.TAD;
 
         return {
           Paises: nombrePais,
@@ -256,7 +270,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y normalización de indicadores macroeconómicos dinámicos obtenidos directamente de la tabla `costodevida` en Supabase: Índice del Costo de Vida (ICV), Inflación Anual (IAN) y Tasa de Desempleo (TAD).
+          Gestión y normalización de indicadores macroeconómicos obtenidos directamente de la tabla `costodevida` en Supabase: Índice del Costo de Vida (ICV), Inflación Anual (IAN) y Tasa de Desempleo (TAD).
         </p>
       </div>
 
