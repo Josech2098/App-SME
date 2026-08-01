@@ -9,7 +9,7 @@ export default function TabComercial({
   datosIndicePenetracion = [], 
   datosLibertadEconomica = []   
 }) {
-  // Lista de respaldo por defecto para asegurar que siempre haya países visibles
+  // Lista de respaldo por defecto en caso de que todo origen esté completamente vacío
   const [commOverrides, setCommOverrides] = useState([
     { Paises: 'Costa Rica', 'Índice de penetración en el mercado de exportación (IEMP)': 5.5, 'Índice de Libertad Económica (IOEF)': 6.8 },
     { Paises: 'Estados Unidos', 'Índice de penetración en el mercado de exportación (IEMP)': 8.2, 'Índice de Libertad Económica (IOEF)': 7.5 },
@@ -121,7 +121,7 @@ export default function TabComercial({
     }
   };
 
-  // Sincronización extrayendo países y fusionándolos con los datos disponibles
+  // Sincronización extrayendo países y fusionándolos con las tablas de Supabase
   useEffect(() => {
     setCargando(true);
     try {
@@ -142,19 +142,16 @@ export default function TabComercial({
       if (Array.isArray(productos)) {
         productos.forEach(prod => {
           if (!prod) return;
-          if (typeof prod === 'string') {
-            registrarPais(prod);
-          } else if (typeof prod === 'object') {
+          if (typeof prod === 'string') registrarPais(prod);
+          else if (typeof prod === 'object') {
             Object.entries(prod).forEach(([key, val]) => {
               const kNorm = key.toLowerCase();
-              if (kNorm.includes('pais') || kNorm.includes('destino') || kNorm.includes('mercado') || kNorm.includes('country') || kNorm.includes('nacion')) {
+              if (kNorm.includes('pais') || kNorm.includes('destino') || kNorm.includes('nombre') || kNorm.includes('country')) {
                 if (typeof val === 'string') registrarPais(val);
               }
             });
             Object.values(prod).forEach(val => {
-              if (typeof val === 'string' && val.trim().length > 2 && val.length < 50 && !val.includes('{') && !val.includes('[')) {
-                registrarPais(val);
-              }
+              if (typeof val === 'string' && val.trim().length > 2 && val.length < 50) registrarPais(val);
             });
           }
         });
@@ -172,40 +169,62 @@ export default function TabComercial({
         });
       }
 
-      // 3. Capturar desde datosIndicePenetracion
+      // 3. Capturar desde datosIndicePenetracion (Mapea 'nombre' o propiedades similares)
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
           if (item && typeof item === 'object') {
-            Object.values(item).forEach(val => {
-              if (typeof val === 'string') registrarPais(val);
-            });
+            const nombrePais = item.nombre || item.pais || item.Paises || item.Nombre;
+            if (nombrePais) registrarPais(nombrePais);
           }
         });
       }
 
-      // 4. Agregar overrides manuales o los respaldos por defecto
-      commOverrides.forEach(ovr => {
-        if (ovr.Paises) registrarPais(ovr.Paises);
-      });
+      // 4. Capturar desde datosLibertadEconomica (Mapea 'pais' o propiedades similares de Supabase)
+      if (Array.isArray(datosLibertadEconomica)) {
+        datosLibertadEconomica.forEach(item => {
+          if (item && typeof item === 'object') {
+            const nombrePais = item.pais || item.nombre || item.Paises || item.Nombre;
+            if (nombrePais) registrarPais(nombrePais);
+          }
+        });
+      }
+
+      // Si no hay países detectados por las props, usamos los overrides manuales
+      if (mapaPaisesUnicos.size === 0) {
+        commOverrides.forEach(ovr => {
+          if (ovr.Paises) registrarPais(ovr.Paises);
+        });
+      }
 
       let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
 
       const dfComm = listaPaisesFinal.map((paisOriginal, idx) => {
         const paisNorm = normalizarTexto(paisOriginal);
 
-        const matchIemp = datosIndicePenetracion.find(
-          item => Object.values(item).some(v => typeof v === 'string' && normalizarTexto(v) === paisNorm)
-        );
-        const matchIoef = datosLibertadEconomica.find(
-          item => Object.values(item).some(v => typeof v === 'string' && normalizarTexto(v) === paisNorm)
-        );
+        // Búsqueda robusta en indice de penetración
+        const matchIemp = datosIndicePenetracion.find(item => {
+          const valPais = item.nombre || item.pais || item.Paises || Object.values(item)[0];
+          return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
+        });
+
+        // Búsqueda robusta en libertad económica
+        const matchIoef = datosLibertadEconomica.find(item => {
+          const valPais = item.pais || item.nombre || item.Paises || Object.values(item)[0];
+          return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
+        });
 
         const overrideMatch = commOverrides.find(
           ovr => normalizarTexto(ovr.Paises) === paisNorm
         );
 
-        const obtenerValorNumerico = (obj) => {
+        const extraerNumero = (obj, clavesPosibles) => {
           if (!obj) return null;
+          for (const clave of clavesPosibles) {
+            if (obj[clave] !== undefined && obj[clave] !== null && !isNaN(obj[clave])) {
+              return Number(obj[clave]);
+            }
+          }
+          // Si no encuentra por clave exacta, busca el primer valor numérico válido
           const valNum = Object.values(obj).find(v => typeof v === 'number' && !isNaN(v));
           return valNum !== undefined ? Number(valNum) : null;
         };
@@ -214,11 +233,11 @@ export default function TabComercial({
 
         const valIemp = overrideMatch && overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] !== undefined
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? 0) : 5.0);
+          : (matchIemp ? extraerNumero(matchIemp, ['indice_penetracion', 'Indice_penetracion', 'IEMP']) ?? 5.0 : 5.0);
 
         const valIoef = overrideMatch && overrideMatch['Índice de Libertad Económica (IOEF)'] !== undefined
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? 0) : 6.0);
+          : (matchIoef ? extraerNumero(matchIoef, ['indice_de_libertad_economica', 'Indice_de_libertad_economica', 'IOEF']) ?? 6.0 : 6.0);
 
         return {
           Paises: paisOriginal,
@@ -287,17 +306,17 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con la tabla de productos.
+          Sincronizado con la tabla de productos y Supabase.
         </p>
       </div>
 
-      {/* MENSAJE EXPLICATIVO DE ERROR / DIAGNÓSTICO */}
+      {/* PANEL DE DIAGNÓSTICO DETALLADO */}
       <div className="bg-amber-950/40 border border-amber-500/50 rounded-lg p-4 text-xs space-y-2">
         <div className="flex items-center gap-2 font-bold text-amber-400 text-sm">
           <span>⚠️</span> Motivo por el cual no cargaban los datos originales:
         </div>
         <p className="text-slate-300 leading-relaxed">
-          Las propiedades principales que provienen del componente padre (<code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">productos</code>, <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">paisesDestino</code> y <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">datosIndicePenetracion</code>) están llegando vacías o con <strong className="text-white">0 elementos</strong>. Como consecuencia, el componente no detecta registros de origen y está empleando una lista de respaldo predeterminada para evitar que la interfaz falle.
+          Las propiedades principales enviadas por el componente padre (<code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">productos</code>, <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">paisesDestino</code>, <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">datosIndicePenetracion</code> y <code className="text-amber-300 bg-black/40 px-1 py-0.5 rounded">datosLibertadEconomica</code>) están llegando vacías o con <strong className="text-white">0 elementos</strong>. Para solucionarlo, revisa que en el archivo padre estés realizando las consultas a Supabase y pasándole los resultados a este componente.
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] text-slate-300 pt-2 border-t border-amber-500/20">
           <div className="bg-black/30 p-2 rounded border border-amber-500/20">
@@ -313,8 +332,8 @@ export default function TabComercial({
             <strong className="text-amber-200">{Array.isArray(datosIndicePenetracion) ? datosIndicePenetracion.length : 'No es array'}</strong>
           </div>
           <div className="bg-black/30 p-2 rounded border border-amber-500/20">
-            <span className="text-slate-400 block">Modo activo:</span> 
-            <strong className="text-emerald-400">Respaldo (Fallback)</strong>
+            <span className="text-slate-400 block">datosLibertadEconomica:</span> 
+            <strong className="text-amber-200">{Array.isArray(datosLibertadEconomica) ? datosLibertadEconomica.length : 'No es array'}</strong>
           </div>
         </div>
       </div>
