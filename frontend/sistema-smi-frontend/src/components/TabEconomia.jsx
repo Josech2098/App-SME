@@ -443,9 +443,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 <tr>
                   <th className="p-3 w-12 bg-[#181a20]">#</th>
                   <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Tasa de interés (INRA)</th>
-                  <th className="p-3 bg-[#181a20]">Inflación anual (INAN)</th>
-                  <th className="p-3 bg-[#181a20]">Relación deuda PIB (DGDP)</th>
+                  <th className="p-3 bg-[#181a20]">Índice del Costo de Vida (ICV)</th>
+                  <th className="p-3 bg-[#181a20]">Inflación Anual (IAN)</th>
+                  <th className="p-3 bg-[#181a20]">Tasa de Desempleo (TAD)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
