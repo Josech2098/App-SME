@@ -129,14 +129,10 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento y cruce robusto con los datos de Supabase
+  // Procesamiento y construcción dinámica basada completamente en la tabla costodevida de Supabase
   useEffect(() => {
     setCargando(true);
     try {
-      const listaPaisesBase = paisesDestino && paisesDestino.length > 0 
-        ? paisesDestino 
-        : ['España', 'Francia', 'Alemania', 'Países Bajos', 'Italia', 'Portugal', 'Estados Unidos', 'México', 'Colombia', 'Chile'];
-
       const limpiarTexto = (str) => {
         if (!str && str !== 0) return '';
         return str
@@ -149,40 +145,27 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       const fuenteDatosCV = listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida;
 
-      const dfEcon = listaPaisesBase.map((pais, idx) => {
-        const paisLimpio = limpiarTexto(pais);
-
-        // Búsqueda profunda barriendo cualquier posible nombre de columna en la tabla de Supabase
-        const matchCV = fuenteDatosCV.find(item => {
-          if (!item) return false;
-          const candidatoPais = 
-            item.pais || item.País || item.PAIS || 
-            item.nombre || item.Nombre || item.NOMBRE || 
-            item.paises || item.Paises || item.PAISES || 
-            item.country || item.Country;
-          
-          const itemLimpio = limpiarTexto(candidatoPais);
-          return itemLimpio === paisLimpio || itemLimpio.includes(paisLimpio) || paisLimpio.includes(itemLimpio);
-        });
-
-        // Extracción segura evaluando múltiples nombres posibles de columnas de valores en Supabase
-        const valorCVDB = matchCV ? (
-          matchCV.costo_de_vida ?? matchCV.Costo_de_Vida ?? matchCV.COSTO_DE_VIDA ??
-          matchCV.icv ?? matchCV.ICV ?? matchCV.costovida ?? matchCV.CostoVida ?? 
-          matchCV.valor ?? matchCV.Valor ?? matchCV.val
-        ) : null;
-
-        const valorICV = valorCVDB !== null && valorCVDB !== undefined && !isNaN(Number(valorCVDB))
-          ? Number(valorCVDB)
-          : Number((40.0 + ((idx * 3.5) % 30.0)).toFixed(2));
+      // Construcción directa de dfEcon a partir de Supabase sin países estáticos predeterminados
+      let dfEcon = fuenteDatosCV.map((item, idx) => {
+        const nombrePais = item.pais || item.País || item.PAIS || item.nombre || item.Nombre || item.paises || item.Paises || `País ${idx + 1}`;
+        
+        const valorICV = item.costo_de_vida ?? item.Costo_de_Vida ?? item.COSTO_DE_VIDA ?? item.icv ?? item.ICV ?? item.costovida;
+        const valorIAN = item.inflacion_anual ?? item.Inflacion_Anual ?? item.INFLACION_ANUAL ?? item.inan ?? item.INAN;
+        const valorTAD = item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.TASA_DE_DESEMPLEO ?? item.tad ?? item.TAD;
 
         return {
-          Paises: pais,
-          ICV: valorICV,
-          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)),
-          TAD: Number((5.0 + ((idx * 1.2) % 10.0)).toFixed(2))
+          Paises: nombrePais,
+          ICV: valorICV !== null && valorICV !== undefined && !isNaN(Number(valorICV)) ? Number(valorICV) : 0,
+          INAN: valorIAN !== null && valorIAN !== undefined && !isNaN(Number(valorIAN)) ? Number(valorIAN) : 0,
+          TAD: valorTAD !== null && valorTAD !== undefined && !isNaN(Number(valorTAD)) ? Number(valorTAD) : 0
         };
       });
+
+      // Filtrar por paisesDestino opcionalmente si se encuentra definido y con elementos
+      if (paisesDestino && paisesDestino.length > 0) {
+        const paisesDestinoLimpios = paisesDestino.map(p => limpiarTexto(p));
+        dfEcon = dfEcon.filter(item => paisesDestinoLimpios.includes(limpiarTexto(item.Paises)));
+      }
 
       // Aplicar Overrides del usuario
       econOverrides.forEach(ovr => {
@@ -273,7 +256,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y normalización de indicadores macroeconómicos: Índice del Costo de Vida (ICV) desde Supabase, Inflación Anual (IAN) y Tasa de Desempleo (TAD).
+          Gestión y normalización de indicadores macroeconómicos dinámicos obtenidos directamente de la tabla `costodevida` en Supabase: Índice del Costo de Vida (ICV), Inflación Anual (IAN) y Tasa de Desempleo (TAD).
         </p>
       </div>
 
@@ -411,7 +394,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA ECONÓMICA DATOS ORIGINALES ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Económica (ECON) — Datos originales</h3>
-        <p className="text-xs text-slate-400">Índice del Costo de Vida (ICV) obtenido de Supabase, Inflación Anual (IAN) y Tasa de Desempleo (TAD).</p>
+        <p className="text-xs text-slate-400">Índice del Costo de Vida (ICV), Inflación Anual (IAN) y Tasa de Desempleo (TAD) cargados dinámicamente desde Supabase.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Procesando datos económicos...</div>
