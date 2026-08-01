@@ -105,7 +105,7 @@ export default function TabComercial({
     }
   };
 
-  // Sincronización basada estrictamente en UNA SOLA tabla (datosIndicePenetracion)
+  // Extracción robusta de países de datosIndicePenetracion
   useEffect(() => {
     setCargando(true);
     try {
@@ -114,10 +114,17 @@ export default function TabComercial({
       const extraerNombrePais = (item) => {
         if (!item) return null;
         if (typeof item === 'string') return item.trim();
-        return item.pais || item.nombre || item.Paises || item.country || item.Country || item.paisDestino || item.Mercado || item.mercado || null;
+        if (typeof item !== 'object') return null;
+
+        // 1. Buscar de forma inteligente cualquier propiedad que contenga texto de país
+        const valores = Object.values(item);
+        const posibleTexto = valores.find(v => typeof v === 'string' && v.trim().length > 1 && !/^\d+$/.test(v));
+        if (posibleTexto) return posibleTexto.trim();
+
+        return null;
       };
 
-      // Tomar países exclusivamente de datosIndicePenetracion
+      // Recorrer estrictamente datosIndicePenetracion
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
           const p = extraerNombrePais(item);
@@ -125,7 +132,7 @@ export default function TabComercial({
         });
       }
 
-      // Agregar overrides manuales si los hubiera
+      // Agregar overrides manuales
       commOverrides.forEach(ovr => {
         if (ovr.Paises) setPaisesGlobales.add(ovr.Paises.trim());
       });
@@ -134,10 +141,10 @@ export default function TabComercial({
 
       const dfComm = listaPaisesFinal.map((pais, idx) => {
         const matchIemp = datosIndicePenetracion.find(
-          item => extraerNombrePais(item)?.toLowerCase() === pais.toLowerCase()
+          item => Object.values(item).some(v => typeof v === 'string' && v.trim().toLowerCase() === pais.toLowerCase())
         );
         const matchIoef = datosLibertadEconomica.find(
-          item => extraerNombrePais(item)?.toLowerCase() === pais.toLowerCase()
+          item => Object.values(item).some(v => typeof v === 'string' && v.trim().toLowerCase() === pais.toLowerCase())
         );
 
         const overrideMatch = commOverrides.find(
@@ -228,7 +235,7 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado únicamente con los países de la tabla de Índice de Penetración.
+          Sincronizado con la tabla de Índice de Penetración.
         </p>
       </div>
 
