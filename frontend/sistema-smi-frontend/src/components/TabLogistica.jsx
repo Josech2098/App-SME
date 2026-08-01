@@ -32,7 +32,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   // Almacenar los ITTT calculados por país de llegada
   const [itttCalculadosPorPais, setItttCalculadosPorPais] = useState({});
 
-  // Función auxiliar para normalizar cadenas (quita tildes, pasa a minúsculas y limpia espacios)
+  // Función avanzada para normalizar cadenas (quita tildes, mayúsculas, caracteres raros y espacios múltiples)
   const normalizarTexto = (texto) => {
     if (!texto) return '';
     return texto
@@ -40,10 +40,20 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
-      .trim();
+      .trim()
+      .replace(/\s+/g, ' ');
   };
 
-  // Filtrar puertos según el país seleccionado
+  // Función para formatear nombres propios automáticamente al guardar (Ej: "costa rica" -> "Costa Rica")
+  const formatearNombrePropio = (texto) => {
+    if (!texto) return '';
+    return texto
+      .trim()
+      .toLowerCase()
+      .replace(/(^\w{1})|(\s+\w{1})/g, letra => letra.toUpperCase());
+  };
+
+  // Filtrar puertos de manera flexible según el país seleccionado
   const puertosSalidaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
   const puertosLlegadaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
 
@@ -62,11 +72,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return R * c;
   };
 
-  // Cálculo automático del ITTT evaluando primero el diccionario manual actual
+  // Cálculo automático del ITTT evaluando de manera robusta el diccionario y los puertos
   const calcularItttAutomaticoTabla = (nombrePaisLlegada, diccionarioIttt) => {
     const normLlegada = normalizarTexto(nombrePaisLlegada);
 
-    // 1. Revisar si existe un cálculo manual para este país en el diccionario actual
+    // 1. Revisar si existe un cálculo manual para este país en el diccionario actual (ignorando tildes/mayúsculas)
     for (const [key, value] of Object.entries(diccionarioIttt)) {
       if (normalizarTexto(key) === normLlegada) {
         return value;
@@ -75,7 +85,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
     if (!nombrePaisLlegada || puertosData.length === 0) return '11.2 días';
 
+    // Puerto de origen (busca el principal o toma el primero)
     const puertoO = puertosData.find(p => p.principal === 'Y') || puertosData[0];
+    
+    // Puerto de llegada (busca el principal del país o el primer puerto disponible de ese país)
     const puertoD = puertosData.find(p => normalizarTexto(p.pais) === normLlegada && p.principal === 'Y')
                  || puertosData.find(p => normalizarTexto(p.pais) === normLlegada);
 
@@ -84,7 +97,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const distNm = calcularDistanciaNautica(puertoO.latitud, puertoO.longitud, puertoD.latitud, puertoD.longitud);
     const horasNavegacion = distNm / 15; 
     const diasNavegacion = horasNavegacion / 24;
-    const manejoDias = (puertoD.manejo_dias || 0) + (puertoO.manejo_dias || 0);
+    const manejoDias = (Number(puertoD.manejo_dias) || 0) + (Number(puertoO.manejo_dias) || 0);
     const totalDias = Math.max(1, diasNavegacion + manejoDias);
 
     return `${totalDias.toFixed(1)} días`;
@@ -198,9 +211,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     if (!nuevoPais.trim()) return;
 
     try {
+      const paisLimpio = formatearNombrePropio(nuevoPais);
       const { error } = await supabase.from('tabLogi').insert([
         {
-          pais: nuevoPais.trim(),
+          pais: paisLimpio,
           lpi: Number(nuevoLpin) || 0,
           cfr: Number(nuevoCpt) || 0
         }
@@ -257,8 +271,23 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   const handleCalcularIttt = (e) => {
     e.preventDefault();
-    const pO = puertosData.find(p => p.puerto === puertoSalidaCalc);
-    const pD = puertosData.find(p => p.puerto === puertoLlegadaCalc);
+
+    const normSalida = normalizarTexto(paisSalidaCalc);
+    const normLlegada = normalizarTexto(paisLlegadaCalc);
+
+    // Búsqueda flexible de puertos
+    let pO = puertosData.find(p => normalizarTexto(p.puerto) === normalizarTexto(puertoSalidaCalc));
+    let pD = puertosData.find(p => normalizarTexto(p.puerto) === normalizarTexto(puertoLlegadaCalc));
+
+    if (!pO && normSalida) {
+      pO = puertosData.find(p => normalizarTexto(p.pais) === normSalida && p.principal === 'Y') 
+        || puertosData.find(p => normalizarTexto(p.pais) === normSalida);
+    }
+    
+    if (!pD && normLlegada) {
+      pD = puertosData.find(p => normalizarTexto(p.pais) === normLlegada && p.principal === 'Y') 
+        || puertosData.find(p => normalizarTexto(p.pais) === normLlegada);
+    }
 
     if (!pO || !pD) {
       setResultadoIttt({ distancia: '0 nm', tiempo: '0 días' });
@@ -269,7 +298,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const vel = Number(velocidadBuque) || 18;
     const horasNavegacion = distNm / vel;
     const diasNavegacion = horasNavegacion / 24;
-    const manejoDias = (pD.manejo_dias || 0) + (pO.manejo_dias || 0);
+    const manejoDias = (Number(pD.manejo_dias) || 0) + (Number(pO.manejo_dias) || 0);
     const totalDias = Math.max(1, diasNavegacion + manejoDias);
 
     const formatoDias = `${totalDias.toFixed(1)} días`;
@@ -280,15 +309,15 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     });
 
     if (paisLlegadaCalc) {
-      // Construir el nuevo diccionario con el país recién calculado
+      const filaTabla = tablaLogi.find(item => normalizarTexto(item.Paises) === normLlegada);
+      const nombrePaisReal = filaTabla ? filaTabla.Paises : paisLlegadaCalc;
+
       const nuevoDiccionario = {
         ...itttCalculadosPorPais,
-        [paisLlegadaCalc]: formatoDias
+        [nombrePaisReal]: formatoDias
       };
 
       setItttCalculadosPorPais(nuevoDiccionario);
-
-      // Recargar la tabla pasando directamente el diccionario actualizado para forzar el cambio visual inmediato
       cargarDatos(nuevoDiccionario);
     }
   };
