@@ -30,7 +30,11 @@ export default function App() {
   const [listaSubcategorias, setListaSubcategorias] = useState([]);
   const [listaPaisesOrigen, setListaPaisesOrigen] = useState([]);
 
-  // 1. Cargar Categorías y Países para el Origen
+  // NUEVOS ESTADOS GLOBALES PARA TAB COMERCIAL (Supabase)
+  const [datosIndicePenetracion, setDatosIndicePenetracion] = useState([]);
+  const [datosLibertadEconomica, setDatosLibertadEconomica] = useState([]);
+
+  // 1. Cargar Categorías, Países de Origen y Datos Comerciales Iniciales
   useEffect(() => {
     async function fetchIniciales() {
       // Categorías
@@ -46,6 +50,18 @@ export default function App() {
         .select('*')
         .order('nombre');
       if (paisesData) setListaPaisesOrigen(paisesData);
+
+      // Índice de Penetración
+      const { data: penData } = await supabase
+        .from('indicepenetracion')
+        .select('*');
+      if (penData) setDatosIndicePenetracion(penData);
+
+      // Libertad Económica
+      const { data: libData } = await supabase
+        .from('libertadeconomica')
+        .select('*');
+      if (libData) setDatosLibertadEconomica(libData);
     }
     fetchIniciales();
   }, []);
@@ -259,7 +275,10 @@ export default function App() {
             <TabComercial 
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
+              productos={paisesDestino} // Si manejas la lista de productos aquí
               paisOrigen={paisOrigen}
+              datosIndicePenetracion={datosIndicePenetracion}
+              datosLibertadEconomica={datosLibertadEconomica}
             />
           )}
 
@@ -279,7 +298,6 @@ export default function App() {
             />
           )}
 
-          {/* --- RENDERIZAR LA PESTAÑA DE CULTURA (CULT) --- */}
           {activeTab === 6 && (
             <TabCultura 
               productoActivo={productoSeleccionado}
@@ -296,7 +314,7 @@ export default function App() {
               <div className="bg-[#1c2c3d] border border-[#2b4259] text-[#71b1ea] px-4 py-3 rounded flex items-center gap-2 text-sm">
                 <span>ℹ️</span>
                 <span>
-                  Sección en desarrollo. Evaluando datos exportables desde {paisOrigen} para{' '}
+                  Sección en desarrollo. Evaluando datos exportables desde {paisOrigen} for{' '}
                   <strong className="text-white">
                     {productoSeleccionado ? productoSeleccionado.nombre : 'Producto sin seleccionar'}
                   </strong>.
