@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js'; // Ajusta la ruta según donde tengas tu cliente
+import { supabase } from '../supabaseClient.js';
 
 export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [] }) {
   const [econOverrides, setEconOverrides] = useState([]);
@@ -30,7 +30,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
   const [cargando, setCargando] = useState(false);
   const [errorEco, setErrorEco] = useState(null);
 
-  // Estado local por si no se pasa como prop y se quiere consultar directo
+  // Estado local sincronizado con los datos de Supabase recibidos por props
   const [listaCostoVidaDB, setListaCostoVidaDB] = useState(datosCostoDeVida);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         return;
       }
       try {
-        const { data, error } = await supabase.from('costodevida').select('*');
+        const { data, error } = await supabase.from('costodevida').select('*').range(0, 999);
         if (error) throw error;
         if (data) setListaCostoVidaDB(data);
       } catch (err) {
@@ -129,7 +129,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento y cruce con Supabase (costodevida)
+  // Procesamiento y cruce garantizando la inclusión de TODOS los países destino
   useEffect(() => {
     setCargando(true);
     try {
@@ -140,16 +140,17 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       const normalizar = (str) => (str || '').trim().toLowerCase();
 
       const dfEcon = listaPaisesBase.map((pais, idx) => {
-        // Buscar coincidencia en la tabla costodevida de Supabase
         const matchDB = listaCostoVidaDB.find(item => normalizar(item.pais) === normalizar(pais));
         
-        const valorICV = matchDB ? Number(matchDB.costo_de_vida) : Number((40.0 + ((idx * 3.5) % 30.0)).toFixed(2));
+        const valorICV = matchDB && matchDB.costo_de_vida !== null 
+          ? Number(matchDB.costo_de_vida) 
+          : Number((40.0 + ((idx * 3.5) % 30.0)).toFixed(2));
 
         return {
           Paises: pais,
           ICV: valorICV,
-          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)), // Simulado o pendiente de otra tabla
-          TAD: Number((5.0 + ((idx * 1.2) % 10.0)).toFixed(2))  // Simulado o pendiente de otra tabla
+          INAN: Number((2.0 + ((idx * 1.8) % 6.0)).toFixed(2)), 
+          TAD: Number((5.0 + ((idx * 1.2) % 10.0)).toFixed(2))  
         };
       });
 

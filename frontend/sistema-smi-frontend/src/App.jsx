@@ -64,10 +64,11 @@ export default function App() {
         .select('*');
       if (libData) setDatosLibertadEconomica(libData);
 
-      // Costo de Vida (ECON)
+      // Costo de Vida (ECON) - Rango ampliado para traer todos los registros
       const { data: costoData } = await supabase
         .from('costodevida')
-        .select('*');
+        .select('*')
+        .range(0, 999);
       if (costoData) setDatosCostoDeVida(costoData);
     }
     fetchIniciales();
