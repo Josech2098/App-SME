@@ -31,6 +31,16 @@ export default function TabComercial({
   const [cargando, setCargando] = useState(false);
   const [errorExcel, setErrorExcel] = useState(null);
 
+  // Función auxiliar para normalizar texto (quita tildes, espacios extras y pasa a minúsculas)
+  const normalizarTexto = (texto) => {
+    if (!texto || typeof texto !== 'string') return '';
+    return texto
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  };
+
   // Sincronizar selectores de edición/eliminación
   useEffect(() => {
     if (commOverrides.length > 0) {
@@ -105,80 +115,71 @@ export default function TabComercial({
     }
   };
 
-  // Sincronización robusta y directa de países
+  // Sincronización y detección automática con normalización de tildes y mayúsculas
   useEffect(() => {
     setCargando(true);
     try {
-      const setPaisesGlobales = new Set();
+      const mapaPaisesUnicos = new Map(); // Clave normalizada -> Nombre original bonito
 
-      const extraerTextoValido = (val) => {
-        if (!val) return null;
-        if (typeof val === 'string') {
-          const limpio = val.trim();
-          // Ignorar cadenas vacías, números puros o cabeceras genéricas
-          if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice')) {
-            return limpio;
+      const registrarPais = (textoOriginal) => {
+        if (!textoOriginal || typeof textoOriginal !== 'string') return;
+        const limpio = textoOriginal.trim();
+        if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice')) {
+          const claveNorm = normalizarTexto(limpio);
+          if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
+            // Guardamos con la primera letra en mayúscula o tal como viene para presentación limpia
+            mapaPaisesUnicos.set(claveNorm, limpio);
           }
         }
-        return null;
       };
 
-      // 1. Intentar capturar desde paisesDestino (si existe)
-      if (Array.isArray(paisesDestino) && paisesDestino.length > 0) {
+      // 1. Capturar desde paisesDestino
+      if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => {
-          if (typeof p === 'string') {
-            const t = extraerTextoValido(p);
-            if (t) setPaisesGlobales.add(t);
-          } else if (p && typeof p === 'object') {
+          if (typeof p === 'string') registrarPais(p);
+          else if (p && typeof p === 'object') {
             Object.values(p).forEach(val => {
-              const t = extraerTextoValido(val);
-              if (t) setPaisesGlobales.add(t);
+              if (typeof val === 'string') registrarPais(val);
             });
           }
         });
       }
 
-      // 2. Intentar capturar desde datosIndicePenetracion (revisando cada propiedad de cada fila)
+      // 2. Capturar desde datosIndicePenetracion
       if (Array.isArray(datosIndicePenetracion)) {
         datosIndicePenetracion.forEach(item => {
           if (item && typeof item === 'object') {
             Object.entries(item).forEach(([key, val]) => {
-              // Si la clave o el valor apuntan a un nombre de país
-              if (key.toLowerCase().includes('pais') || key.toLowerCase().includes('mercado') || key.toLowerCase().includes('country')) {
-                const t = extraerTextoValido(val);
-                if (t) setPaisesGlobales.add(t);
-              } else {
-                // Búsqueda general en propiedades de texto
-                const t = extraerTextoValido(val);
-                if (t) setPaisesGlobales.add(t);
-              }
+              if (typeof val === 'string') registrarPais(val);
             });
           }
         });
       }
 
-      // 3. Respaldo de seguridad garantizado si por alguna razón no detectó nada automáticamente
-      if (setPaisesGlobales.size === 0) {
-        ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia', 'Guatemala', 'Chile', 'Perú'].forEach(p => setPaisesGlobales.add(p));
+      // 3. Respaldo por defecto si no hay datos iniciales
+      if (mapaPaisesUnicos.size === 0) {
+        ['Costa Rica', 'Panamá', 'México', 'Estados Unidos', 'Colombia', 'Guatemala', 'Chile', 'Perú'].forEach(p => registrarPais(p));
       }
 
-      // 4. Agregar overrides manuales del usuario
+      // 4. Agregar overrides manuales
       commOverrides.forEach(ovr => {
-        if (ovr.Paises) setPaisesGlobales.add(ovr.Paises.trim());
+        if (ovr.Paises) registrarPais(ovr.Paises);
       });
 
-      let listaPaisesFinal = Array.from(setPaisesGlobales);
+      let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
 
-      const dfComm = listaPaisesFinal.map((pais, idx) => {
+      const dfComm = listaPaisesFinal.map((paisOriginal, idx) => {
+        const paisNorm = normalizarTexto(paisOriginal);
+
         const matchIemp = datosIndicePenetracion.find(
-          item => Object.values(item).some(v => typeof v === 'string' && v.trim().toLowerCase() === pais.toLowerCase())
+          item => Object.values(item).some(v => typeof v === 'string' && normalizarTexto(v) === paisNorm)
         );
         const matchIoef = datosLibertadEconomica.find(
-          item => Object.values(item).some(v => typeof v === 'string' && v.trim().toLowerCase() === pais.toLowerCase())
+          item => Object.values(item).some(v => typeof v === 'string' && normalizarTexto(v) === paisNorm)
         );
 
         const overrideMatch = commOverrides.find(
-          ovr => ovr.Paises?.toLowerCase() === pais.toLowerCase()
+          ovr => normalizarTexto(ovr.Paises) === paisNorm
         );
 
         const obtenerValorNumerico = (obj) => {
@@ -191,14 +192,14 @@ export default function TabComercial({
 
         const valIemp = overrideMatch 
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? Math.floor(Math.random() * 50) + 10) : 25);
+          : (matchIemp ? (matchIemp.indice_penetracion ?? obtenerValorNumerico(matchIemp) ?? 25) : 25);
 
         const valIoef = overrideMatch 
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? Math.floor(Math.random() * 40) + 40) : 60);
+          : (matchIoef ? (matchIoef.indice_de_libertad_economica ?? obtenerValorNumerico(matchIoef) ?? 60) : 60);
 
         return {
-          Paises: pais,
+          Paises: paisOriginal,
           'Aranceles aduaneros por país de origen (CTCO)': calculoArancelCTCO,
           'Índice de penetración en el mercado de exportación (IEMP)': Number(valIemp) || 0,
           'Índice de Libertad Económica (IOEF)': Number(valIoef) || 0
@@ -218,7 +219,7 @@ export default function TabComercial({
 
       setDatosCommConsolidados(dfComm);
 
-      // Normalización de datos
+      // Normalización matemática de datos para la tabla final
       const A3 = 10;
       const getMinMax = (arr, key) => {
         const values = arr.map(item => item[key]).filter(v => v !== null && !isNaN(v));
@@ -265,7 +266,7 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Sincronizado con los países detectados.
+          Detección automática con unificación de tildes y mayúsculas.
         </p>
       </div>
 
