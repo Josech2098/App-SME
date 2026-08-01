@@ -285,7 +285,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           <button 
             type="button"
             onClick={() => setOpenAdd(!openAdd)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>❯</span>
             Añadir país
@@ -309,7 +309,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 <label className="block text-xs text-slate-400 mb-1">TAD (Tasa de Desempleo):</label>
                 <input type="number" step="0.01" min="0" value={tadAdd} onChange={(e) => setTadAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
               </div>
-              <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors">
+              <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer">
                 Guardar país ECON
               </button>
             </form>
@@ -321,7 +321,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           <button 
             type="button"
             onClick={() => setOpenEdit(!openEdit)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>❯</span>
             Editar país
@@ -354,7 +354,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                   <label className="block text-xs text-slate-400 mb-1">Nuevo TAD:</label>
                   <input type="number" step="0.01" min="0" value={editTad} onChange={(e) => setEditTad(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
                 </div>
-                <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors">
+                <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer">
                   Actualizar país ECON
                 </button>
               </form>
@@ -371,7 +371,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           <button 
             type="button"
             onClick={() => setOpenDel(!openDel)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>❯</span>
             Eliminar país
@@ -388,7 +388,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                     ))}
                   </select>
                 </div>
-                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors">
+                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors cursor-pointer">
                   Eliminar país ECON
                 </button>
               </form>
