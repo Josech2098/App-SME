@@ -145,7 +145,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       const fuenteDatosCV = listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida;
 
-      // Construcción directa de dfEcon barriendo múltiples variantes de nombres de columnas de Supabase
       let dfEcon = fuenteDatosCV.map((item, idx) => {
         const nombrePais = 
           item.pais || item.País || item.PAIS || 
@@ -162,16 +161,17 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           item.inflacion ?? item.Inflacion ?? item.INFLACION ?? 
           item.inan ?? item.INAN;
 
+        // Incluimos explícitamente tasadesempleo y sus variantes
         const valorTAD = 
-          item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.TASA_DE_DESEMPLEO ?? 
+          item.tasadesempleo ?? item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.TASA_DE_DESEMPLEO ?? 
           item.desempleo ?? item.Desempleo ?? item.DESEMPLEO ?? 
           item.tad ?? item.TAD;
 
         return {
           Paises: nombrePais,
-          ICV: valorICV !== null && valorICV !== undefined && !isNaN(Number(valorICV)) ? Number(valorICV) : 0,
-          INAN: valorIAN !== null && valorIAN !== undefined && !isNaN(Number(valorIAN)) ? Number(valorIAN) : 0,
-          TAD: valorTAD !== null && valorTAD !== undefined && !isNaN(Number(valorTAD)) ? Number(valorTAD) : 0
+          ICV: valorICV !== null && valorICV !== undefined && !isNaN(Number(valorICV)) ? Number(valorICV) : null,
+          INAN: valorIAN !== null && valorIAN !== undefined && !isNaN(Number(valorIAN)) ? Number(valorIAN) : null,
+          TAD: valorTAD !== null && valorTAD !== undefined && !isNaN(Number(valorTAD)) ? Number(valorTAD) : null
         };
       });
 
@@ -430,8 +430,8 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : '-'}</td>
-                    <td className="p-3">{row.INAN !== null ? row.INAN : '-'}</td>
-                    <td className="p-3">{row.TAD !== null ? row.TAD : '-'}</td>
+                    <td className="p-3">{row.INAN !== null ? row.INAN : <span className="text-slate-600 italic">sin datos</span>}</td>
+                    <td className="p-3">{row.TAD !== null ? row.TAD : <span className="text-slate-600 italic">sin datos</span>}</td>
                   </tr>
                 ))}
               </tbody>
