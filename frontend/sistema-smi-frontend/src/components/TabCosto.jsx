@@ -180,32 +180,30 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   // ----------------------------------------------------
   // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
   // ----------------------------------------------------
-  const PESO_FACTOR_COSTO = 0.215; // 21.50%
+const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
   const PESO_PPD = 0.44; // 44.00%
   const PESO_CTI = 0.34; // 34.00%
   const PESO_CIC = 0.22; // 22.00%
   const PUNTAJE_MAXIMO = 10;
 
-  const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v > 0);
-  const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v > 0);
-  const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v > 0);
+  // Filtrar valores válidos mayores a 0 para evitar errores en mínimos y máximos
+  const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && v > 0);
+  const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && v > 0);
+  const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && v > 0);
 
   const maxPpd = ppdVals.length > 0 ? Math.max(...ppdVals) : null;
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
-  const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0;
+  const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : null; // Corregido: se usa null en vez de 0 si está vacío
 
   const calcularNormalizadoDirecto = (val, maxVal) => {
-    if (val === null || val === undefined || val <= 0 || !maxVal) return 0;
+    if (val === null || val === undefined || val <= 0 || !maxVal) return null;
     const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
     return Number(resultado.toFixed(2));
   };
 
   const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined) return 0;
-    if (val === 0) return PUNTAJE_MAXIMO; 
-    if (minVal === null || minVal <= 0 || val <= 0) return 0;
-
+    if (val === null || val === undefined || val <= 0 || minVal === null || minVal <= 0) return null;
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
     return Number(resultado.toFixed(2));
   };
@@ -222,18 +220,29 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const costoSubtotalNorm = Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2));
     const aporteFactorCosto = Number((costoSubtotalNorm * PESO_FACTOR_COSTO).toFixed(2));
 
+    // Contador de valores nulos o faltantes para replicar la lógica de ordenamiento del código antiguo
+    const faltantes = [ppdNorm, ctiNorm, cicNorm, costoSubtotalNorm].filter(v => v === null).length;
+
     return {
       ...row,
       ppdNorm,
       ctiNorm,
       cicNorm,
       costoSubtotalNorm,
-      aporteFactorCosto
+      aporteFactorCosto,
+      __faltantes: faltantes
     };
   });
 
-  const matrizFiltrada = matrizCalculadaCompleta.filter(row => row.ppd > 0);
-  matrizFiltrada.sort((a, b) => b.costoSubtotalNorm - a.costoSubtotalNorm);
+  // Ordenar primero por cantidad de faltantes (ascendente) y luego por costo subtotal normalizado (ascendente)
+  matrizCalculadaCompleta.sort((a, b) => {
+    if (a.__faltantes !== b.__faltantes) {
+      return a.__faltantes - b.__faltantes;
+    }
+    return a.costoSubtotalNorm - b.costoSubtotalNorm;
+  });
+
+  const matrizFiltrada = matrizCalculadaCompleta;
 
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
