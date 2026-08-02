@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,6 +11,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar, Chart } from 'react-chartjs-2';
+import { supabase } from '../supabaseClient'; // Asegúrate de que la ruta a tu cliente supabase sea correcta
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -25,13 +26,59 @@ ChartJS.register(
 );
 
 export default function TabGraficosComparativos({ datosTotales = [] }) {
+  const [datosConsolidados, setDatosConsolidados] = useState(datosTotales);
+  const [cargando, setCargando] = useState(false);
   const [errorNotif, setErrorNotif] = useState(null);
 
+  // Sincronizar o autoevaluar datos desde Supabase si datosTotales llega vacío
+  useEffect(() => {
+    async function cargarDatosAutomaticos() {
+      if (!datosTotales || datosTotales.length === 0) {
+        setCargando(true);
+        try {
+          const { data, error } = await supabase
+            .from('indicepenetracion') // O la tabla consolidada que utilices
+            .select('*')
+            .range(0, 99);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const formateados = data.map(item => ({
+              ...item,
+              Paises: item.pais || item.nombre || item.Paises || 'País',
+              "Puntaje Total": item.puntaje_total || item.total || item["Puntaje Global – TOTAL"] || 5
+            }));
+            setDatosConsolidados(formateados);
+          }
+        } catch (err) {
+          console.error("Error al cargar datos automáticos para gráficos:", err);
+          setErrorNotif("No se pudieron cargar los datos automáticamente. Visita la pestaña de tablas globales o verifica tu conexión.");
+        } finally {
+          setCargando(false);
+        }
+      } else {
+        setDatosConsolidados(datosTotales);
+      }
+    }
+
+    cargarDatosAutomaticos();
+  }, [datosTotales]);
+
   // Verificamos si hay datos suficientes o si se usa una propiedad equivalente al "Puntaje Global – TOTAL"
-  const datosValidos = datosTotales.map(item => ({
+  const datosValidos = datosConsolidados.map(item => ({
     ...item,
     "Puntaje Total": item["Puntaje Global – TOTAL"] !== undefined ? item["Puntaje Global – TOTAL"] : item["Puntaje Total"]
   })).filter(item => item["Puntaje Total"] !== undefined);
+
+  if (cargando) {
+    return (
+      <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
+        <h3 className="text-lg font-bold text-white">Cargando gráficos analíticos...</h3>
+        <p className="text-xs">Obteniendo información consolidada desde la base de datos.</p>
+      </div>
+    );
+  }
 
   if (datosValidos.length === 0) {
     return (
@@ -63,7 +110,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
   const coloresG1 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494'];
 
   const dataGrafico1 = {
-    labels: top10.map(d => d.Paises),
+    labels: top10.map(d => d.Paises || d.pais || 'Desconocido'),
     datasets: categoriasG1.map((cat, idx) => ({
       label: cat,
       data: top10.map(d => Number(d[cat] || 0)),
@@ -90,7 +137,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
   // CONFIGURACIÓN GRÁFICO 2: Ranking Puntaje Total (Top 30) - Simula Matplotlib
   // ---------------------------------------------------------------------------
   const dataGrafico2 = {
-    labels: top30.map(d => d.Paises),
+    labels: top30.map(d => d.Paises || d.pais || 'Desconocido'),
     datasets: [
       {
         label: 'Puntaje Total',
@@ -137,7 +184,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
   ];
 
   const dataGrafico3 = {
-    labels: top30.map(d => d.Paises),
+    labels: top30.map(d => d.Paises || d.pais || 'Desconocido'),
     datasets: [
       {
         type: 'bar',
