@@ -29,17 +29,20 @@ ChartJS.register(
 );
 
 export default function TabGraficos({ datosTotales = [] }) {
+  const [isMounted, setIsMounted] = useState(false);
   const [datosConsolidados, setDatosConsolidados] = useState(datosTotales);
   const [cargando, setCargando] = useState(false);
   const [errorRender, setErrorRender] = useState(null);
 
-  // Sincronizar o autoevaluar datos si datosTotales llega vacío (acceso directo a la pestaña)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   useEffect(() => {
     async function cargarDatosAutomaticos() {
       if (!datosTotales || datosTotales.length === 0) {
         setCargando(true);
         try {
-          // Consulta de respaldo segura a Supabase para poblar los gráficos
           const { data, error } = await supabase
             .from('indicepenetracion')
             .select('*')
@@ -71,7 +74,15 @@ export default function TabGraficos({ datosTotales = [] }) {
     cargarDatosAutomaticos();
   }, [datosTotales]);
 
-  // Capturador de errores de renderizado para evitar la pantalla en blanco
+  if (!isMounted || cargando) {
+    return (
+      <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
+        <h3 className="text-lg font-bold text-white">Preparando entorno gráfico...</h3>
+        <p className="text-xs">Sincronizando componentes del sistema.</p>
+      </div>
+    );
+  }
+
   if (errorRender) {
     return (
       <div className="bg-[#181a20] border border-red-900/50 rounded-xl p-8 text-center text-red-400 space-y-2 shadow-sm font-sans">
@@ -81,16 +92,6 @@ export default function TabGraficos({ datosTotales = [] }) {
     );
   }
 
-  if (cargando) {
-    return (
-      <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
-        <h3 className="text-lg font-bold text-white">Cargando gráficos analíticos...</h3>
-        <p className="text-xs">Procesando información estadística desde Supabase.</p>
-      </div>
-    );
-  }
-
-  // Sanitización y validación de datos seguros
   let datosValidos = [];
   try {
     datosValidos = (datosConsolidados || []).map(item => {
@@ -117,14 +118,10 @@ export default function TabGraficos({ datosTotales = [] }) {
     );
   }
 
-  // Ordenar de mayor a menor según Puntaje Total
   const datosOrdenados = [...datosValidos].sort((a, b) => b["Puntaje Total"] - a["Puntaje Total"]);
   const top10 = datosOrdenados.slice(0, 10);
   const top30 = datosOrdenados.slice(0, 30);
 
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN GRÁFICO 1: Barras Agrupadas (Top 10)
-  // ---------------------------------------------------------------------------
   const categoriasG1 = [
     "1. Cost (COST)",
     "2. Logistical (LOGI)",
@@ -160,9 +157,6 @@ export default function TabGraficos({ datosTotales = [] }) {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN GRÁFICO 2: Ranking Puntaje Total (Top 30)
-  // ---------------------------------------------------------------------------
   const dataGrafico2 = {
     labels: top30.map(d => d.Paises),
     datasets: [{
@@ -187,9 +181,6 @@ export default function TabGraficos({ datosTotales = [] }) {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN GRÁFICO 3: Combinado IMSFE (Top 30)
-  // ---------------------------------------------------------------------------
   const columnasDim = [
     "1. Cost (COST)",
     "2. Logistical (LOGI)",
@@ -298,7 +289,6 @@ export default function TabGraficos({ datosTotales = [] }) {
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <h3 className="text-lg font-bold text-white">Comparativo IMSFE — Dimensiones y Puntaje Total</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
-          {/* Se usa el componente Bar con soporte interno mixto para evitar fallos de useRef */}
           <Bar id="canvas-grafico-3" data={dataGrafico3} options={optionsGrafico3} />
         </div>
         <div className="flex justify-end">
