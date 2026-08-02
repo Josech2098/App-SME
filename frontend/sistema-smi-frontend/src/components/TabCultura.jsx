@@ -2,179 +2,256 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }) {
-  const [datosCultura, setDatosCultura] = useState([]);
+  const [listaPaises, setListaPaises] = useState([]);
+  const [datosGLIN, setDatosGLIN] = useState([]);
+  const [datosCPCI, setDatosCPCI] = useState([]);
+  
+  const [cultOverrides, setCultOverrides] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [errorNotif, setErrorNotif] = useState(null);
 
-  // Estados para el CRUD (Añadir, Editar, Eliminar)
+  // Estados para Acordeones CRUD Locales / Overrides
+  const [openAdd, setOpenAdd] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openDel, setOpenDel] = useState(false);
+
+  // Estados para añadir
   const [paisAdd, setPaisAdd] = useState('');
-  const [glinAdd, setGlinAdd] = useState(0);
-  const [cpciAdd, setCpciAdd] = useState(0);
-  const [cudiAdd, setCudiAdd] = useState(0);
+  const [glinAdd, setGlinAdd] = useState('');
+  const [cpciAdd, setCpciAdd] = useState('');
+  const [cudiAdd, setCudiAdd] = useState('');
 
-  const [paisEditId, setPaisEditId] = useState('');
-  const [paisEditNombre, setPaisEditNombre] = useState('');
-  const [glinEdit, setGlinEdit] = useState(0);
-  const [cpciEdit, setCpciEdit] = useState(0);
-  const [cudiEdit, setCudiEdit] = useState(0);
+  // Estados para editar
+  const [paisSeleccionadoEdit, setPaisSeleccionadoEdit] = useState('');
+  const [editPaisNombre, setEditPaisNombre] = useState('');
+  const [editGlin, setEditGlin] = useState('');
+  const [editCpci, setEditCpci] = useState('');
+  const [editCudi, setEditCudi] = useState('');
 
-  const [paisDeleteId, setPaisDeleteId] = useState('');
+  // Estados para eliminar
+  const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
 
-  // 1. Cargar datos desde Supabase
-  const cargarDatos = async () => {
-    setCargando(true);
-    try {
-      const { data, error } = await supabase
-        .from('paises_cultura')
-        .select('*');
+  // Estados de datos consolidados y normalizados
+  const [datosCulturaConsolidados, setDatosCulturaConsolidados] = useState([]);
+  const [datosCulturaNormalizados, setDatosCulturaNormalizados] = useState([]);
 
-      if (error) throw error;
-      setDatosCultura(data || []);
-    } catch (err) {
-      console.warn("Tabla 'paises_cultura' no disponible o vacía, usando datos locales de respaldo.", err);
-      if (datosCultura.length === 0) {
-        setDatosCultura([
-          { id: 1, paises: 'Francia', glin: 85.5, cpci: 72.0, cudi: 45.2 },
-          { id: 2, paises: 'Alemania', glin: 88.1, cpci: 78.0, cudi: 48.0 },
-          { id: 3, paises: 'México', glin: 60.2, cpci: 31.0, cudi: 65.5 },
+  // 1. Cargar tablas independientes desde Supabase (paises, indiceglobalizacion, indiceCorrupcion)
+  useEffect(() => {
+    async function cargarTablasCultura() {
+      setCargando(true);
+      try {
+        const [resPaises, resGLIN, resCPCI] = await Promise.all([
+          supabase.from("paises").select("*").order("nombre"),
+          supabase.from("indiceglobalizacion").select("*"),
+          supabase.from("indiceCorrupcion").select("*")
         ]);
+
+        if (resPaises.error) throw resPaises.error;
+        if (resGLIN.error) throw resGLIN.error;
+        if (resCPCI.error) throw resCPCI.error;
+
+        setListaPaises(resPaises.data || []);
+        setDatosGLIN(resGLIN.data || []);
+        setDatosCPCI(resCPCI.data || []);
+        setErrorNotif(null);
+      } catch (err) {
+        console.error("Error al cargar datos de Supabase:", err);
+        setErrorNotif(err.message);
+      } finally {
+        setCargando(false);
       }
-    } finally {
-      setCargando(false);
+    }
+
+    cargarTablasCultura();
+  }, []);
+
+  // Sincronizar selectores de edición/eliminación al cambiar los overrides
+  useEffect(() => {
+    if (cultOverrides.length > 0) {
+      if (!paisSeleccionadoEdit) {
+        setPaisSeleccionadoEdit(cultOverrides[0].Paises);
+        setEditPaisNombre(cultOverrides[0].Paises);
+        setEditGlin(cultOverrides[0].GLIN);
+        setEditCpci(cultOverrides[0].CPCI);
+        setEditCudi(cultOverrides[0].CUDI);
+      }
+      if (!paisSeleccionadoDel) {
+        setPaisSeleccionadoDel(cultOverrides[0].Paises);
+      }
+    }
+  }, [cultOverrides]);
+
+  const handleSelectEditPais = (e) => {
+    const nombre = e.target.value;
+    setPaisSeleccionadoEdit(nombre);
+    const fila = cultOverrides.find(item => item.Paises === nombre);
+    if (fila) {
+      setEditPaisNombre(fila.Paises);
+      setEditGlin(fila.GLIN);
+      setEditCpci(fila.CPCI);
+      setEditCudi(fila.CUDI);
     }
   };
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  // Manejador para Editar (cuando se selecciona un país en el desplegable)
-  useEffect(() => {
-    if (paisEditId) {
-      const seleccionado = datosCultura.find(item => String(item.id) === String(paisEditId));
-      if (seleccionado) {
-        setPaisEditNombre(seleccionado.paises || '');
-        setGlinEdit(seleccionado.glin || 0);
-        setCpciEdit(seleccionado.cpci || 0);
-        setCudiEdit(seleccionado.cudi || 0);
-      }
-    }
-  }, [paisEditId, datosCultura]);
-
-  // AÑADIR PAÍS
-  const handleAdd = async (e) => {
+  const handleAddPais = (e) => {
     e.preventDefault();
     if (!paisAdd.trim()) return;
 
     const nuevoRegistro = {
-      paises: paisAdd.trim(),
-      glin: parseFloat(glinAdd) || 0,
-      cpci: parseFloat(cpciAdd) || 0,
-      cudi: parseFloat(cudiAdd) || 0,
+      Paises: paisAdd.trim(),
+      GLIN: Number(glinAdd) || 0,
+      CPCI: Number(cpciAdd) || 0,
+      CUDI: Number(cudiAdd) || 0
     };
 
-    try {
-      const { data, error } = await supabase.from('paises_cultura').insert([nuevoRegistro]).select();
-      if (error) throw error;
-      if (data) setDatosCultura([...datosCultura, data[0]]);
-    } catch {
-      setDatosCultura([...datosCultura, { id: Date.now(), ...nuevoRegistro }]);
-    }
-
+    setCultOverrides([...cultOverrides, nuevoRegistro]);
     setPaisAdd('');
-    setGlinAdd(0);
-    setCpciAdd(0);
-    setCudiAdd(0);
-    alert(`País '${nuevoRegistro.paises}' añadido correctamente.`);
+    setGlinAdd('');
+    setCpciAdd('');
+    setCudiAdd('');
+    setOpenAdd(false);
   };
 
-  // ACTUALIZAR PAÍS
-  const handleEdit = async (e) => {
+  const handleUpdatePais = (e) => {
     e.preventDefault();
-    if (!paisEditId) return;
+    const actualizados = cultOverrides.map(item => {
+      if (item.Paises === paisSeleccionadoEdit) {
+        return {
+          ...item,
+          Paises: editPaisNombre.trim(),
+          GLIN: Number(editGlin) || 0,
+          CPCI: Number(editCpci) || 0,
+          CUDI: Number(editCudi) || 0
+        };
+      }
+      return item;
+    });
 
-    const actualizado = {
-      paises: paisEditNombre.trim(),
-      glin: parseFloat(glinEdit) || 0,
-      cpci: parseFloat(cpciEdit) || 0,
-      cudi: parseFloat(cudiEdit) || 0,
-    };
-
-    try {
-      const { error } = await supabase
-        .from('paises_cultura')
-        .update(actualizado)
-        .eq('id', paisEditId);
-      if (error) throw error;
-    } catch (err) {
-      console.warn("Actualizando localmente por error de red o tabla:", err);
-    }
-
-    setDatosCultura(datosCultura.map(item => String(item.id) === String(paisEditId) ? { ...item, ...actualizado } : item));
-    alert("Registro actualizado correctamente.");
+    setCultOverrides(actualizados);
+    setPaisSeleccionadoEdit(editPaisNombre.trim());
+    setOpenEdit(false);
   };
 
-  // ELIMINAR PAÍS
-  const handleDelete = async (e) => {
+  const handleDeletePais = (e) => {
     e.preventDefault();
-    if (!paisDeleteId) return;
-
-    const paisAEliminar = datosCultura.find(item => String(item.id) === String(paisDeleteId));
-
-    try {
-      const { error } = await supabase.from('paises_cultura').delete().eq('id', paisDeleteId);
-      if (error) throw error;
-    } catch (err) {
-      console.warn("Eliminando localmente:", err);
+    const filtrados = cultOverrides.filter(item => item.Paises !== paisSeleccionadoDel);
+    setCultOverrides(filtrados);
+    setOpenDel(false);
+    if (filtrados.length > 0) {
+      setPaisSeleccionadoDel(filtrados[0].Paises);
+    } else {
+      setPaisSeleccionadoDel('');
     }
-
-    setDatosCultura(datosCultura.filter(item => String(item.id) !== String(paisDeleteId)));
-    setPaisDeleteId('');
-    alert(`País '${paisAEliminar ? paisAEliminar.paises : ''}' eliminado correctamente.`);
   };
 
-  // --- CÁLCULOS DE NORMALIZACIÓN ---
-  const A3 = 10;
-  const maxGlin = Math.max(...datosCultura.map(d => parseFloat(d.glin) || 0), 0);
-  const maxCpci = Math.max(...datosCultura.map(d => parseFloat(d.cpci) || 0), 0);
-  
-  const cudiValidos = datosCultura.map(d => parseFloat(d.cudi) || 0).filter(v => v > 0);
-  const minCudi = cudiValidos.length > 0 ? Math.min(...cudiValidos) : 0;
+  // Procesamiento unificado combinando la tabla 'paises' + 'indiceglobalizacion' + 'indiceCorrupcion'
+  useEffect(() => {
+    if (listaPaises.length === 0) return;
 
-  const datosNormalizados = datosCultura.map(item => {
-    const glin = parseFloat(item.glin) || 0;
-    const cpci = parseFloat(item.cpci) || 0;
-    const cudi = parseFloat(item.cudi) || 0;
+    setCargando(true);
+    try {
+      const listaPaisesBase = paisesDestino && paisesDestino.length > 0
+        ? paisesDestino
+        : listaPaises.map(p => p.nombre);
 
-    const glinNorm = maxGlin > 0 && glin > 0 ? Number((A3 * glin / maxGlin).toFixed(2)) : null;
-    const cpciNorm = maxCpci > 0 && cpci > 0 ? Number((A3 * cpci / maxCpci).toFixed(2)) : null;
-    const cudiNorm = minCudi > 0 && cudi > 0 ? Number((A3 * minCudi / cudi).toFixed(2)) : null;
+      const dfCultura = listaPaisesBase.map((pais) => {
+        const pLower = pais.toLowerCase().trim();
 
-    const puntaje = Number((
-      (glinNorm || 0) * 0.30 +
-      (cpciNorm || 0) * 0.50 +
-      (cudiNorm || 0) * 0.20
-    ).toFixed(2));
+        // Buscar coincidencia en indiceglobalizacion (columnas: 'pais', 'indice_globalizacion')
+        const matchGLIN = datosGLIN.find(item => (item.pais || '').toLowerCase().trim() === pLower);
+        // Buscar coincidencia en indiceCorrupcion (columnas: 'pais', 'indice_percepcion_corrupcion')
+        const matchCPCI = datosCPCI.find(item => (item.pais || '').toLowerCase().trim() === pLower);
 
-    const faltantes = [glinNorm, cpciNorm, cudiNorm].filter(v => v === null).length;
+        return {
+          Paises: pais,
+          GLIN: matchGLIN ? Number(matchGLIN.indice_globalizacion) : null,
+          CPCI: matchCPCI ? Number(matchCPCI.indice_percepcion_corrupcion) : null,
+          CUDI: null // Campo base si aplica o personalizado por override
+        };
+      });
 
-    return {
-      ...item,
-      glinNorm,
-      cpciNorm,
-      cudiNorm,
-      puntaje,
-      faltantes
-    };
-  });
+      // Aplicar Overrides del usuario (CRUD local)
+      cultOverrides.forEach(ovr => {
+        const index = dfCultura.findIndex(item => item.Paises.toLowerCase() === ovr.Paises.toLowerCase());
+        if (index !== -1) {
+          dfCultura[index].GLIN = ovr.GLIN;
+          dfCultura[index].CPCI = ovr.CPCI;
+          dfCultura[index].CUDI = ovr.CUDI;
+        } else {
+          dfCultura.push({
+            Paises: ovr.Paises,
+            GLIN: ovr.GLIN,
+            CPCI: ovr.CPCI,
+            CUDI: ovr.CUDI
+          });
+        }
+      });
 
-  const datosRank = [...datosNormalizados].sort((a, b) => {
-    if (a.faltantes !== b.faltantes) return a.faltantes - b.faltantes;
-    return b.puntaje - a.puntaje;
-  });
+      // Evaluar faltantes
+      dfCultura.forEach(item => {
+        const faltantes = [item.GLIN, item.CPCI, item.CUDI].filter(v => v === null || v === undefined).length;
+        item._faltantes = faltantes;
+      });
+
+      dfCultura.sort((a, b) => a._faltantes - b._faltantes);
+      setDatosCulturaConsolidados(dfCultura);
+
+      // ================= NORMALIZACIÓN =================
+      const A3 = 10;
+      
+      const glinValidos = dfCultura.map(d => d.GLIN).filter(v => v !== null && v > 0);
+      const maxGLIN = glinValidos.length > 0 ? Math.max(...glinValidos) : 100;
+
+      const cpciValidos = dfCultura.map(d => d.CPCI).filter(v => v !== null && v > 0);
+      const maxCPCI = cpciValidos.length > 0 ? Math.max(...cpciValidos) : 100;
+
+      const cudiValidos = dfCultura.map(d => d.CUDI).filter(v => v !== null && v > 0);
+      const minCUDI = cudiValidos.length > 0 ? Math.min(...cudiValidos) : 0;
+
+      const P_GLIN = 0.30;
+      const P_CPCI = 0.50;
+      const P_CUDI = 0.20;
+
+      const dfNorm = dfCultura.map(item => {
+        const glinNorm = item.GLIN !== null && maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
+        const cpciNorm = item.CPCI !== null && maxCPCI > 0 ? Number(((A3 * item.CPCI) / maxCPCI).toFixed(2)) : null;
+        const cudiNorm = item.CUDI !== null && item.CUDI > 0 && minCUDI > 0 ? Number(((A3 * minCUDI) / item.CUDI).toFixed(2)) : null;
+
+        const puntajeCult = Number((
+          (glinNorm !== null ? glinNorm : 0) * P_GLIN +
+          (cpciNorm !== null ? cpciNorm : 0) * P_CPCI +
+          (cudiNorm !== null ? cudiNorm : 0) * P_CUDI
+        ).toFixed(2));
+
+        const faltantesNorm = [glinNorm, cpciNorm, cudiNorm].filter(v => v === null).length;
+
+        return {
+          Paises: item.Paises,
+          GLIN_norm: glinNorm,
+          CPCI_norm: cpciNorm,
+          CUDI_norm: cudiNorm,
+          Puntaje_CULT_Normalizado: puntajeCult,
+          _faltantes: faltantesNorm
+        };
+      });
+
+      dfNorm.sort((a, b) => {
+        if (a._faltantes !== b._faltantes) return a._faltantes - b._faltantes;
+        return b.Puntaje_CULT_Normalizado - a.Puntaje_CULT_Normalizado;
+      });
+
+      setDatosCulturaNormalizados(dfNorm);
+    } catch (err) {
+      console.error("Error al procesar datos culturales:", err);
+      setErrorNotif(err.message);
+    } finally {
+      setCargando(false);
+    }
+  }, [cultOverrides, paisesDestino, listaPaises, datosGLIN, datosCPCI]);
 
   const descargarCSV = () => {
     const headers = ["Paises", "GLIN_norm", "CPCI_norm", "CUDI_norm", "Puntaje_CULT_Normalizado"];
-    const rows = datosRank.map(d => [d.paises, d.glinNorm ?? '', d.cpciNorm ?? '', d.cudiNorm ?? '', d.puntaje]);
+    const rows = datosCulturaNormalizados.map(d => [d.Paises, d.GLIN_norm ?? '', d.CPCI_norm ?? '', d.CUDI_norm ?? '', d.Puntaje_CULT_Normalizado]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -186,14 +263,15 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* TÍTULO */}
+    <div className="space-y-8 text-slate-100 font-sans">
+      
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#181a20] p-6 rounded-xl border border-slate-800">
         <div>
           <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Análisis</span>
           <h2 className="text-2xl font-bold text-white mt-1">6. Cultura (CULT)</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Producto activo: <span className="text-white font-medium">{productoActivo ? productoActivo.nombre : 'Ninguno'}</span>
+            Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Datos integrados desde <code className="text-slate-200">paises</code>, <code className="text-slate-200">indiceglobalizacion</code> e <code className="text-slate-200">indiceCorrupcion</code>.
           </p>
         </div>
         <button
@@ -210,13 +288,13 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* AÑADIR (Desplegable) */}
+          {/* AÑADIR */}
           <details className="bg-[#12141a] rounded-lg border border-slate-800 p-4 group">
             <summary className="text-xs font-bold text-emerald-400 uppercase tracking-wide cursor-pointer select-none flex justify-between items-center">
               <span>➕ Añadir país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
-            <form onSubmit={handleAdd} className="space-y-3 mt-4 pt-3 border-t border-slate-800">
+            <form onSubmit={handleAddPais} className="space-y-3 mt-4 pt-3 border-t border-slate-800">
               <div>
                 <label className="block text-[11px] text-slate-300 mb-1">País</label>
                 <input
@@ -264,112 +342,104 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
             </form>
           </details>
 
-          {/* EDITAR (Desplegable) */}
+          {/* EDITAR */}
           <details className="bg-[#12141a] rounded-lg border border-slate-800 p-4 group">
             <summary className="text-xs font-bold text-amber-400 uppercase tracking-wide cursor-pointer select-none flex justify-between items-center">
               <span>✏️ Editar país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="mt-4 pt-3 border-t border-slate-800">
-              {datosCultura.length === 0 ? (
-                <p className="text-xs text-slate-500">No hay datos cargados para editar.</p>
+              {cultOverrides.length === 0 ? (
+                <p className="text-xs text-slate-500">No hay datos personalizados para editar aún.</p>
               ) : (
-                <form onSubmit={handleEdit} className="space-y-3">
+                <form onSubmit={handleUpdatePais} className="space-y-3">
                   <div>
                     <label className="block text-[11px] text-slate-300 mb-1">Selecciona país a editar</label>
                     <select
-                      value={paisEditId}
-                      onChange={(e) => setPaisEditId(e.target.value)}
+                      value={paisSeleccionadoEdit}
+                      onChange={handleSelectEditPais}
                       className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
                       required
                     >
-                      <option value="">-- Seleccionar --</option>
-                      {datosCultura.map((d) => (
-                        <option key={d.id} value={d.id}>{d.paises}</option>
+                      {cultOverrides.map((item, idx) => (
+                        <option key={idx} value={item.Paises}>{item.Paises}</option>
                       ))}
                     </select>
                   </div>
-                  {paisEditId && (
-                    <>
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">Nuevo país</label>
-                        <input
-                          type="text"
-                          value={paisEditNombre}
-                          onChange={(e) => setPaisEditNombre(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">Nuevo GLIN</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={glinEdit}
-                          onChange={(e) => setGlinEdit(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">Nuevo CPCI</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={cpciEdit}
-                          onChange={(e) => setCpciEdit(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-slate-300 mb-1">Nuevo CUDI</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={cudiEdit}
-                          onChange={(e) => setCudiEdit(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
-                        />
-                      </div>
-                      <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer">
-                        Actualizar país (CULT)
-                      </button>
-                    </>
-                  )}
+                  <div>
+                    <label className="block text-[11px] text-slate-300 mb-1">Nuevo país</label>
+                    <input
+                      type="text"
+                      value={editPaisNombre}
+                      onChange={(e) => setEditPaisNombre(e.target.value)}
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-300 mb-1">Nuevo GLIN</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={editGlin}
+                      onChange={(e) => setEditGlin(e.target.value)}
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-300 mb-1">Nuevo CPCI</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={editCpci}
+                      onChange={(e) => setEditCpci(e.target.value)}
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-300 mb-1">Nuevo CUDI</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={editCudi}
+                      onChange={(e) => setEditCudi(e.target.value)}
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                  <button type="submit" className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer">
+                    Actualizar país (CULT)
+                  </button>
                 </form>
               )}
             </div>
           </details>
 
-          {/* ELIMINAR (Desplegable) */}
+          {/* ELIMINAR */}
           <details className="bg-[#12141a] rounded-lg border border-slate-800 p-4 group">
             <summary className="text-xs font-bold text-red-400 uppercase tracking-wide cursor-pointer select-none flex justify-between items-center">
               <span>🗑️ Eliminar país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="mt-4 pt-3 border-t border-slate-800">
-              {datosCultura.length === 0 ? (
-                <p className="text-xs text-slate-500">No hay países para eliminar.</p>
+              {cultOverrides.length === 0 ? (
+                <p className="text-xs text-slate-500">No hay países personalizados para eliminar.</p>
               ) : (
-                <form onSubmit={handleDelete} className="space-y-3">
+                <form onSubmit={handleDeletePais} className="space-y-3">
                   <div>
                     <label className="block text-[11px] text-slate-300 mb-1">Selecciona país a eliminar</label>
                     <select
-                      value={paisDeleteId}
-                      onChange={(e) => setPaisDeleteId(e.target.value)}
+                      value={paisSeleccionadoDel}
+                      onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
                       className="w-full bg-[#0e1117] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
                       required
                     >
-                      <option value="">-- Seleccionar --</option>
-                      {datosCultura.map((d) => (
-                        <option key={d.id} value={d.id}>{d.paises}</option>
+                      {cultOverrides.map((item, idx) => (
+                        <option key={idx} value={item.Paises}>{item.Paises}</option>
                       ))}
                     </select>
                   </div>
-                  {paisDeleteId && (
-                    <button type="submit" className="w-full py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer mt-4">
-                      Eliminar país (CULT)
-                    </button>
-                  )}
+                  <button type="submit" className="w-full py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer mt-4">
+                    Eliminar país (CULT)
+                  </button>
                 </form>
               )}
             </div>
@@ -378,16 +448,23 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
         </div>
       </div>
 
+      {errorNotif && (
+        <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
+          {errorNotif}
+        </div>
+      )}
+
       {/* TABLA 1: DATOS ORIGINALES COMBINADOS */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4">
         <h3 className="text-lg font-bold text-white">Tabla Cultural (CULT) — Datos originales combinados</h3>
         {cargando ? (
-          <p className="text-xs text-slate-400">Cargando datos culturales...</p>
+          <p className="text-xs text-slate-400">Cargando datos culturales desde Supabase...</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
             <table className="w-full text-left text-xs text-slate-300 border-collapse">
-              <thead className="bg-[#12141a] text-slate-200 uppercase text-[10px] tracking-wider border-b border-slate-800">
+              <thead className="bg-[#12141a] text-slate-200 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
                 <tr>
+                  <th className="p-3">#</th>
                   <th className="p-3">Países</th>
                   <th className="p-3">Índice de globalización (GLIN)</th>
                   <th className="p-3">Índice de Percepción de la Corrupción (CPCI)</th>
@@ -395,12 +472,13 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {datosCultura.map((item, index) => (
+                {datosCulturaConsolidados.map((item, index) => (
                   <tr key={index} className="hover:bg-slate-900/50">
-                    <td className="p-3 font-medium text-white">{item.paises}</td>
-                    <td className="p-3">{item.glin ?? '-'}</td>
-                    <td className="p-3">{item.cpci ?? '-'}</td>
-                    <td className="p-3">{item.cudi ?? '-'}</td>
+                    <td className="p-3 text-slate-500">{index + 1}</td>
+                    <td className="p-3 font-medium text-white">{item.Paises}</td>
+                    <td className="p-3">{item.GLIN !== null ? item.GLIN : '-'}</td>
+                    <td className="p-3">{item.CPCI !== null ? item.CPCI : '-'}</td>
+                    <td className="p-3">{item.CUDI !== null ? item.CUDI : '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -416,10 +494,11 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
           <p className="text-xs text-slate-400 mt-1">Ponderaciones: GLIN = 30% | CPCI = 50% | CUDI = 20%</p>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
           <table className="w-full text-left text-xs text-slate-300 border-collapse">
-            <thead className="bg-[#12141a] text-slate-200 uppercase text-[10px] tracking-wider border-b border-slate-800">
+            <thead className="bg-[#12141a] text-slate-200 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
               <tr>
+                <th className="p-3">#</th>
                 <th className="p-3">Paises</th>
                 <th className="p-3">GLIN_norm</th>
                 <th className="p-3">CPCI_norm</th>
@@ -428,13 +507,14 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {datosRank.map((item, index) => (
+              {datosCulturaNormalizados.map((item, index) => (
                 <tr key={index} className="hover:bg-slate-900/50">
-                  <td className="p-3 font-medium text-white">{item.paises}</td>
-                  <td className="p-3">{item.glinNorm !== null ? item.glinNorm : '-'}</td>
-                  <td className="p-3">{item.cpciNorm !== null ? item.cpciNorm : '-'}</td>
-                  <td className="p-3">{item.cudiNorm !== null ? item.cudiNorm : '-'}</td>
-                  <td className="p-3 font-bold text-red-400">{item.puntaje}</td>
+                  <td className="p-3 text-slate-500">{index + 1}</td>
+                  <td className="p-3 font-medium text-white">{item.Paises}</td>
+                  <td className="p-3">{item.GLIN_norm !== null ? item.GLIN_norm : '-'}</td>
+                  <td className="p-3">{item.CPCI_norm !== null ? item.CPCI_norm : '-'}</td>
+                  <td className="p-3">{item.CUDI_norm !== null ? item.CUDI_norm : '-'}</td>
+                  <td className="p-3 font-bold text-red-400">{item.Puntaje_CULT_Normalizado}</td>
                 </tr>
               ))}
             </tbody>
