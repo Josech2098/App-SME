@@ -6,11 +6,13 @@ import {
   BarElement,
   LineElement,
   PointElement,
+  BarController,
+  LineController,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js';
-import { Bar, Chart } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import { supabase } from '../supabaseClient';
 
 ChartJS.register(
@@ -19,6 +21,8 @@ ChartJS.register(
   BarElement,
   LineElement,
   PointElement,
+  BarController,
+  LineController,
   Title,
   Tooltip,
   Legend
@@ -294,7 +298,8 @@ export default function TabGraficos({ datosTotales = [] }) {
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <h3 className="text-lg font-bold text-white">Comparativo IMSFE — Dimensiones y Puntaje Total</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
-          <Chart id="canvas-grafico-3" type="bar" data={dataGrafico3} options={optionsGrafico3} />
+          {/* Se usa el componente Bar con soporte interno mixto para evitar fallos de useRef */}
+          <Bar id="canvas-grafico-3" data={dataGrafico3} options={optionsGrafico3} />
         </div>
         <div className="flex justify-end">
           <button
