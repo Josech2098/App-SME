@@ -7,6 +7,7 @@ import TabComercial from './components/TabComercial';
 import TabEconomia from './components/TabEconomia';
 import TabPolitica from './components/TabPolitica';
 import TabCultura from './components/TabCultura';
+import TabTablaTotal from './components/TabTablaTotal'; // Importación de la nueva pestaña
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -315,7 +316,14 @@ export default function App() {
             />
           )}
 
-          {activeTab > 6 && (
+          {activeTab === 7 && (
+            <TabTablaTotal 
+              paisesDestino={paisesDestino}
+              paisOrigen={paisOrigen}
+            />
+          )}
+
+          {activeTab > 7 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
                 {tabList[activeTab]}
