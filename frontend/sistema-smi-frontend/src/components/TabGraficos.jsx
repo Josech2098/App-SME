@@ -13,7 +13,6 @@ import {
 import { Bar, Chart } from 'react-chartjs-2';
 import { supabase } from '../supabaseClient';
 
-// Registrar componentes de Chart.js
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -30,16 +29,17 @@ export default function TabGraficos({ datosTotales = [] }) {
   const [cargando, setCargando] = useState(false);
   const [errorRender, setErrorRender] = useState(null);
 
-  // Sincronizar datos si datosTotales viene vacío al entrar directamente a la pestaña
+  // Sincronizar o autoevaluar datos si datosTotales llega vacío (acceso directo a la pestaña)
   useEffect(() => {
     async function cargarDatosAutomaticos() {
       if (!datosTotales || datosTotales.length === 0) {
         setCargando(true);
         try {
+          // Consulta de respaldo segura a Supabase para poblar los gráficos
           const { data, error } = await supabase
             .from('indicepenetracion')
             .select('*')
-            .range(0, 99);
+            .range(0, 49);
 
           if (error) throw error;
 
@@ -50,10 +50,12 @@ export default function TabGraficos({ datosTotales = [] }) {
               "Puntaje Total": Number(item.puntaje_total || item.total || item["Puntaje Global – TOTAL"] || 5)
             }));
             setDatosConsolidados(formateados);
+          } else {
+            setDatosConsolidados([]);
           }
         } catch (err) {
           console.error("Error al cargar datos automáticos para gráficos:", err);
-          setErrorRender("No se pudieron cargar los datos de la base de datos.");
+          setErrorRender("No se pudieron cargar los datos analíticos desde la base de datos.");
         } finally {
           setCargando(false);
         }
@@ -65,11 +67,11 @@ export default function TabGraficos({ datosTotales = [] }) {
     cargarDatosAutomaticos();
   }, [datosTotales]);
 
-  // Capturar cualquier error de renderizado para evitar la pantalla en blanco
+  // Capturador de errores de renderizado para evitar la pantalla en blanco
   if (errorRender) {
     return (
       <div className="bg-[#181a20] border border-red-900/50 rounded-xl p-8 text-center text-red-400 space-y-2 shadow-sm font-sans">
-        <h3 className="text-lg font-bold text-white">Error al cargar los gráficos</h3>
+        <h3 className="text-lg font-bold text-white">Aviso del Módulo Gráfico</h3>
         <p className="text-xs">{errorRender}</p>
       </div>
     );
@@ -79,12 +81,12 @@ export default function TabGraficos({ datosTotales = [] }) {
     return (
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
         <h3 className="text-lg font-bold text-white">Cargando gráficos analíticos...</h3>
-        <p className="text-xs">Procesando información estadística.</p>
+        <p className="text-xs">Procesando información estadística desde Supabase.</p>
       </div>
     );
   }
 
-  // Filtrar y sanitizar datos de forma segura
+  // Sanitización y validación de datos seguros
   let datosValidos = [];
   try {
     datosValidos = (datosConsolidados || []).map(item => {
@@ -106,7 +108,7 @@ export default function TabGraficos({ datosTotales = [] }) {
     return (
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
         <h3 className="text-lg font-bold text-white">Visualización de Gráficos Comparativos</h3>
-        <p className="text-xs">No hay datos consolidados suficientes para mostrar en este momento.</p>
+        <p className="text-xs">No hay datos suficientes para mostrar. Visita primero la pestaña de tablas globales o genera registros.</p>
       </div>
     );
   }
@@ -116,7 +118,9 @@ export default function TabGraficos({ datosTotales = [] }) {
   const top10 = datosOrdenados.slice(0, 10);
   const top30 = datosOrdenados.slice(0, 30);
 
-  // Configuración Gráfico 1
+  // ---------------------------------------------------------------------------
+  // CONFIGURACIÓN GRÁFICO 1: Barras Agrupadas (Top 10)
+  // ---------------------------------------------------------------------------
   const categoriasG1 = [
     "1. Cost (COST)",
     "2. Logistical (LOGI)",
@@ -152,7 +156,9 @@ export default function TabGraficos({ datosTotales = [] }) {
     }
   };
 
-  // Configuración Gráfico 2
+  // ---------------------------------------------------------------------------
+  // CONFIGURACIÓN GRÁFICO 2: Ranking Puntaje Total (Top 30)
+  // ---------------------------------------------------------------------------
   const dataGrafico2 = {
     labels: top30.map(d => d.Paises),
     datasets: [{
@@ -177,7 +183,9 @@ export default function TabGraficos({ datosTotales = [] }) {
     }
   };
 
-  // Configuración Gráfico 3
+  // ---------------------------------------------------------------------------
+  // CONFIGURACIÓN GRÁFICO 3: Combinado IMSFE (Top 30)
+  // ---------------------------------------------------------------------------
   const columnasDim = [
     "1. Cost (COST)",
     "2. Logistical (LOGI)",
