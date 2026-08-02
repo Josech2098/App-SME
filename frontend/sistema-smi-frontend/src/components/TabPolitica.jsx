@@ -442,8 +442,8 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
           <div className="p-4 text-xs text-slate-400 italic">Procesando datos políticos...</div>
         ) : (
           <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
-            <table className="w-full text-left text-xs text-slate-300 relative">
-              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+            <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
+              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="p-3 w-12 bg-[#181a20]">#</th>
                   <th className="p-3 bg-[#181a20]">País</th>
@@ -474,8 +474,8 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
         <p className="text-xs text-slate-400">Ponderaciones: FSI = 35% | INRI = 35% | DEIN = 30%</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
-          <table className="w-full text-left text-xs text-slate-300 relative">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+          <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
+            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
                 <th className="p-3 bg-[#181a20]">País</th>
