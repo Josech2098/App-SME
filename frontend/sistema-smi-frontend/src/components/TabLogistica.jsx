@@ -638,39 +638,67 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
-              {tablaLogi.map((row, index) => {
-                const lpin = Number(row['Índice de desempeño logístico (LPIN)']) || 0;
-                const cpt = Number(row['Tráfico del puerto de contenedores (CPT)']) || 0;
+              {(() => {
+                const lpinVals = tablaLogi.map(d => Number(d['Índice de desempeño logístico (LPIN)'])).filter(v => v > 0);
+                const cptVals = tablaLogi.map(d => Number(d['Tráfico del puerto de contenedores (CPT)'])).filter(v => v > 0);
                 
-                const itttStr = String(row['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
-                  .replace('días', '')
-                  .replace('dias', '')
-                  .replace(',', '.')
-                  .trim();
-                const ittt = Number(itttStr) || 1;
+                const itttVals = tablaLogi.map(d => {
+                  const itttStr = String(d['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
+                    .replace(/días|dias/gi, '')
+                    .replace(',', '.')
+                    .trim();
+                  return Number(itttStr);
+                }).filter(v => v > 0);
 
-                const MAX_LPIN = 5.0;           
-                const MAX_CPT = 300000000;  
-                const MIN_ITTT = 5.0; 
+                const MAX_LPIN = lpinVals.length > 0 ? Math.max(...lpinVals) : 5.0;          
+                const MAX_CPT = cptVals.length > 0 ? Math.max(...cptVals) : 300000000;  
+                const MIN_ITTT = itttVals.length > 0 ? Math.min(...itttVals) : 5.0; 
                 const A3 = 10;
 
-                const lpinNorm = lpin ? Number((A3 * lpin / MAX_LPIN).toFixed(2)) : 0;
-                const cptNorm = cpt ? Number((A3 * cpt / MAX_CPT).toFixed(2)) : 0;
-                const itttNorm = ittt ? Number((A3 * MIN_ITTT / ittt).toFixed(2)) : 0;
+                const tablaProcesada = tablaLogi.map((row, index) => {
+                  const lpin = Number(row['Índice de desempeño logístico (LPIN)']) || 0;
+                  const cpt = Number(row['Tráfico del puerto de contenedores (CPT)']) || 0;
+                  
+                  const itttStr = String(row['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
+                    .replace('días', '')
+                    .replace('dias', '')
+                    .replace(',', '.')
+                    .trim();
+                  const ittt = Number(itttStr) || 1;
 
-                const costoTotal = Number((0.30 * lpinNorm + 0.30 * cptNorm + 0.40 * itttNorm).toFixed(2));
+                  const lpinNorm = lpin ? Number((A3 * lpin / MAX_LPIN).toFixed(2)) : 0;
+                  const cptNorm = cpt ? Number((A3 * cpt / MAX_CPT).toFixed(2)) : 0;
+                  const itttNorm = ittt ? Number((A3 * MIN_ITTT / ittt).toFixed(2)) : 0;
 
-                return (
+                  const costoTotal = Number((0.30 * lpinNorm + 0.30 * cptNorm + 0.40 * itttNorm).toFixed(2));
+                  const faltantes = [lpinNorm, cptNorm, itttNorm].filter(v => v === 0).length;
+
+                  return {
+                    ...row,
+                    lpinNorm,
+                    cptNorm,
+                    itttNorm,
+                    costoTotal,
+                    __faltantes: faltantes
+                  };
+                });
+
+                tablaProcesada.sort((a, b) => {
+                  if (a.__faltantes !== b.__faltantes) return a.__faltantes - b.__faltantes;
+                  return b.costoTotal - a.costoTotal;
+                });
+
+                return tablaProcesada.map((row, index) => (
                   <tr key={index} className="hover:bg-[#16181d] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{lpinNorm}</td>
-                    <td className="p-3">{cptNorm}</td>
-                    <td className="p-3">{itttNorm}</td>
-                    <td className="p-3 font-bold text-emerald-400">{costoTotal}</td>
+                    <td className="p-3">{row.lpinNorm}</td>
+                    <td className="p-3">{row.cptNorm}</td>
+                    <td className="p-3">{row.itttNorm}</td>
+                    <td className="p-3 font-bold text-emerald-400">{row.costoTotal}</td>
                   </tr>
-                );
-              })}
+                ));
+              })()}
             </tbody>
           </table>
         </div>
