@@ -209,12 +209,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   };
 
   const matrizCalculadaCompleta = datosProductos.map(row => {
-    // PPD usa la relación directa (máximo)
-    const ppdNorm = calcularNormalizadoDirecto(row.ppd, maxPpd);
-    
-    // CTI y CIC DEBEN usar la relación inversa (mínimo)
-    const ctiNorm = calcularNormalizadoInverso(row.cti, minCti);
-    const cicNorm = calcularNormalizadoInverso(row.cic, minCic);
+    // Aseguramos capturar la propiedad sin importar variaciones de mayúsculas/minúsculas
+    const valPpd = row.ppd ?? row.PPD ?? 0;
+    const valCti = row.cti ?? row.CTI ?? row.transport_cost ?? 0; 
+    const valCic = row.cic ?? row.CIC ?? row.cumplimiento ?? 0;
+
+    const ppdNorm = calcularNormalizadoDirecto(valPpd, maxPpd);
+    const ctiNorm = calcularNormalizadoInverso(valCti, minCti);
+    const cicNorm = calcularNormalizadoInverso(valCic, minCic);
 
     const p1 = ppdNorm ?? 0;
     const p2 = ctiNorm ?? 0;
