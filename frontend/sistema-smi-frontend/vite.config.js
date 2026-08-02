@@ -17,15 +17,13 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            // Aislar React y ReactDOM en su propio chunk para evitar conflictos de hooks
+            // Mantener React y Supabase separados si es necesario, 
+            // pero dejar que chart.js viva con el vendor general para evitar errores de useRef.
             if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
               return 'react-vendor';
             }
             if (id.includes('@supabase')) {
               return 'supabase-vendor';
-            }
-            if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
-              return 'chart-vendor';
             }
             return 'vendor';
           }
