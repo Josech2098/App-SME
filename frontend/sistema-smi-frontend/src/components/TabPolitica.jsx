@@ -108,7 +108,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
     }
   };
 
-  // Procesamiento unificado utilizando la misma lista completa de países de destino
+  // Procesamiento unificado dinámico idéntico a Economía para sincronizar todos los países de destino
   useEffect(() => {
     setCargando(true);
     try {
