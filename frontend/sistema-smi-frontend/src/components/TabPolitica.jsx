@@ -24,38 +24,48 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
   // Estados para eliminar
   const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
 
-  // Estados de datos y base de datos
+  // Estados de datos de Supabase
   const [listaPaises, setListaPaises] = useState([]);
+  const [datosFSI, setDatosFSI] = useState([]);
+  const [datosINRI, setDatosINRI] = useState([]);
+  const [datosDEIN, setDatosDEIN] = useState([]);
+
   const [datosPoliConsolidados, setDatosPoliConsolidados] = useState([]);
   const [datosPoliNormalizados, setDatosPoliNormalizados] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [errorNotif, setErrorNotif] = useState(null);
 
-  // 1. Cargar la tabla paises desde Supabase
+  // 1. Cargar tablas independientes desde Supabase
   useEffect(() => {
-    async function cargarPaises() {
+    async function cargarDatosPolitica() {
       setCargando(true);
       try {
-        const { data, error } = await supabase
-          .from("paises")
-          .select("*")
-          .order("nombre");
+        const [resPaises, resFSI, resINRI, resDEIN] = await Promise.all([
+          supabase.from("paises").select("*").order("nombre"),
+          supabase.from("estadosfragiles").select("*"),
+          supabase.from("informeriesgo").select("*"),
+          supabase.from("indicedemocracia").select("*")
+        ]);
 
-        if (error) {
-          console.error("Error al cargar la tabla paises:", error.message);
-          setErrorNotif(error.message);
-        } else if (data) {
-          setListaPaises(data);
-        }
+        if (resPaises.error) throw resPaises.error;
+        if (resFSI.error) throw resFSI.error;
+        if (resINRI.error) throw resINRI.error;
+        if (resDEIN.error) throw resDEIN.error;
+
+        setListaPaises(resPaises.data || []);
+        setDatosFSI(resFSI.data || []);
+        setDatosINRI(resINRI.data || []);
+        setDatosDEIN(resDEIN.data || []);
+        setErrorNotif(null);
       } catch (err) {
-        console.error("Error inesperado al conectar con Supabase:", err);
+        console.error("Error al cargar datos de Supabase:", err);
         setErrorNotif(err.message);
       } finally {
         setCargando(false);
       }
     }
 
-    cargarPaises();
+    cargarDatosPolitica();
   }, []);
 
   // Sincronizar selectores de edición/eliminación al cambiar los overrides o datos
@@ -137,7 +147,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
     }
   };
 
-  // Procesamiento unificado dinámico combinando listaPaises (Supabase) + Overrides del usuario
+  // Procesamiento unificado combinando tabla paises + tablas de índices específicos
   useEffect(() => {
     if (listaPaises.length === 0) return;
 
@@ -147,35 +157,21 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
         ? paisesDestino
         : listaPaises.map(p => p.nombre);
 
-      // Mapear base de países de Supabase simulando/asignando valores iniciales basados en nombres
-      const dfPoli = listaPaisesBase.map((pais, idx) => {
-        let fsiDefault = 35.0;
-        let inriDefault = 3.0;
-        let deinDefault = 7.0;
+      const dfPoli = listaPaisesBase.map((pais) => {
+        const pLower = pais.toLowerCase().trim();
 
-        const pLower = pais.toLowerCase();
-        if (pLower.includes('alemania')) { fsiDefault = 24.0; inriDefault = 2.6; deinDefault = 8.8; }
-        else if (pLower.includes('españa')) { fsiDefault = 22.5; inriDefault = 2.4; deinDefault = 8.1; }
-        else if (pLower.includes('francia')) { fsiDefault = 28.0; inriDefault = 2.7; deinDefault = 8.0; }
-        else if (pLower.includes('estados unidos')) { fsiDefault = 34.0; inriDefault = 2.9; deinDefault = 7.8; }
-        else if (pLower.includes('méxico')) { fsiDefault = 65.2; inriDefault = 5.1; deinDefault = 5.14; }
-        else if (pLower.includes('colombia')) { fsiDefault = 78.4; inriDefault = 6.2; deinDefault = 6.05; }
-        else if (pLower.includes('argentina')) { fsiDefault = 44.2; inriDefault = 3.7; deinDefault = 6.62; }
-        else if (pLower.includes('australia')) { fsiDefault = 19.6; inriDefault = 2.4; deinDefault = 8.66; }
-        else if (pLower.includes('chile')) { fsiDefault = 35.1; inriDefault = 3.0; deinDefault = 7.98; }
-        else if (pLower.includes('canadá')) { fsiDefault = 21.4; inriDefault = 2.5; deinDefault = 8.85; }
-        else if (pLower.includes('reino unido')) { fsiDefault = 27.5; inriDefault = 2.8; deinDefault = 8.25; }
-        else if (pLower.includes('brasil')) { fsiDefault = 69.8; inriDefault = 5.4; deinDefault = 6.78; }
-        else if (pLower.includes('panamá')) { fsiDefault = 52.1; inriDefault = 4.2; deinDefault = 7.05; }
-        else if (pLower.includes('costa rica')) { fsiDefault = 43.6; inriDefault = 3.5; deinDefault = 8.12; }
-        else if (pLower.includes('japón')) { fsiDefault = 25.8; inriDefault = 2.5; deinDefault = 8.15; }
-        else if (pLower.includes('china')) { fsiDefault = 68.3; inriDefault = 5.8; deinDefault = 3.32; }
+        // Buscar coincidencia en estadosfragiles (columna 'pais', 'indice_de_estados_fragiles')
+        const matchFSI = datosFSI.find(item => (item.pais || '').toLowerCase().trim() === pLower);
+        // Buscar coincidencia en informeriesgo (columna 'pais', 'riesgo')
+        const matchINRI = datosINRI.find(item => (item.pais || '').toLowerCase().trim() === pLower);
+        // Buscar coincidencia en indicedemocracia (columna 'pais', 'indice_democracia')
+        const matchDEIN = datosDEIN.find(item => (item.pais || '').toLowerCase().trim() === pLower);
 
         return {
           Paises: pais,
-          FSI: Number((fsiDefault + ((idx * 0.5) % 2.0)).toFixed(2)),
-          INRI: Number((inriDefault + ((idx * 0.1) % 0.5)).toFixed(2)),
-          DEIN: Number((deinDefault - ((idx * 0.1) % 0.4)).toFixed(2))
+          FSI: matchFSI ? Number(matchFSI.indice_de_estados_fragiles) : null,
+          INRI: matchINRI ? Number(matchINRI.riesgo) : null,
+          DEIN: matchDEIN ? Number(matchDEIN.indice_democracia) : null
         };
       });
 
@@ -216,9 +212,9 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       const P_DEIN = 0.30;
 
       const dfNorm = dfPoli.map(item => {
-        const fsiNorm = item.FSI > 0 ? Number(((A3 * FSI_min) / item.FSI).toFixed(2)) : null;
-        const inriNorm = item.INRI > 0 ? Number(((A3 * INRI_min) / item.INRI).toFixed(2)) : null;
-        const deinNorm = DEIN_max > 0 ? Number(((A3 * item.DEIN) / DEIN_max).toFixed(2)) : null;
+        const fsiNorm = item.FSI !== null && item.FSI > 0 ? Number(((A3 * FSI_min) / item.FSI).toFixed(2)) : null;
+        const inriNorm = item.INRI !== null && item.INRI > 0 ? Number(((A3 * INRI_min) / item.INRI).toFixed(2)) : null;
+        const deinNorm = item.DEIN !== null && DEIN_max > 0 ? Number(((A3 * item.DEIN) / DEIN_max).toFixed(2)) : null;
 
         const puntajePoli = Number((
           (fsiNorm !== null ? fsiNorm : 0) * P_FSI +
@@ -244,14 +240,13 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       });
 
       setDatosPoliNormalizados(dfNorm);
-      setErrorNotif(null);
     } catch (err) {
       console.error("Error al procesar datos políticos:", err);
       setErrorNotif(err.message);
     } finally {
       setCargando(false);
     }
-  }, [poliOverrides, paisesDestino, listaPaises]);
+  }, [poliOverrides, paisesDestino, listaPaises, datosFSI, datosINRI, datosDEIN]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -260,7 +255,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">5. Política (POLI)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Origen actual: <span className="text-red-400 font-semibold">{paisOrigen}</span> | Gestión y normalización de indicadores políticos basados en la tabla <code className="text-slate-200">paises</code>.
+          Origen actual: <span className="text-red-400 font-semibold">{paisOrigen}</span> | Datos integrados desde las tablas <code className="text-slate-200">paises</code>, <code className="text-slate-200">estadosfragiles</code>, <code className="text-slate-200">informeriesgo</code> e <code className="text-slate-200">indicedemocracia</code>.
         </p>
       </div>
 
@@ -476,7 +471,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
         <h3 className="text-base font-bold text-white">Tabla Política (POLI) — Datos originales</h3>
         
         {cargando ? (
-          <div className="p-4 text-xs text-slate-400 italic">Cargando países desde Supabase...</div>
+          <div className="p-4 text-xs text-slate-400 italic">Cargando información desde Supabase...</div>
         ) : (
           <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-800 rounded-lg">
             <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
@@ -528,7 +523,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                   <td className="p-3 text-slate-500">{index + 1}</td>
                   <td className="p-3 font-medium text-white">{row.Paises}</td>
                   <td className="p-3">{row.FSI_norm !== null ? row.FSI_norm : '-'}</td>
-                  <td className="p-3">{row.INRI_norm !== null ? row.INRI_norm : '-'}</td>
+                  <td className="p-3">{row.inri_norm !== null ? row.INRI_norm : '-'}</td>
                   <td className="p-3">{row.DEIN_norm !== null ? row.DEIN_norm : '-'}</td>
                   <td className="p-3 font-bold text-emerald-400">{row.Puntaje_POLI_Normalizado}</td>
                 </tr>
