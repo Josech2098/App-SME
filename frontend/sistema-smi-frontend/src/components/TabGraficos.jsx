@@ -11,7 +11,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar, Chart } from 'react-chartjs-2';
-import { supabase } from '../supabaseClient'; // Asegúrate de que la ruta a tu cliente supabase sea correcta
+import { supabase } from '../supabaseClient';
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -28,16 +28,16 @@ ChartJS.register(
 export default function TabGraficosComparativos({ datosTotales = [] }) {
   const [datosConsolidados, setDatosConsolidados] = useState(datosTotales);
   const [cargando, setCargando] = useState(false);
-  const [errorNotif, setErrorNotif] = useState(null);
+  const [errorRender, setErrorRender] = useState(null);
 
-  // Sincronizar o autoevaluar datos desde Supabase si datosTotales llega vacío
+  // Sincronizar datos si datosTotales viene vacío
   useEffect(() => {
     async function cargarDatosAutomaticos() {
       if (!datosTotales || datosTotales.length === 0) {
         setCargando(true);
         try {
           const { data, error } = await supabase
-            .from('indicepenetracion') // O la tabla consolidada que utilices
+            .from('indicepenetracion')
             .select('*')
             .range(0, 99);
 
@@ -46,14 +46,13 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
           if (data && data.length > 0) {
             const formateados = data.map(item => ({
               ...item,
-              Paises: item.pais || item.nombre || item.Paises || 'País',
-              "Puntaje Total": item.puntaje_total || item.total || item["Puntaje Global – TOTAL"] || 5
+              Paises: item.pais || item.nombre || item.Paises || 'País Desconocido',
+              "Puntaje Total": Number(item.puntaje_total || item.total || item["Puntaje Global – TOTAL"] || 5)
             }));
             setDatosConsolidados(formateados);
           }
         } catch (err) {
           console.error("Error al cargar datos automáticos para gráficos:", err);
-          setErrorNotif("No se pudieron cargar los datos automáticamente. Visita la pestaña de tablas globales o verifica tu conexión.");
         } finally {
           setCargando(false);
         }
@@ -65,26 +64,48 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
     cargarDatosAutomaticos();
   }, [datosTotales]);
 
-  // Verificamos si hay datos suficientes o si se usa una propiedad equivalente al "Puntaje Global – TOTAL"
-  const datosValidos = datosConsolidados.map(item => ({
-    ...item,
-    "Puntaje Total": item["Puntaje Global – TOTAL"] !== undefined ? item["Puntaje Global – TOTAL"] : item["Puntaje Total"]
-  })).filter(item => item["Puntaje Total"] !== undefined);
+  // Capturar cualquier error de renderizado para evitar la pantalla en blanco
+  if (errorRender) {
+    return (
+      <div className="bg-[#181a20] border border-red-900/50 rounded-xl p-8 text-center text-red-400 space-y-2 shadow-sm font-sans">
+        <h3 className="text-lg font-bold text-white">Error al renderizar los gráficos</h3>
+        <p className="text-xs">{errorRender}</p>
+      </div>
+    );
+  }
 
   if (cargando) {
     return (
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
         <h3 className="text-lg font-bold text-white">Cargando gráficos analíticos...</h3>
-        <p className="text-xs">Obteniendo información consolidada desde la base de datos.</p>
+        <p className="text-xs">Procesando información estadística.</p>
       </div>
     );
+  }
+
+  // Filtrar y sanitizar datos de forma segura
+  let datosValidos = [];
+  try {
+    datosValidos = (datosConsolidados || []).map(item => {
+      const puntaje = item["Puntaje Global – TOTAL"] !== undefined 
+        ? Number(item["Puntaje Global – TOTAL"]) 
+        : Number(item["Puntaje Total"] || 0);
+      
+      return {
+        ...item,
+        Paises: item.Paises || item.pais || item.nombre || 'Desconocido',
+        "Puntaje Total": isNaN(puntaje) ? 0 : puntaje
+      };
+    }).filter(item => !isNaN(item["Puntaje Total"]));
+  } catch (e) {
+    console.error("Error procesando datos válidos:", e);
   }
 
   if (datosValidos.length === 0) {
     return (
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
         <h3 className="text-lg font-bold text-white">Visualización de Gráficos Comparativos</h3>
-        <p className="text-xs">Primero genera la tabla total en la pestaña de tablas globales o asegúrate de que existan datos consolidados.</p>
+        <p className="text-xs">No hay datos consolidados suficientes para mostrar en este momento.</p>
       </div>
     );
   }
@@ -94,9 +115,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
   const top10 = datosOrdenados.slice(0, 10);
   const top30 = datosOrdenados.slice(0, 30);
 
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN GRÁFICO 1: Barras Agrupadas (Top 10) - Simula Plotly
-  // ---------------------------------------------------------------------------
+  // Configuración Gráfico 1
   const categoriasG1 = [
     "1. Cost (COST)",
     "2. Logistical (LOGI)",
@@ -106,11 +125,10 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
     "6. Cultura (CULT)",
     "Puntaje Total"
   ];
-
   const coloresG1 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494'];
 
   const dataGrafico1 = {
-    labels: top10.map(d => d.Paises || d.pais || 'Desconocido'),
+    labels: top10.map(d => d.Paises),
     datasets: categoriasG1.map((cat, idx) => ({
       label: cat,
       data: top10.map(d => Number(d[cat] || 0)),
@@ -133,20 +151,16 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN GRÁFICO 2: Ranking Puntaje Total (Top 30) - Simula Matplotlib
-  // ---------------------------------------------------------------------------
+  // Configuración Gráfico 2
   const dataGrafico2 = {
-    labels: top30.map(d => d.Paises || d.pais || 'Desconocido'),
-    datasets: [
-      {
-        label: 'Puntaje Total',
-        data: top30.map(d => Number(d["Puntaje Total"] || 0)),
-        backgroundColor: '#00BFFF',
-        borderColor: 'white',
-        borderWidth: 1,
-      }
-    ]
+    labels: top30.map(d => d.Paises),
+    datasets: [{
+      label: 'Puntaje Total',
+      data: top30.map(d => Number(d["Puntaje Total"] || 0)),
+      backgroundColor: '#00BFFF',
+      borderColor: 'white',
+      borderWidth: 1,
+    }]
   };
 
   const optionsGrafico2 = {
@@ -162,9 +176,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN GRÁFICO 3: Combinado IMSFE (Barras + Líneas, Top 30)
-  // ---------------------------------------------------------------------------
+  // Configuración Gráfico 3
   const columnasDim = [
     "1. Cost (COST)",
     "2. Logistical (LOGI)",
@@ -184,7 +196,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
   ];
 
   const dataGrafico3 = {
-    labels: top30.map(d => d.Paises || d.pais || 'Desconocido'),
+    labels: top30.map(d => d.Paises),
     datasets: [
       {
         type: 'bar',
@@ -224,51 +236,39 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
   };
 
   const handleDescargarGraficoCanvas = (canvasId, nombreArchivo) => {
-    const canvas = document.getElementById(canvasId);
-    if (canvas) {
-      const url = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = nombreArchivo;
-      link.href = url;
-      link.click();
+    try {
+      const canvas = document.getElementById(canvasId);
+      if (canvas) {
+        const url = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = nombreArchivo;
+        link.href = url;
+        link.click();
+      }
+    } catch (e) {
+      console.error("Error al exportar imagen:", e);
     }
   };
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
-      
-      {/* ENCABEZADO */}
       <div className="bg-[#181a20] p-6 rounded-xl border border-slate-800 shadow-sm">
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Gráficos Analíticos</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Gráficos Comparativos</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Visualización interactiva equivalente implementada en React y Chart.js con soporte en modo oscuro.
+          Visualización interactiva implementada en React y Chart.js con soporte en modo oscuro.
         </p>
       </div>
 
-      {errorNotif && (
-        <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
-          {errorNotif}
-        </div>
-      )}
-
-      {/* GRÁFICO 1 */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <div>
-          <h3 className="text-lg font-bold text-white">Comparativo de países mejor posicionados</h3>
-          <p className="text-xs text-slate-400 mt-1">Análisis detallado por categorías del Top 10.</p>
-        </div>
+        <h3 className="text-lg font-bold text-white">Comparativo de países mejor posicionados</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[500px]">
           <Bar id="canvas-grafico-1" data={dataGrafico1} options={optionsGrafico1} />
         </div>
       </div>
 
-      {/* GRÁFICO 2 */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <div>
-          <h3 className="text-lg font-bold text-white">Puntaje Total (Top 30 Países)</h3>
-          <p className="text-xs text-slate-400 mt-1">Gráfico de barras individuales por puntaje global acumulado.</p>
-        </div>
+        <h3 className="text-lg font-bold text-white">Puntaje Total (Top 30 Países)</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[450px]">
           <Bar id="canvas-grafico-2" data={dataGrafico2} options={optionsGrafico2} />
         </div>
@@ -282,12 +282,8 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
         </div>
       </div>
 
-      {/* GRÁFICO 3 */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <div>
-          <h3 className="text-lg font-bold text-white">Comparativo IMSFE — Dimensiones y Puntaje Total (Modo Oscuro HD)</h3>
-          <p className="text-xs text-slate-400 mt-1">Gráfico combinado de barras (Puntaje Total) y líneas (Dimensiones individuales).</p>
-        </div>
+        <h3 className="text-lg font-bold text-white">Comparativo IMSFE — Dimensiones y Puntaje Total</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
           <Chart id="canvas-grafico-3" type="bar" data={dataGrafico3} options={optionsGrafico3} />
         </div>
@@ -300,7 +296,6 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
           </button>
         </div>
       </div>
-
     </div>
   );
 }
