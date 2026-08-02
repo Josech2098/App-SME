@@ -209,9 +209,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   };
 
   const matrizCalculadaCompleta = datosProductos.map(row => {
-    const ppdNorm = calcularNormalizadoDirecto(row.ppd, maxPpd);
-    const ctiNorm = calcularNormalizadoInverso(row.cti, minCti);
-    const cicNorm = calcularNormalizadoInverso(row.cic, minCic);
+    const ppdNorm = calcularNormalizadoDirecto(row.ppd, maxPpd); // Directo (Mayor es mejor)
+    const ctiNorm = calcularNormalizadoInverso(row.cti, minCti);   // Inverso (Menor es mejor)
+    const cicNorm = calcularNormalizadoInverso(row.cic, minCic);   // Inverso (Menor es mejor)
 
     const p1 = ppdNorm ?? 0;
     const p2 = ctiNorm ?? 0;
@@ -220,7 +220,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const costoSubtotalNorm = Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2));
     const aporteFactorCosto = Number((costoSubtotalNorm * PESO_FACTOR_COSTO).toFixed(2));
 
-    // Contador de valores nulos o faltantes para el ordenamiento
     const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
 
     return {
