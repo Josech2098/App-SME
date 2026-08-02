@@ -25,39 +25,38 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
   const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
 
   // Estados de datos y base de datos
-  const [datosPoliSupabase, setDatosPoliSupabase] = useState([]);
+  const [listaPaises, setListaPaises] = useState([]);
   const [datosPoliConsolidados, setDatosPoliConsolidados] = useState([]);
   const [datosPoliNormalizados, setDatosPoliNormalizados] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [errorNotif, setErrorNotif] = useState(null);
 
-  // 1. Cargar datos políticos desde Supabase al montar o cambiar país origen
+  // 1. Cargar la tabla paises desde Supabase
   useEffect(() => {
-    async function fetchPoliticaSupabase() {
+    async function cargarPaises() {
       setCargando(true);
       try {
-        // Intentamos cargar de una tabla genérica o específica ej: 'politica' o 'indicespoliticos'
-        // Ajusta el nombre de la tabla según tu base de datos en Supabase si difiere (ej. 'politica')
         const { data, error } = await supabase
-          .from('politica')
-          .select('*')
-          .range(0, 999);
+          .from("paises")
+          .select("*")
+          .order("nombre");
 
         if (error) {
-          console.warn("Tabla 'politica' no encontrada o vacía, usando respaldo dinámico:", error.message);
-          setDatosPoliSupabase([]);
+          console.error("Error al cargar la tabla paises:", error.message);
+          setErrorNotif(error.message);
         } else if (data) {
-          setDatosPoliSupabase(data);
+          setListaPaises(data);
         }
       } catch (err) {
-        console.error("Error al conectar con Supabase para política:", err);
+        console.error("Error inesperado al conectar con Supabase:", err);
+        setErrorNotif(err.message);
       } finally {
         setCargando(false);
       }
     }
 
-    fetchPoliticaSupabase();
-  }, [paisOrigen]);
+    cargarPaises();
+  }, []);
 
   // Sincronizar selectores de edición/eliminación al cambiar los overrides o datos
   useEffect(() => {
@@ -138,35 +137,18 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
     }
   };
 
-  // Procesamiento unificado dinámico combinando Supabase + Overrides del usuario
+  // Procesamiento unificado dinámico combinando listaPaises (Supabase) + Overrides del usuario
   useEffect(() => {
+    if (listaPaises.length === 0) return;
+
     setCargando(true);
     try {
-      const listaPaisesBase = paisesDestino && paisesDestino.length > 0 
-        ? paisesDestino 
-        : [
-            'Alemania', 'Argentina', 'Australia', 'Bélgica', 'Brasil', 'Canadá', 
-            'Chile', 'China', 'Colombia', 'Corea del Sur', 'Costa Rica', 'España', 
-            'Estados Unidos', 'Francia', 'Guatemala', 'India', 'Italia', 'Japón', 
-            'México', 'Países Bajos', 'Panamá', 'Reino Unido'
-          ];
+      const listaPaisesBase = paisesDestino.length > 0
+        ? paisesDestino
+        : listaPaises.map(p => p.nombre);
 
-      // Mapear base o datos de Supabase si existen
+      // Mapear base de países de Supabase simulando/asignando valores iniciales basados en nombres
       const dfPoli = listaPaisesBase.map((pais, idx) => {
-        // Buscar si existe en Supabase
-        const regSupabase = datosPoliSupabase.find(
-          item => (item.pais || item.Paises || '').toLowerCase() === pais.toLowerCase()
-        );
-
-        if (regSupabase) {
-          return {
-            Paises: pais,
-            FSI: Number(regSupabase.fsi ?? regSupabase.FSI ?? 35.0),
-            INRI: Number(regSupabase.inri ?? regSupabase.INRI ?? 3.0),
-            DEIN: Number(regSupabase.dein ?? regSupabase.DEIN ?? 7.0)
-          };
-        }
-
         let fsiDefault = 35.0;
         let inriDefault = 3.0;
         let deinDefault = 7.0;
@@ -269,7 +251,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
     } finally {
       setCargando(false);
     }
-  }, [poliOverrides, paisesDestino, datosPoliSupabase]);
+  }, [poliOverrides, paisesDestino, listaPaises]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -278,7 +260,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">5. Política (POLI)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Origen actual: <span className="text-red-400 font-semibold">{paisOrigen}</span> | Gestión y normalización de indicadores políticos: Índice de Estados Frágiles (FSI), Informe sobre el riesgo (INRI) e Índice de Democracia (DEIN).
+          Origen actual: <span className="text-red-400 font-semibold">{paisOrigen}</span> | Gestión y normalización de indicadores políticos basados en la tabla <code className="text-slate-200">paises</code>.
         </p>
       </div>
 
@@ -494,7 +476,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
         <h3 className="text-base font-bold text-white">Tabla Política (POLI) — Datos originales</h3>
         
         {cargando ? (
-          <div className="p-4 text-xs text-slate-400 italic">Procesando datos políticos...</div>
+          <div className="p-4 text-xs text-slate-400 italic">Cargando países desde Supabase...</div>
         ) : (
           <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-800 rounded-lg">
             <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
