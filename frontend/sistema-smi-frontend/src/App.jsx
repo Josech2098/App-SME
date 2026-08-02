@@ -8,7 +8,7 @@ import TabEconomia from './components/TabEconomia';
 import TabPolitica from './components/TabPolitica';
 import TabCultura from './components/TabCultura';
 import TabTablaTotal from './components/TabTablaTotal';
-import TabGraficosComparativos from './components/Tabgraficos'; // <- CORREGIDO AQUÍ
+import TabGraficosComparativos from './components/TabGraficos'; // <- CORREGIDO AQUÍ
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
