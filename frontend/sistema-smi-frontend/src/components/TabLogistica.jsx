@@ -702,13 +702,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 const MIN_ITTT = itttVals.length > 0 ? Math.min(...itttVals) : 5.0; 
                 const A3 = 10;
 
-                const tablaProcesada = tablaLogi.map((row, index) => {
+                const tablaProcesada = tablaLogi.map((row) => {
                   const lpin = Number(row['Índice de desempeño logístico (LPIN)']) || 0;
                   const cpt = Number(row['Tráfico del puerto de contenedores (CPT)']) || 0;
                   
                   const itttStr = String(row['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
-                    .replace('días', '')
-                    .replace('dias', '')
+                    .replace(/días|dias/gi, '')
                     .replace(',', '.')
                     .trim();
                   const ittt = Number(itttStr) || 1;
