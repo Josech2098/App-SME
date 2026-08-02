@@ -29,7 +29,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
     async function cargarYProcesarTablas() {
       setCargando(true);
       try {
-        // Cargar en paralelo todas las fuentes de datos desde Supabase sin acotar estrictamente a una sola tabla
         const [
           resCostos,
           resLogistica,
@@ -50,7 +49,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
 
         const mapaPaises = {};
 
-        // Inicializar con todos los países del catálogo maestro para garantizar que siempre existan filas base
         resPaises.data?.forEach(p => {
           const nombre = (p.nombre || p.pais || "").trim();
           if (nombre) {
@@ -66,7 +64,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           }
         });
 
-        // Función auxiliar robusta para extraer cualquier valor cuantitativo o normalizado de los registros
         const extraerValorFlexible = (row) => {
           if (!row) return null;
           const camposPosibles = [
@@ -80,17 +77,15 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
               return Number(row[campo]);
             }
           }
-          // Si no encuentra campos normalizados específicos, busca cualquier número dentro del objeto
           for (let key in row) {
             const val = Number(row[key]);
             if (!isNaN(val) && val >= 0 && val <= 100 && key !== 'id' && !key.includes('codigo')) {
-              return val > 10 ? val / 10 : val; // Escalar si viene en base 100
+              return val > 10 ? val / 10 : val;
             }
           }
           return null;
         };
 
-        // Función auxiliar para mapear datos genéricamente asegurando flexibilidad en el nombre de la columna del país
         const procesarDataset = (data, claveMetrica) => {
           data?.forEach(row => {
             const pais = (row.pais || row.Paises || row.nombre || row.country || "").trim();
@@ -121,29 +116,15 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         procesarDataset(resPolitica.data, "5. Political (POLI)");
         procesarDataset(resCultura.data, "6. Cultura (CULT)");
 
-        // Criterio flexible: Permitir listar países aunque tengan al menos una métrica disponible,
-        // o rellenar con un valor por defecto (ej. 5.0) los nulos para evitar que la tabla quede vacía.
-        let lista = Object.values(mapaPaises).map(item => {
-          // Si alguna métrica es nula, asignar un valor por defecto neutral (5.0) para garantizar visualización completa
-          return {
-            ...item,
-            "1. Cost (COST)": item["1. Cost (COST)"] !== null ? item["1. Cost (COST)"] : 5.0,
-            "2. Logistical (LOGI)": item["2. Logistical (LOGI)"] !== null ? item["2. Logistical (LOGI)"] : 5.0,
-            "3. Commercial (COMM)": item["3. Commercial (COMM)"] !== null ? item["3. Commercial (COMM)"] : 5.0,
-            "4. Economic (ECON)": item["4. Economic (ECON)"] !== null ? item["4. Economic (ECON)"] : 5.0,
-            "5. Political (POLI)": item["5. Political (POLI)"] !== null ? item["5. Political (POLI)"] : 5.0,
-            "6. Cultura (CULT)": item["6. Cultura (CULT)"] !== null ? item["6. Cultura (CULT)"] : 5.0,
-            _tieneDatosReales: (
-              item["1. Cost (COST)"] !== null ||
-              item["2. Logistical (LOGI)"] !== null ||
-              item["3. Commercial (COMM)"] !== null ||
-              item["4. Economic (ECON)"] !== null ||
-              item["5. Political (POLI)"] !== null ||
-              item["6. Cultura (CULT)"] !== null
-            )
-          };
-        }).filter(item => {
-          // Aplicar filtro de países destino globales si existen
+        let lista = Object.values(mapaPaises).map(item => ({
+          ...item,
+          "1. Cost (COST)": item["1. Cost (COST)"] !== null ? item["1. Cost (COST)"] : 5.0,
+          "2. Logistical (LOGI)": item["2. Logistical (LOGI)"] !== null ? item["2. Logistical (LOGI)"] : 5.0,
+          "3. Commercial (COMM)": item["3. Commercial (COMM)"] !== null ? item["3. Commercial (COMM)"] : 5.0,
+          "4. Economic (ECON)": item["4. Economic (ECON)"] !== null ? item["4. Economic (ECON)"] : 5.0,
+          "5. Political (POLI)": item["5. Political (POLI)"] !== null ? item["5. Political (POLI)"] : 5.0,
+          "6. Cultura (CULT)": item["6. Cultura (CULT)"] !== null ? item["6. Cultura (CULT)"] : 5.0,
+        })).filter(item => {
           if (paisesDestino && paisesDestino.length > 0) {
             return paisesDestino.some(p => p.toLowerCase().trim() === item.Paises.toLowerCase().trim());
           }
@@ -163,7 +144,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
     cargarYProcesarTablas();
   }, [paisesDestino]);
 
-  // Cálculo dinámico del puntaje global ponderado IMSFE
   const datosCalculados = datosTotales.map(item => {
     const puntajeBruto = (
       (item["1. Cost (COST)"] * (pesosCat.COST / 100)) +
@@ -249,7 +229,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         </div>
       )}
 
-      {/* TABLA GENERAL DE EVALUACIÓN CONSOLIDADA */}
+      {/* TABLA 1: TABLA GENERAL DE EVALUACIÓN CONSOLIDADA */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla General de Evaluación de Países (Datos Normalizados de Todas las Tabs)</h3>
@@ -295,6 +275,47 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
                     <td className="p-3">{Number(item["5. Political (POLI)"]).toFixed(2)}</td>
                     <td className="p-3">{Number(item["6. Cultura (CULT)"]).toFixed(2)}</td>
                     <td className="p-3 font-bold text-red-400 bg-red-950/10">{item["Puntaje Global – TOTAL"]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* TABLA 2: TABLA RESUMEN — PUNTAJE PONDERADO TOTAL */}
+      <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
+        <div>
+          <h3 className="text-lg font-bold text-white">Tabla Resumen — Puntaje Ponderado Total</h3>
+          <p className="text-xs text-slate-400 mt-1">
+            Ranking general ordenado por el puntaje ponderado global de los mejores mercados destino.
+          </p>
+        </div>
+
+        {cargando ? (
+          <div className="py-8 text-center text-xs text-slate-400">
+            Generando resumen de ranking...
+          </div>
+        ) : datosCalculados.length === 0 ? (
+          <div className="py-8 text-center text-xs text-slate-400">
+            No hay datos suficientes para mostrar el resumen.
+          </div>
+        ) : (
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full text-left text-xs text-slate-300 border-collapse">
+              <thead className="bg-[#12141a] text-slate-200 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+                <tr>
+                  <th className="p-3 w-16">Ranking</th>
+                  <th className="p-3">País</th>
+                  <th className="p-3 text-right">Ponderado Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {datosCalculados.map((item, index) => (
+                  <tr key={index} className="hover:bg-slate-900/50 transition-colors">
+                    <td className="p-3 text-slate-400 font-bold">{index + 1}</td>
+                    <td className="p-3 font-medium text-white">{item.Paises}</td>
+                    <td className="p-3 text-right font-bold text-red-400">{item["Puntaje Global – TOTAL"]}</td>
                   </tr>
                 ))}
               </tbody>
