@@ -25,12 +25,12 @@ ChartJS.register(
   Legend
 );
 
-export default function TabGraficosComparativos({ datosTotales = [] }) {
+export default function TabGraficos({ datosTotales = [] }) {
   const [datosConsolidados, setDatosConsolidados] = useState(datosTotales);
   const [cargando, setCargando] = useState(false);
   const [errorRender, setErrorRender] = useState(null);
 
-  // Sincronizar datos si datosTotales viene vacío
+  // Sincronizar datos si datosTotales viene vacío al entrar directamente a la pestaña
   useEffect(() => {
     async function cargarDatosAutomaticos() {
       if (!datosTotales || datosTotales.length === 0) {
@@ -53,6 +53,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
           }
         } catch (err) {
           console.error("Error al cargar datos automáticos para gráficos:", err);
+          setErrorRender("No se pudieron cargar los datos de la base de datos.");
         } finally {
           setCargando(false);
         }
@@ -68,7 +69,7 @@ export default function TabGraficosComparativos({ datosTotales = [] }) {
   if (errorRender) {
     return (
       <div className="bg-[#181a20] border border-red-900/50 rounded-xl p-8 text-center text-red-400 space-y-2 shadow-sm font-sans">
-        <h3 className="text-lg font-bold text-white">Error al renderizar los gráficos</h3>
+        <h3 className="text-lg font-bold text-white">Error al cargar los gráficos</h3>
         <p className="text-xs">{errorRender}</p>
       </div>
     );
