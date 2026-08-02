@@ -178,9 +178,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   // ----------------------------------------------------
-  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
-  // ----------------------------------------------------
-const PESO_FACTOR_COSTO = 0.215; // 21.50%
+// CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
+// ----------------------------------------------------
+  const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
   const PESO_PPD = 0.44; // 44.00%
   const PESO_CTI = 0.34; // 34.00%
@@ -194,7 +194,7 @@ const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
   const maxPpd = ppdVals.length > 0 ? Math.max(...ppdVals) : null;
   const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
-  const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : null; // Corregido: se usa null en vez de 0 si está vacío
+  const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : null;
 
   const calcularNormalizadoDirecto = (val, maxVal) => {
     if (val === null || val === undefined || val <= 0 || !maxVal) return null;
@@ -220,8 +220,8 @@ const PESO_FACTOR_COSTO = 0.215; // 21.50%
     const costoSubtotalNorm = Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2));
     const aporteFactorCosto = Number((costoSubtotalNorm * PESO_FACTOR_COSTO).toFixed(2));
 
-    // Contador de valores nulos o faltantes para replicar la lógica de ordenamiento del código antiguo
-    const faltantes = [ppdNorm, ctiNorm, cicNorm, costoSubtotalNorm].filter(v => v === null).length;
+    // Contador de valores nulos o faltantes para el ordenamiento
+    const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
 
     return {
       ...row,
@@ -234,12 +234,12 @@ const PESO_FACTOR_COSTO = 0.215; // 21.50%
     };
   });
 
-  // Ordenar primero por cantidad de faltantes (ascendente) y luego por costo subtotal normalizado (ascendente)
+  // Ordenamiento: primero los que tienen menos faltantes, y luego por costo subtotal de forma descendente
   matrizCalculadaCompleta.sort((a, b) => {
     if (a.__faltantes !== b.__faltantes) {
       return a.__faltantes - b.__faltantes;
     }
-    return a.costoSubtotalNorm - b.costoSubtotalNorm;
+    return b.costoSubtotalNorm - a.costoSubtotalNorm; 
   });
 
   const matrizFiltrada = matrizCalculadaCompleta;
