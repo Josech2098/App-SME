@@ -14,23 +14,23 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
 
   const [nuevoPais, setNuevoPais] = useState('');
-  const [nuevoLpin, setNuevoLpin] = useState('');
-  const [nuevoCpt, setNuevoCpt] = useState('');
+  const [nuevoIdl, setNuevoIdl] = useState('');
+  const [nuevoCcp, setNuevoCcp] = useState('');
 
-  const [editLpin, setEditLpin] = useState('');
-  const [editCpt, setEditCpt] = useState('');
+  const [editIdl, setEditIdl] = useState('');
+  const [editCcp, setEditCcp] = useState('');
 
-  // Estados para el calculador de ITTT
+  // Estados para el calculador de TTI
   const [paisesDisponibles, setPaisesDisponibles] = useState([]);
   const [paisSalidaCalc, setPaisSalidaCalc] = useState(paisOrigen || '');
   const [paisLlegadaCalc, setPaisLlegadaCalc] = useState('');
   const [puertoSalidaCalc, setPuertoSalidaCalc] = useState('');
   const [puertoLlegadaCalc, setPuertoLlegadaCalc] = useState('');
   const [velocidadBuque, setVelocidadBuque] = useState(18.00);
-  const [resultadoIttt, setResultadoIttt] = useState({ distancia: '0 nm', tiempo: '0 días' });
+  const [resultadoTti, setResultadoTti] = useState({ distancia: '0 nm', tiempo: '0 días' });
 
-  // Almacenar los ITTT calculados por país de llegada
-  const [itttCalculadosPorPais, setItttCalculadosPorPais] = useState({});
+  // Almacenar los TTI calculados por país de llegada
+  const [ttiCalculadosPorPais, setTtiCalculadosPorPais] = useState({});
 
   // Función avanzada para normalizar cadenas (quita tildes, mayúsculas, caracteres raros y espacios múltiples)
   const normalizarTexto = (texto) => {
@@ -72,12 +72,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return R * c;
   };
 
-  // Cálculo automático del ITTT evaluando de manera robusta el diccionario y los puertos
-  const calcularItttAutomaticoTabla = (nombrePaisLlegada, diccionarioIttt) => {
+  // Cálculo automático del TTI evaluando de manera robusta el diccionario y los puertos
+  const calcularTtiAutomaticoTabla = (nombrePaisLlegada, diccionarioTti) => {
     const normLlegada = normalizarTexto(nombrePaisLlegada);
 
     // 1. Revisar si existe un cálculo manual para este país en el diccionario actual (ignorando tildes/mayúsculas)
-    for (const [key, value] of Object.entries(diccionarioIttt)) {
+    for (const [key, value] of Object.entries(diccionarioTti)) {
       if (normalizarTexto(key) === normLlegada) {
         return value;
       }
@@ -104,7 +104,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   };
 
   // Función centralizada para recargar datos desde Supabase y aplicar el diccionario actual
-  const cargarDatos = async (diccionarioActual = itttCalculadosPorPais) => {
+  const cargarDatos = async (diccionarioActual = ttiCalculadosPorPais) => {
     try {
       setCargando(true);
       const { data: puertosRes, error: errPuertos } = await supabase
@@ -138,9 +138,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           return {
             id: item.id,
             Paises: nombrePais,
-            'Índice de desempeño logístico (LPIN)': item.lpi !== null ? item.lpi : 0,
-            'Tráfico del puerto de contenedores (CPT)': item.cfr !== null ? item.cfr : 0,
-            'Tiempo de tránsito del transporte internacional (ITTT)': calcularItttAutomaticoTabla(nombrePais, diccionarioActual)
+            'Índice de Desempeño Logístico (IDL)': item.lpi !== null ? item.lpi : 0,
+            'Calidad de las carreteras por país (CCP)': item.cfr !== null ? item.cfr : 0,
+            'Tiempo de tránsito del Transporte Internacional (TTI)': calcularTtiAutomaticoTabla(nombrePais, diccionarioActual)
           };
         });
 
@@ -201,8 +201,8 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     setPaisSeleccionadoEdit(paisNombre);
     const fila = tablaLogi.find((item) => item.Paises === paisNombre);
     if (fila) {
-      setEditLpin(fila['Índice de desempeño logístico (LPIN)']);
-      setEditCpt(fila['Tráfico del puerto de contenedores (CPT)']);
+      setEditIdl(fila['Índice de Desempeño Logístico (IDL)']);
+      setEditCcp(fila['Calidad de las carreteras por país (CCP)']);
     }
   };
 
@@ -215,15 +215,15 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       const { error } = await supabase.from('tabLogi').insert([
         {
           pais: paisLimpio,
-          lpi: Number(nuevoLpin) || 0,
-          cfr: Number(nuevoCpt) || 0
+          lpi: Number(nuevoIdl) || 0,
+          cfr: Number(nuevoCcp) || 0
         }
       ]);
       if (error) throw error;
 
       setNuevoPais('');
-      setNuevoLpin('');
-      setNuevoCpt('');
+      setNuevoIdl('');
+      setNuevoCcp('');
       setOpenAdd(false);
 
       await cargarDatos();
@@ -238,8 +238,8 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       const { error } = await supabase
         .from('tabLogi')
         .update({
-          lpi: Number(editLpin),
-          cfr: Number(editCpt)
+          lpi: Number(editIdl),
+          cfr: Number(editCcp)
         })
         .eq('pais', paisSeleccionadoEdit);
 
@@ -269,7 +269,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
   };
 
-  const handleCalcularIttt = (e) => {
+  const handleCalcularTti = (e) => {
     e.preventDefault();
 
     const normSalida = normalizarTexto(paisSalidaCalc);
@@ -290,7 +290,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
 
     if (!pO || !pD) {
-      setResultadoIttt({ distancia: '0 nm', tiempo: '0 días' });
+      setResultadoTti({ distancia: '0 nm', tiempo: '0 días' });
       return;
     }
 
@@ -303,7 +303,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
     const formatoDias = `${totalDias.toFixed(1)} días`;
 
-    setResultadoIttt({
+    setResultadoTti({
       distancia: `${Math.round(distNm).toLocaleString()} nm`,
       tiempo: formatoDias
     });
@@ -313,11 +313,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       const nombrePaisReal = filaTabla ? filaTabla.Paises : paisLlegadaCalc;
 
       const nuevoDiccionario = {
-        ...itttCalculadosPorPais,
+        ...ttiCalculadosPorPais,
         [nombrePaisReal]: formatoDias
       };
 
-      setItttCalculadosPorPais(nuevoDiccionario);
+      setTtiCalculadosPorPais(nuevoDiccionario);
       cargarDatos(nuevoDiccionario);
     }
   };
@@ -364,21 +364,21 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">LPI (Índice Logístico):</label>
+                <label className="block text-xs text-slate-400 mb-1">IDL (Índice de Desempeño Logístico):</label>
                 <input 
                   type="number" 
                   step="0.01" 
-                  value={nuevoLpin} 
-                  onChange={(e) => setNuevoLpin(e.target.value)} 
+                  value={nuevoIdl} 
+                  onChange={(e) => setNuevoIdl(e.target.value)} 
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">CFR (Tráfico Contenedores):</label>
+                <label className="block text-xs text-slate-400 mb-1">CCP (Calidad de las carreteras):</label>
                 <input 
                   type="number" 
-                  value={nuevoCpt} 
-                  onChange={(e) => setNuevoCpt(e.target.value)} 
+                  value={nuevoCcp} 
+                  onChange={(e) => setNuevoCcp(e.target.value)} 
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
@@ -420,21 +420,21 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Nuevo LPI:</label>
+                <label className="block text-xs text-slate-400 mb-1">Nuevo IDL:</label>
                 <input 
                   type="number" 
                   step="0.01" 
-                  value={editLpin} 
-                  onChange={(e) => setEditLpin(e.target.value)} 
+                  value={editIdl} 
+                  onChange={(e) => setEditIdl(e.target.value)} 
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Nuevo CFR:</label>
+                <label className="block text-xs text-slate-400 mb-1">Nuevo CCP:</label>
                 <input 
                   type="number" 
-                  value={editCpt} 
-                  onChange={(e) => setEditCpt(e.target.value)} 
+                  value={editCcp} 
+                  onChange={(e) => setEditCcp(e.target.value)} 
                   className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
                 />
               </div>
@@ -487,11 +487,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       </div>
 
-      {/* ================= CÁLCULO ITTT ================= */}
+      {/* ================= CÁLCULO TTI ================= */}
       <div className="bg-[#16181d] border border-slate-800 p-5 rounded-lg space-y-4">
-        <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito Internacional (ITTT)</h3>
+        <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito del Transporte Internacional (TTI)</h3>
         
-        <form onSubmit={handleCalcularIttt} className="space-y-4">
+        <form onSubmit={handleCalcularTti} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* País de salida */}
@@ -575,20 +575,20 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               type="submit" 
               className="px-5 py-2 bg-[#1b1e26] hover:bg-[#252833] text-xs font-semibold text-white border border-slate-700/80 rounded transition-colors cursor-pointer"
             >
-              Calcular ITTT
+              Calcular TTI
             </button>
           </div>
         </form>
 
         <div className="bg-[#12281d] border border-[#1e4620] px-4 py-2.5 rounded text-xs text-[#a3d9a5] mt-3">
-          Distancia calculada: <strong className="text-white">{resultadoIttt.distancia}</strong> | Tiempo de tránsito (ITTT): <strong className="text-white">{resultadoIttt.tiempo}</strong> (Tablas actualizadas automáticamente)
+          Distancia calculada: <strong className="text-white">{resultadoTti.distancia}</strong> | Tiempo de tránsito (TTI): <strong className="text-white">{resultadoTti.tiempo}</strong> (Tablas actualizadas automáticamente)
         </div>
       </div>
 
       {/* ================= TABLA LOGÍSTICA BD ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Logística (LOGI) — Base de Datos</h3>
-        <p className="text-xs text-slate-400">Indicadores logísticos registrados (LPI, CFR) y ITTT calculado automáticamente.</p>
+        <p className="text-xs text-slate-400">Indicadores logísticos registrados (IDL, CCP) y TTI calculado automáticamente.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando datos desde Supabase...</div>
@@ -599,45 +599,45 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 <tr>
                   <th className="p-3 w-12 bg-[#181a20]">#</th>
                   <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Índice Logístico (LPI)</th>
-                  <th className="p-3 bg-[#181a20]">Tráfico Contenedores (CFR)</th>
-                  <th className="p-3 bg-[#181a20]">Tiempo Tránsito (ITTT)</th>
+                  <th className="p-3 bg-[#181a20]">Índice de Desempeño Logístico (IDL)</th>
+                  <th className="p-3 bg-[#181a20]">Calidad de las carreteras por país (CCP)</th>
+                  <th className="p-3 bg-[#181a20]">Tiempo de tránsito del Transporte Internacional (TTI)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
                 {(() => {
-                  const lpinVals = tablaLogi.map(d => Number(d['Índice de desempeño logístico (LPIN)'])).filter(v => v > 0);
-                  const cptVals = tablaLogi.map(d => Number(d['Tráfico del puerto de contenedores (CPT)'])).filter(v => v > 0);
+                  const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
+                  const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
                   
-                  const itttVals = tablaLogi.map(d => {
-                    const itttStr = String(d['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
+                  const ttiVals = tablaLogi.map(d => {
+                    const ttiStr = String(d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0')
                       .replace(/días|dias/gi, '')
                       .replace(',', '.')
                       .trim();
-                    return Number(itttStr);
+                    return Number(ttiStr);
                   }).filter(v => v > 0);
 
-                  const MAX_LPIN = lpinVals.length > 0 ? Math.max(...lpinVals) : 5.0;          
-                  const MAX_CPT = cptVals.length > 0 ? Math.max(...cptVals) : 300000000;  
-                  const MIN_ITTT = itttVals.length > 0 ? Math.min(...itttVals) : 5.0; 
+                  const MAX_IDL = idkVals.length > 0 ? Math.max(...idkVals) : 5.0;          
+                  const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : 300000000;  
+                  const MIN_TTI = ttiVals.length > 0 ? Math.min(...ttiVals) : 5.0; 
                   const A3 = 10;
 
                   const tablaOrdenadaBD = tablaLogi.map((row) => {
-                    const lpin = Number(row['Índice de desempeño logístico (LPIN)']) || 0;
-                    const cpt = Number(row['Tráfico del puerto de contenedores (CPT)']) || 0;
+                    const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
+                    const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
                     
-                    const itttStr = String(row['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
+                    const ttiStr = String(row['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0')
                       .replace(/días|dias/gi, '')
                       .replace(',', '.')
                       .trim();
-                    const ittt = Number(itttStr) || 1;
+                    const tti = Number(ttiStr) || 1;
 
-                    const lpinNorm = lpin ? Number((A3 * lpin / MAX_LPIN).toFixed(2)) : 0;
-                    const cptNorm = cpt ? Number((A3 * cpt / MAX_CPT).toFixed(2)) : 0;
-                    const itttNorm = ittt ? Number((A3 * MIN_ITTT / ittt).toFixed(2)) : 0;
+                    const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
+                    const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
+                    const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
 
-                    const costoTotal = Number((0.30 * lpinNorm + 0.30 * cptNorm + 0.40 * itttNorm).toFixed(2));
-                    const faltantes = [lpinNorm, cptNorm, itttNorm].filter(v => v === 0).length;
+                    const costoTotal = Number((0.425 * idlNorm + 0.275 * ccpNorm + 0.30 * ttiNorm).toFixed(2));
+                    const faltantes = [idlNorm, ccpNorm, ttiNorm].filter(v => v === 0).length;
 
                     return {
                       ...row,
@@ -655,9 +655,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                     <tr key={index} className="hover:bg-[#16181d] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
                       <td className="p-3 font-medium text-white">{row.Paises}</td>
-                      <td className="p-3">{row['Índice de desempeño logístico (LPIN)']}</td>
-                      <td className="p-3">{row['Tráfico del puerto de contenedores (CPT)']}</td>
-                      <td className="p-3 text-amber-400 font-medium">{row['Tiempo de tránsito del transporte internacional (ITTT)']}</td>
+                      <td className="p-3">{row['Índice de Desempeño Logístico (IDL)']}</td>
+                      <td className="p-3">{row['Calidad de las carreteras por país (CCP)']}</td>
+                      <td className="p-3 text-amber-400 font-medium">{row['Tiempo de tránsito del Transporte Internacional (TTI)']}</td>
                     </tr>
                   ));
                 })()}
@@ -670,7 +670,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       {/* ================= TABLA LOGÍSTICA NORMALIZADA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Logística Normalizada (LOGI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: LPI=30% | CFR=30% | ITTT=40%</p>
+        <p className="text-xs text-slate-400">Ponderaciones: IDL=42.50% | CCP=27.50% | TTI=30.00%</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -678,52 +678,52 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
                 <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">LPI Norm</th>
-                <th className="p-3 bg-[#181a20]">CFR Norm</th>
-                <th className="p-3 bg-[#181a20]">ITTT Norm</th>
+                <th className="p-3 bg-[#181a20]">IDL Norm</th>
+                <th className="p-3 bg-[#181a20]">CCP Norm</th>
+                <th className="p-3 bg-[#181a20]">TTI Norm</th>
                 <th className="p-3 bg-[#181a20]">Costo Total Logístico Norm</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
               {(() => {
-                const lpinVals = tablaLogi.map(d => Number(d['Índice de desempeño logístico (LPIN)'])).filter(v => v > 0);
-                const cptVals = tablaLogi.map(d => Number(d['Tráfico del puerto de contenedores (CPT)'])).filter(v => v > 0);
+                const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
+                const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
                 
-                const itttVals = tablaLogi.map(d => {
-                  const itttStr = String(d['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
+                const ttiVals = tablaLogi.map(d => {
+                  const ttiStr = String(d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0')
                     .replace(/días|dias/gi, '')
                     .replace(',', '.')
                     .trim();
-                  return Number(itttStr);
+                  return Number(ttiStr);
                 }).filter(v => v > 0);
 
-                const MAX_LPIN = lpinVals.length > 0 ? Math.max(...lpinVals) : 5.0;          
-                const MAX_CPT = cptVals.length > 0 ? Math.max(...cptVals) : 300000000;  
-                const MIN_ITTT = itttVals.length > 0 ? Math.min(...itttVals) : 5.0; 
+                const MAX_IDL = idkVals.length > 0 ? Math.max(...idkVals) : 5.0;          
+                const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : 300000000;  
+                const MIN_TTI = ttiVals.length > 0 ? Math.min(...ttiVals) : 5.0; 
                 const A3 = 10;
 
                 const tablaProcesada = tablaLogi.map((row) => {
-                  const lpin = Number(row['Índice de desempeño logístico (LPIN)']) || 0;
-                  const cpt = Number(row['Tráfico del puerto de contenedores (CPT)']) || 0;
+                  const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
+                  const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
                   
-                  const itttStr = String(row['Tiempo de tránsito del transporte internacional (ITTT)'] || '0')
+                  const ttiStr = String(row['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0')
                     .replace(/días|dias/gi, '')
                     .replace(',', '.')
                     .trim();
-                  const ittt = Number(itttStr) || 1;
+                  const tti = Number(ttiStr) || 1;
 
-                  const lpinNorm = lpin ? Number((A3 * lpin / MAX_LPIN).toFixed(2)) : 0;
-                  const cptNorm = cpt ? Number((A3 * cpt / MAX_CPT).toFixed(2)) : 0;
-                  const itttNorm = ittt ? Number((A3 * MIN_ITTT / ittt).toFixed(2)) : 0;
+                  const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
+                  const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
+                  const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
 
-                  const costoTotal = Number((0.30 * lpinNorm + 0.30 * cptNorm + 0.40 * itttNorm).toFixed(2));
-                  const faltantes = [lpinNorm, cptNorm, itttNorm].filter(v => v === 0).length;
+                  const costoTotal = Number((0.425 * idlNorm + 0.275 * ccpNorm + 0.30 * ttiNorm).toFixed(2));
+                  const faltantes = [idlNorm, ccpNorm, ttiNorm].filter(v => v === 0).length;
 
                   return {
                     ...row,
-                    lpinNorm,
-                    cptNorm,
-                    itttNorm,
+                    idlNorm,
+                    ccpNorm,
+                    ttiNorm,
                     costoTotal,
                     __faltantes: faltantes
                   };
@@ -738,9 +738,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   <tr key={index} className="hover:bg-[#16181d] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{row.lpinNorm}</td>
-                    <td className="p-3">{row.cptNorm}</td>
-                    <td className="p-3">{row.itttNorm}</td>
+                    <td className="p-3">{row.idlNorm}</td>
+                    <td className="p-3">{row.ccpNorm}</td>
+                    <td className="p-3">{row.ttiNorm}</td>
                     <td className="p-3 font-bold text-emerald-400">{row.costoTotal}</td>
                   </tr>
                 ));
