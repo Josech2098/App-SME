@@ -8,6 +8,7 @@ import TabEconomia from './components/TabEconomia';
 import TabPolitica from './components/TabPolitica';
 import TabCultura from './components/TabCultura';
 import TabTablaTotal from './components/TabTablaTotal'; // Importación de la nueva pestaña
+import TabGraficosComparativos from './components/TabGraficosComparativos'; // Importación del componente de gráficos
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -18,6 +19,9 @@ export default function App() {
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [paisesDestino, setPaisesDestino] = useState([]);
   const [paisOrigen, setPaisOrigen] = useState('España'); // Por defecto
+
+  // Estado global compartido para almacenar la información total procesada y pasársela a gráficos si es necesario
+  const [datosTablaTotal, setDatosTablaTotal] = useState([]);
 
   // Filtros de la barra lateral
   const [categoria, setCategoria] = useState('Todos');
@@ -320,10 +324,17 @@ export default function App() {
             <TabTablaTotal 
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
+              onDatosActualizados={(datos) => setDatosTablaTotal(datos)}
             />
           )}
 
-          {activeTab > 7 && (
+          {activeTab === 8 && (
+            <TabGraficosComparativos 
+              datosTotales={datosTablaTotal} 
+            />
+          )}
+
+          {activeTab > 8 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
                 {tabList[activeTab]}
