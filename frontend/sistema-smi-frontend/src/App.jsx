@@ -7,8 +7,8 @@ import TabComercial from './components/TabComercial';
 import TabEconomia from './components/TabEconomia';
 import TabPolitica from './components/TabPolitica';
 import TabCultura from './components/TabCultura';
-import TabTablaTotal from './components/TabTablaTotal'; // Importación de la nueva pestaña
-import TabGraficosComparativos from './components/TabGraficosComparativos'; // Importación del componente de gráficos
+import TabTablaTotal from './components/TabTablaTotal';
+import TabGraficosComparativos from './components/Tabgraficos'; // <- CORREGIDO AQUÍ
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
