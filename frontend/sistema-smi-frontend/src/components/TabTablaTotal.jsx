@@ -6,7 +6,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
   const [cargando, setCargando] = useState(true);
   const [errorNotif, setErrorNotif] = useState(null);
 
-  // Ponderaciones iniciales por categoría (Ahora son 7 y suman 100%)
+  // Ponderaciones iniciales por categoría (7 categorías, suman 100%)
   const [pesosCat, setPesosCat] = useState({
     COST: 15,
     LOGI: 15,
@@ -77,6 +77,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           for (let campo of posiblesCampos) {
             if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo])) {
               const val = Number(row[campo]);
+              // Si viene en escala 0-100 y supera 10, lo convertimos a 0-10
               return escala100 && val > 10 ? val / 10 : val;
             }
           }
@@ -111,7 +112,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           });
         };
 
-        // Se amplían los posibles nombres de columnas para capturar correctamente la data de Supabase
+        // Asignación directa de campos normalizados específicos por tabla
         procesarDataset(resCostos.data, "1. Cost (COST)", ['costo_normalizado', 'costo', 'valor_normalizado', 'puntaje', 'score', 'valor']);
         procesarDataset(resLogistica.data, "2. Logistical (LOGI)", ['logistica_normalizada', 'logistica', 'valor_normalizado', 'puntaje', 'score', 'valor']);
         procesarDataset(resComercio.data, "3. Commercial (COMM)", ['comercio_normalizado', 'comercio', 'valor_normalizado', 'puntaje', 'score', 'valor']);
@@ -119,7 +120,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         procesarDataset(resPolitica.data, "5. Political (POLI)", ['politica_normalizada', 'politica', 'valor_normalizado', 'puntaje', 'score', 'valor']);
         procesarDataset(resCultura.data, "6. Cultura (CULT)", ['indice_globalizacion', 'cultura', 'valor_normalizado', 'puntaje', 'score', 'indiceglobalizacion', 'valor'], true);
 
-        // Procesar datos crudos para Sostenibilidad (EDC e ISG)
+        // Procesamiento específico para Sostenibilidad
         resEmisiones.data?.forEach(row => {
           const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
           if (pais && mapaPaises[pais]) {
@@ -152,6 +153,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           item["7. Sostenibilidad (SUST)"] = sustVal;
         });
 
+        // Limpieza final y filtro por países destino si aplica
         let lista = allItems.map(item => ({
           ...item,
           "1. Cost (COST)": item["1. Cost (COST)"] !== null ? item["1. Cost (COST)"] : 5.0,
@@ -205,6 +207,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
+      
       {/* ENCABEZADO */}
       <div className="bg-[#181a20] p-6 rounded-xl border border-slate-800 shadow-sm">
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Consolidación Global</span>
@@ -323,7 +326,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         )}
       </div>
 
-      {/* TABLA 2: TABLA RESUMEN */}
+      {/* TABLA 2: TABLA RESUMEN — PUNTAJE PONDERADO TOTAL */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla Resumen — Puntaje Ponderado Total</h3>
@@ -363,6 +366,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           </div>
         )}
       </div>
+
     </div>
   );
 }
