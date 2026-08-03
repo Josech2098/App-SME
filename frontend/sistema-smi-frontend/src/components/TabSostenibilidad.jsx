@@ -55,33 +55,41 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 999);
       if (errIsg) console.warn("Aviso en indice_sostenibilidad_global:", errIsg);
 
-      const datosConsolidados = dbPaises.map((p) => {
-        const nombrePais = (p.nombre || '').trim().toLowerCase();
+      // Depuración en consola para verificar qué trae Supabase
+      console.log("DB Paises muestra:", dbPaises?.slice(0, 3));
+      console.log("DB ISG muestra:", dbIsg?.slice(0, 3));
 
-        // Mapeo exacto para Emisiones de Dióxido de Carbono (EDC)
+      const normalizarTexto = (str) => 
+        (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+
+      const datosConsolidados = dbPaises.map((p) => {
+        const nombrePaisRaw = p.nombre || '';
+        const nombrePaisClean = normalizarTexto(nombrePaisRaw);
+
+        // Mapeo flexible para Emisiones de Dióxido de Carbono (EDC)
         const emisMatch = (dbEmisiones || []).find(c => {
-          const valPaisC = String(c.pais || c.nombre || '').trim().toLowerCase();
-          return valPaisC === nombrePais;
+          const valPaisC = normalizarTexto(c.pais || c.nombre || '');
+          return valPaisC === nombrePaisClean;
         });
         
         let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
         if (isNaN(edcVal)) edcVal = null;
 
-        // Mapeo exacto para Índice de Sostenibilidad Global (ISG) - Corregido a indicesostenibilidaglobal
+        // Mapeo flexible para Índice de Sostenibilidad Global (ISG)
         const isgMatch = (dbIsg || []).find(c => {
-          const valPaisI = String(c.pais || c.nombre || '').trim().toLowerCase();
-          return valPaisI === nombrePais;
+          const valPaisI = normalizarTexto(c.pais || c.nombre || '');
+          return valPaisI === nombrePaisClean;
         });
 
         let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? isgMatch.isg ?? 0) : null;
         if (isNaN(isgVal)) isgVal = null;
 
-        // Riesgo País Global (RPG) se mantiene en null por no tener tabla ni datos
+        // Riesgo País Global (RPG) se mantiene vacío por no tener tabla/datos
         let rpgVal = null; 
 
         return {
           id: p.id,
-          pais_nombre: p.nombre,
+          pais_nombre: nombrePaisRaw,
           edc: edcVal,
           rpg: rpgVal,
           isg: isgVal
