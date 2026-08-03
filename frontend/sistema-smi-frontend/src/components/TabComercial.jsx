@@ -95,37 +95,51 @@ export default function TabComercial({
         return;
       }
 
-      // Valores exactos basados en la captura provista
-      const valoresPrecargados = [
-        { pais: 'Albania', ctco: 2.0, iemp: 4.5, ioef: 68.0 },
-        { pais: 'Honduras', ctco: 2.0, iemp: 4.3, ioef: 59.1 },
-        { pais: 'Ruanda', ctco: 2.0, iemp: 4.2, ioef: 56.5 },
-        { pais: 'Polonia', ctco: 2.1, iemp: 4.2, ioef: 68.5 },
-        { pais: 'Georgia', ctco: 2.1, iemp: 3.9, ioef: 69.6 },
-        { pais: 'Estados Unidos', ctco: 2.2, iemp: 4.2, ioef: 72.8 },
-        { pais: 'Nueva Zelanda', ctco: 2.2, iemp: 3.1, ioef: 77.8 },
-        { pais: 'Ecuador', ctco: 2.3, iemp: 4.4, ioef: 55.6 }
-      ];
-
       const dfComm = listaPaisesFuente.map((itemPais, idx) => {
         const nombreOriginal = typeof itemPais === 'string' ? itemPais : (itemPais.nombre || itemPais.pais || itemPais.Paises || itemPais.Nombre || Object.values(itemPais)[0]);
         const paisNorm = normalizarTexto(nombreOriginal);
 
-        const encontrado = valoresPrecargados.find(v => normalizarTexto(v.pais) === paisNorm);
+        const matchIemp = effectivePenetracion.find(item => {
+          const valPais = item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0];
+          return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
+        });
+
+        const matchIoef = effectiveLibertad.find(item => {
+          const valPais = item.pais || item.nombre || item.Paises || item.Nombre || Object.values(item)[0];
+          return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
+        });
+
+        const overrideMatch = commOverrides.find(ovr => normalizarTexto(ovr.Paises) === paisNorm);
+
+        const extraerValorFlexible = (obj) => {
+          if (!obj) return null;
+          for (const key of Object.keys(obj)) {
+            const kNorm = normalizarTexto(key);
+            if (kNorm !== 'id' && kNorm !== 'pais' && kNorm !== 'nombre' && kNorm !== 'created_at') {
+              const val = Number(obj[key]);
+              if (!isNaN(val) && val !== 0) return val;
+            }
+          }
+          const valNum = Object.values(obj).find(v => typeof v === 'number' && !isNaN(v));
+          return valNum !== undefined ? Number(valNum) : null;
+        };
+
+        const calculoArancelCTCO = Number((2.0 + (idx * 0.1)).toFixed(2));
+
+        const valIemp = overrideMatch && overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] !== undefined
+          ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
+          : (matchIemp ? extraerValorFlexible(matchIemp) ?? 4.0 : 4.0);
+
+        const valIoef = overrideMatch && overrideMatch['Índice de Libertad Económica (IOEF)'] !== undefined
+          ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
+          : (matchIoef ? extraerValorFlexible(matchIoef) ?? 60.0 : 60.0);
 
         return {
           Paises: nombreOriginal,
-          'Aranceles aduaneros por país de origen (CTCO)': encontrado ? encontrado.ctco : Number((2.0 + (idx * 0.7) % 5.0).toFixed(2)),
-          'Índice de penetración en el mercado de exportación (IEMP)': encontrado ? encontrado.iemp : 4.2,
-          'Índice de Libertad Económica (IOEF)': encontrado ? encontrado.ioef : 60.0
+          'Aranceles aduaneros por país de origen (CTCO)': calculoArancelCTCO,
+          'Índice de penetración en el mercado de exportación (IEMP)': Number(valIemp) || 0,
+          'Índice de Libertad Económica (IOEF)': Number(valIoef) || 0
         };
-      });
-
-      dfComm.sort((a, b) => {
-        if (a['Aranceles aduaneros por país de origen (CTCO)'] !== b['Aranceles aduaneros por país de origen (CTCO)']) {
-          return a['Aranceles aduaneros por país de origen (CTCO)'] - b['Aranceles aduaneros por país de origen (CTCO)'];
-        }
-        return b['Índice de penetración en el mercado de exportación (IEMP)'] - a['Índice de penetración en el mercado de exportación (IEMP)'];
       });
 
       setDatosCommConsolidados(dfComm);
@@ -145,14 +159,14 @@ export default function TabComercial({
         const iempVal = item['Índice de penetración en el mercado de exportación (IEMP)'];
         const ioefVal = item['Índice de Libertad Económica (IOEF)'];
 
-        // CTCO: Menor valor es mejor (Inverso: (Max - Val) / (Max - Min))
+        // CTCO (Inverso: menor arancel es mejor)
         const ctcoNorm = (ctcoMax !== ctcoMin) ? Number((A3 * (ctcoMax - ctcoVal) / (ctcoMax - ctcoMin)).toFixed(2)) : A3;
         
-        // IEMP e IOEF: Mayor valor es mejor (Directo: (Val - Min) / (Max - Min))
+        // IEMP e IOEF (Directo: mayor índice es mejor)
         const iempNorm = (iempMax !== iempMin) ? Number((A3 * (iempVal - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
         const ioefNorm = (ioefMax !== ioefMin) ? Number((A3 * (ioefVal - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
 
-        // Ponderación exacta de la imagen: 50% CTCO, 30% IEMP, 20% IOEF
+        // Ponderación: 50% CTCO, 30% IEMP, 20% IOEF
         const commTotal = Number((ctcoNorm * 0.50 + iempNorm * 0.30 + ioefNorm * 0.20).toFixed(2));
 
         return {
