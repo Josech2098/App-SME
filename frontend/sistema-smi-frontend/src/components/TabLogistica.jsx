@@ -636,7 +636,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                     const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
                     const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
 
-                    const costoTotal = Number((0.425 * idlNorm + 0.275 * ccpNorm + 0.30 * ttiNorm).toFixed(2));
+                    const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
                     const faltantes = [idlNorm, ccpNorm, ttiNorm].filter(v => v === 0).length;
 
                     return {
@@ -670,7 +670,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       {/* ================= TABLA LOGÍSTICA NORMALIZADA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Logística Normalizada (LOGI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: IDL=42.50% | CCP=27.50% | TTI=30.00%</p>
+        <p className="text-xs text-slate-400">Ponderaciones actualizadas: IDL=18.50% | CCP=18.50% | TTI=63.00%</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -716,7 +716,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
                   const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
 
-                  const costoTotal = Number((0.425 * idlNorm + 0.275 * ccpNorm + 0.30 * ttiNorm).toFixed(2));
+                  const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
                   const faltantes = [idlNorm, ccpNorm, ttiNorm].filter(v => v === 0).length;
 
                   return {
