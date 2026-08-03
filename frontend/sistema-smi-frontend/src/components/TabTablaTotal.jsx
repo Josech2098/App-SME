@@ -54,11 +54,20 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
 
         const mapaPaises = {};
 
+        // 1. Inicializar con la lista oficial de países
         resPaises.data?.forEach(p => {
           const nombre = (p.nombre || p.pais || p.country || "").trim();
           if (nombre) {
             mapaPaises[nombre.toLowerCase()] = {
               Paises: nombre,
+              rawCost: null,
+              rawLogi: null,
+              rawComm: null,
+              rawEcon: null,
+              rawPoli: null,
+              rawCult: null,
+              rawEdc: null,
+              rawIsg: null,
               "1. Cost (COST)": null,
               "2. Logistical (LOGI)": null,
               "3. Commercial (COMM)": null,
@@ -66,25 +75,22 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
               "5. Political (POLI)": null,
               "6. Cultura (CULT)": null,
               "7. Sostenibilidad (SUST)": null,
-              rawEdc: null,
-              rawIsg: null
             };
           }
         });
 
-        const extraerValorEspecifico = (row, posiblesCampos, escala100 = false) => {
+        // Función auxiliar genérica para extraer el valor numérico crudo de una tabla
+        const extraerValorCrudo = (row, posiblesCampos) => {
           if (!row) return null;
           for (let campo of posiblesCampos) {
             if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo])) {
-              const val = Number(row[campo]);
-              // Si viene en escala 0-100 y supera 10, lo convertimos a 0-10
-              return escala100 && val > 10 ? val / 10 : val;
+              return Number(row[campo]);
             }
           }
           return null;
         };
 
-        const procesarDataset = (data, claveMetrica, camposPosibles, escala100 = false) => {
+        const poblarCrudos = (data, claveRaw, camposPosibles) => {
           data?.forEach(row => {
             const nombrePais = (row.pais || row.Paises || row.nombre || row.country || "").trim();
             if (!nombrePais) return;
@@ -93,34 +99,27 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
             if (!mapaPaises[keyMap]) {
               mapaPaises[keyMap] = {
                 Paises: nombrePais,
-                "1. Cost (COST)": null,
-                "2. Logistical (LOGI)": null,
-                "3. Commercial (COMM)": null,
-                "4. Economic (ECON)": null,
-                "5. Political (POLI)": null,
-                "6. Cultura (CULT)": null,
-                "7. Sostenibilidad (SUST)": null,
-                rawEdc: null,
-                rawIsg: null
+                rawCost: null, rawLogi: null, rawComm: null, rawEcon: null, rawPoli: null, rawCult: null, rawEdc: null, rawIsg: null,
+                "1. Cost (COST)": null, "2. Logistical (LOGI)": null, "3. Commercial (COMM)": null,
+                "4. Economic (ECON)": null, "5. Political (POLI)": null, "6. Cultura (CULT)": null, "7. Sostenibilidad (SUST)": null
               };
             }
 
-            const val = extraerValorEspecifico(row, camposPosibles, escala100);
+            const val = extraerValorCrudo(row, camposPosibles);
             if (val !== null) {
-              mapaPaises[keyMap][claveMetrica] = val;
+              mapaPaises[keyMap][claveRaw] = val;
             }
           });
         };
 
-        // Asignación directa de campos normalizados específicos por tabla
-        procesarDataset(resCostos.data, "1. Cost (COST)", ['costo_normalizado', 'costo', 'valor_normalizado', 'puntaje', 'score', 'valor']);
-        procesarDataset(resLogistica.data, "2. Logistical (LOGI)", ['logistica_normalizada', 'logistica', 'valor_normalizado', 'puntaje', 'score', 'valor']);
-        procesarDataset(resComercio.data, "3. Commercial (COMM)", ['comercio_normalizado', 'comercio', 'valor_normalizado', 'puntaje', 'score', 'valor']);
-        procesarDataset(resEconomia.data, "4. Economic (ECON)", ['economia_normalizada', 'economia', 'valor_normalizado', 'puntaje', 'score', 'valor']);
-        procesarDataset(resPolitica.data, "5. Political (POLI)", ['politica_normalizada', 'politica', 'valor_normalizado', 'puntaje', 'score', 'valor']);
-        procesarDataset(resCultura.data, "6. Cultura (CULT)", ['indice_globalizacion', 'cultura', 'valor_normalizado', 'puntaje', 'score', 'indiceglobalizacion', 'valor'], true);
+        // 2. Extraer los valores reales/crudos de cada tabla
+        poblarCrudos(resCostos.data, "rawCost", ['costo', 'valor', 'monto', 'score', 'puntaje']);
+        poblarCrudos(resLogistica.data, "rawLogi", ['logistica', 'valor', 'score', 'puntaje', 'indice']);
+        poblarCrudos(resComercio.data, "rawComm", ['comercio', 'valor', 'score', 'puntaje', 'exportaciones']);
+        poblarCrudos(resEconomia.data, "rawEcon", ['economia', 'pib', 'valor', 'score', 'puntaje']);
+        poblarCrudos(resPolitica.data, "rawPoli", ['politica', 'valor', 'score', 'puntaje', 'estabilidad']);
+        poblarCrudos(resCultura.data, "rawCult", ['indice_globalizacion', 'cultura', 'valor', 'score', 'puntaje']);
 
-        // Procesamiento específico para Sostenibilidad
         resEmisiones.data?.forEach(row => {
           const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
           if (pais && mapaPaises[pais]) {
@@ -138,12 +137,44 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         });
 
         const allItems = Object.values(mapaPaises);
+
+        // 3. Calcular Mínimos y Máximos globales para la Normalización Automática (Min-Max Scaling 0 a 10)
+        const obtenerMinMax = (key) => {
+          const vals = allItems.map(i => i[key]).filter(v => v !== null && !isNaN(v));
+          return {
+            min: vals.length > 0 ? Math.min(...vals) : 0,
+            max: vals.length > 0 ? Math.max(...vals) : 1
+          };
+        };
+
+        const mmCost = obtenerMinMax("rawCost");
+        const mmLogi = obtenerMinMax("rawLogi");
+        const mmComm = obtenerMinMax("rawComm");
+        const mmEcon = obtenerMinMax("rawEcon");
+        const mmPoli = obtenerMinMax("rawPoli");
+        const mmCult = obtenerMinMax("rawCult");
+
         const edcVals = allItems.map(i => i.rawEdc).filter(v => v !== null && v > 0);
         const isgVals = allItems.map(i => i.rawIsg).filter(v => v !== null && v > 0);
         const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null;
         const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null;
 
+        // 4. Aplicar normalización automática a escala de 0 a 10
         allItems.forEach(item => {
+          const normalizar = (val, mm) => {
+            if (val === null || mm.max === mm.min) return null;
+            const res = ((val - mm.min) / (mm.max - mm.min)) * 10;
+            return Number(res.toFixed(2));
+          };
+
+          item["1. Cost (COST)"] = normalizar(item.rawCost, mmCost);
+          item["2. Logistical (LOGI)"] = normalizar(item.rawLogi, mmLogi);
+          item["3. Commercial (COMM)"] = normalizar(item.rawComm, mmComm);
+          item["4. Economic (ECON)"] = normalizar(item.rawEcon, mmEcon);
+          item["5. Political (POLI)"] = normalizar(item.rawPoli, mmPoli);
+          item["6. Cultura (CULT)"] = normalizar(item.rawCult, mmCult);
+
+          // Sostenibilidad
           let sustVal = null;
           if (item.rawEdc !== null && item.rawIsg !== null && minEdc && maxIsg) {
             const edcNorm = (10 * minEdc) / item.rawEdc;
@@ -153,7 +184,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           item["7. Sostenibilidad (SUST)"] = sustVal;
         });
 
-        // Limpieza final y filtro por países destino si aplica
+        // 5. Asignar fallback de 5.0 si algún dato no existe, y filtrar por países destino
         let lista = allItems.map(item => ({
           ...item,
           "1. Cost (COST)": item["1. Cost (COST)"] !== null ? item["1. Cost (COST)"] : 5.0,
@@ -173,8 +204,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         setDatosTotales(lista);
         setErrorNotif(null);
       } catch (err) {
-        console.error("Error al sincronizar las tablas totales:", err);
-        setErrorNotif("Hubo un problema al consolidar las métricas de las pestañas.");
+        console.error("Error al calcular las métricas normalizadas:", err);
+        setErrorNotif("Hubo un problema al calcular automáticamente las métricas.");
       } finally {
         setCargando(false);
       }
@@ -207,7 +238,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
-      
       {/* ENCABEZADO */}
       <div className="bg-[#181a20] p-6 rounded-xl border border-slate-800 shadow-sm">
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Consolidación Global</span>
@@ -282,7 +312,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
 
         {cargando ? (
           <div className="py-12 text-center text-xs text-slate-400">
-            Cargando y consolidando las métricas normalizadas de cada pestaña...
+            Cargando y calculando las métricas normalizadas de cada pestaña...
           </div>
         ) : datosCalculados.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400">
@@ -326,7 +356,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         )}
       </div>
 
-      {/* TABLA 2: TABLA RESUMEN — PUNTAJE PONDERADO TOTAL */}
+      {/* TABLA 2: TABLA RESUMEN */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla Resumen — Puntaje Ponderado Total</h3>
@@ -366,7 +396,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           </div>
         )}
       </div>
-
     </div>
   );
 }
