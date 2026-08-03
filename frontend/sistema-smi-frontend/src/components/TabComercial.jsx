@@ -10,34 +10,42 @@ export default function TabComercial({
   datosIndicePenetracion = [], 
   datosLibertadEconomica = []   
 }) {
+  const [dbPaises, setDbPaises] = useState([]);
   const [dbPenetracion, setDbPenetracion] = useState(datosIndicePenetracion);
   const [dbLibertad, setDbLibertad] = useState(datosLibertadEconomica);
   const [cargandoSupabase, setCargandoSupabase] = useState(false);
 
   useEffect(() => {
     async function fetchDataFromSupabase() {
-      if ((!datosIndicePenetracion || datosIndicePenetracion.length === 0) || 
-          (!datosLibertadEconomica || datosLibertadEconomica.length === 0)) {
-        setCargandoSupabase(true);
-        try {
-          const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
-          const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
+      setCargandoSupabase(true);
+      try {
+        const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
+        const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
+        
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
           
-          if (supabaseUrl && supabaseKey) {
-            const supabase = createClient(supabaseUrl, supabaseKey);
+          // Cargar desde la tabla 'paises'
+          const { data: paisesData, error: paisesError } = await supabase.from('paises').select('*');
+          if (paisesError) console.error('Error al consultar paises:', paisesError);
+          else if (paisesData) setDbPaises(paisesData);
+
+          if (!datosIndicePenetracion || datosIndicePenetracion.length === 0) {
             const { data: penData, error: penError } = await supabase.from('indicepenetracion').select('*');
             if (penError) console.error('Error al consultar indicepenetracion:', penError);
             else if (penData) setDbPenetracion(penData);
+          }
 
+          if (!datosLibertadEconomica || datosLibertadEconomica.length === 0) {
             const { data: libData, error: libError } = await supabase.from('libertadeconomica').select('*');
             if (libError) console.error('Error al consultar liberdadeconomica:', libError);
             else if (libData) setDbLibertad(libData);
           }
-        } catch (e) {
-          console.error("Excepción al conectar con Supabase:", e);
-        } finally {
-          setCargandoSupabase(false);
         }
+      } catch (e) {
+        console.error("Excepción al conectar con Supabase:", e);
+      } finally {
+        setCargandoSupabase(false);
       }
     }
     fetchDataFromSupabase();
@@ -67,7 +75,7 @@ export default function TabComercial({
       const registrarPais = (textoOriginal) => {
         if (!textoOriginal || typeof textoOriginal !== 'string') return;
         const limpio = textoOriginal.trim();
-        if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice') && !limpio.toLowerCase().includes('producto')) {
+        if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice')) {
           const claveNorm = normalizarTexto(limpio);
           if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
             mapaPaisesUnicos.set(claveNorm, limpio);
@@ -75,45 +83,31 @@ export default function TabComercial({
         }
       };
 
-      if (Array.isArray(productos)) {
-        productos.forEach(prod => {
-          if (!prod) return;
-          if (typeof prod === 'string') {
-            registrarPais(prod);
-          } else if (typeof prod === 'object') {
-            Object.entries(prod).forEach(([key, val]) => {
-              const kNorm = key.toLowerCase();
-              if (kNorm.includes('pais') || kNorm.includes('destino') || kNorm.includes('country') || kNorm.includes('nombre')) {
-                if (typeof val === 'string') registrarPais(val);
-              }
-            });
-            Object.values(prod).forEach(val => {
-              if (typeof val === 'string' && val.trim().length > 2 && val.length < 50) {
-                registrarPais(val);
-              }
-            });
+      // Carga directa de la tabla 'paises' de Supabase
+      if (Array.isArray(dbPaises) && dbPaises.length > 0) {
+        dbPaises.forEach(item => {
+          const nombrePais = item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0];
+          if (typeof nombrePais === 'string') {
+            registrarPais(nombrePais);
           }
         });
       }
 
-      if (Array.isArray(paisesDestino)) {
-        paisesDestino.forEach(p => {
-          if (typeof p === 'string') registrarPais(p);
-          else if (p && typeof p === 'object') {
-            Object.values(p).forEach(val => { if (typeof val === 'string') registrarPais(val); });
-          }
-        });
-      }
-
+      // Respaldo por si la tabla 'paises' viene vacía o tarda en cargar
       if (mapaPaisesUnicos.size === 0) {
-        effectivePenetracion.forEach(item => {
-          const pais = item.nombre || item.pais || item.Paises || item.Nombre;
-          if (pais) registrarPais(pais);
-        });
-        effectiveLibertad.forEach(item => {
-          const pais = item.pais || item.nombre || item.Paises || item.Nombre;
-          if (pais) registrarPais(pais);
-        });
+        if (Array.isArray(paisesDestino) && paisesDestino.length > 0) {
+          paisesDestino.forEach(p => {
+            if (typeof p === 'string') registrarPais(p);
+            else if (p && typeof p === 'object') {
+              Object.values(p).forEach(val => { if (typeof val === 'string') registrarPais(val); });
+            }
+          });
+        } else {
+          effectivePenetracion.forEach(item => {
+            const pais = item.nombre || item.pais || item.Paises || item.Nombre;
+            if (pais) registrarPais(pais);
+          });
+        }
       }
 
       let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
@@ -197,7 +191,6 @@ export default function TabComercial({
         const iempNorm = (iempVal > 0) ? Number(((A3 * minIemp) / iempVal).toFixed(2)) : 0;
         const ioefNorm = (maxIoef > 0) ? Number(((A3 * ioefVal) / maxIoef).toFixed(2)) : 0;
 
-        // Ponderaciones actualizadas: ARA (46.5%), IBC (25%), ILE (28.5%)
         const commTotal = Number((ctcoNorm * 0.465 + iempNorm * 0.25 + ioefNorm * 0.285).toFixed(2));
 
         return {
@@ -216,21 +209,21 @@ export default function TabComercial({
       console.error("Error al procesar la sincronización:", err);
       setErrorProceso(err.message);
     }
-  }, [productos, paisesDestino, effectivePenetracion, effectiveLibertad, commOverrides]);
+  }, [dbPaises, paisesDestino, effectivePenetracion, effectiveLibertad, commOverrides]);
 
   return (
     <div className="space-y-6 text-slate-100 font-sans p-2">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Extracción de países desde productos y conexión con Supabase.
+          Carga de países desde la tabla 'paises' en Supabase y cruce con índices.
         </p>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs flex items-center justify-between">
         <div>
-          <span className="text-slate-400">Productos analizados:</span> <strong className="text-white">{productos.length}</strong> | 
-          <span className="text-slate-400 ml-2">Países detectados:</span> <strong className="text-emerald-400">{datosCommConsolidados.length}</strong>
+          <span className="text-slate-400">Países cargados desde BD:</span> <strong className="text-white">{dbPaises.length}</strong> | 
+          <span className="text-slate-400 ml-2">Registros procesados:</span> <strong className="text-emerald-400">{datosCommConsolidados.length}</strong>
         </div>
         <div>
           {cargandoSupabase && <span className="text-amber-400 animate-pulse">Cargando datos de Supabase...</span>}
@@ -246,7 +239,7 @@ export default function TabComercial({
             <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
               <tr>
                 <th className="p-3 w-12">#</th>
-                <th className="p-3">País (desde Productos)</th>
+                <th className="p-3">País (desde Tabla Paises)</th>
                 <th className="p-3">Aranceles Aduaneros (ARA)</th>
                 <th className="p-3">Índice de Barreras al Comercio Internacional (IBC)</th>
                 <th className="p-3">Índice de Libertad Económica (ILE)</th>
@@ -265,7 +258,7 @@ export default function TabComercial({
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500 italic">No hay países detectados en los productos o tablas.</td>
+                  <td colSpan="5" className="p-6 text-center text-slate-500 italic">No hay países cargados desde la tabla 'paises'.</td>
                 </tr>
               )}
             </tbody>
