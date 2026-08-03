@@ -28,7 +28,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
   useEffect(() => {
     async function fetchPaises() {
-      const { data } = await supabase.from('paises').select('*').order('nombre');
+      const { data } = await supabase.from('paises').select('*').range(0, 9999).order('nombre');
       if (data) setListaPaises(data);
     }
     fetchPaises();
@@ -43,38 +43,31 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     setErrorLog(null);
 
     try {
-      // 1. Obtener lista de países
-      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').range(0, 999).order('nombre');
+      // 1. Obtener lista completa de países (sin límite de 100)
+      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').range(0, 9999).order('nombre');
       if (errPaises) throw errPaises;
 
-      // 2. Obtener datos de emisiones_carbono
-      const { data: dbEmisiones, error: errEmis } = await supabase.from('emisiones_carbono').select('*').range(0, 999);
+      // 2. Obtener datos de emisiones_carbono completos
+      const { data: dbEmisiones, error: errEmis } = await supabase.from('emisiones_carbono').select('*').range(0, 9999);
       if (errEmis) console.warn("Aviso en emisiones_carbono:", errEmis);
 
-      // 3. Obtener datos de indice_sostenibilidad_global
-      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 999);
+      // 3. Obtener datos de indice_sostenibilidad_global completos
+      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 9999);
       if (errIsg) throw errIsg;
 
-      const normalizarTexto = (str) => 
-        (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-
       const datosConsolidados = (dbPaises || []).map((p) => {
-        const nombreOriginal = (p.nombre || '').trim();
-        const nombreClean = normalizarTexto(nombreOriginal);
+        const nombrePais = (p.nombre || '').trim();
 
-        // Búsqueda flexible para Emisiones (intenta primero exacto, luego normalizado)
+        // Búsqueda directa por coincidencia de nombre exacto (case insensitive)
         const emisMatch = (dbEmisiones || []).find(c => {
-          const cPais = (c.pais || '').trim();
-          return cPais === nombreOriginal || normalizarTexto(cPais) === nombreClean;
+          return String(c.pais || '').trim().toLowerCase() === nombrePais.toLowerCase();
         });
         
         let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
         if (isNaN(edcVal)) edcVal = null;
 
-        // Búsqueda flexible para el Índice de Sostenibilidad Global
         const isgMatch = (dbIsg || []).find(c => {
-          const cPais = (c.pais || '').trim();
-          return cPais === nombreOriginal || normalizarTexto(cPais) === nombreClean;
+          return String(c.pais || '').trim().toLowerCase() === nombrePais.toLowerCase();
         });
 
         let rawIsg = isgMatch ? isgMatch.indicesostenibilidaglobal : null;
