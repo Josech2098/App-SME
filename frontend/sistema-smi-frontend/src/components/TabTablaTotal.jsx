@@ -79,11 +79,11 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           }
         });
 
-        // Función auxiliar genérica para extraer el valor numérico crudo de una tabla
+        // Función auxiliar robusta para extraer el valor numérico probando múltiples nombres de columnas
         const extraerValorCrudo = (row, posiblesCampos) => {
           if (!row) return null;
           for (let campo of posiblesCampos) {
-            if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo])) {
+            if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo]) && row[campo] !== "") {
               return Number(row[campo]);
             }
           }
@@ -112,18 +112,18 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           });
         };
 
-        // 2. Extraer los valores reales/crudos de cada tabla (nombres oficiales: costos, logistica, comercio, economia, politica, indiceglobalizacion, emisiones_carbono, indice_sostenibilidad_global, paises)
-        poblarCrudos(resCostos.data, "rawCost", ['costo', 'valor', 'monto', 'score', 'puntaje']);
-        poblarCrudos(resLogistica.data, "rawLogi", ['logistica', 'valor', 'score', 'puntaje', 'indice']);
-        poblarCrudos(resComercio.data, "rawComm", ['comercio', 'valor', 'score', 'puntaje', 'exportaciones']);
-        poblarCrudos(resEconomia.data, "rawEcon", ['economia', 'pib', 'valor', 'score', 'puntaje']);
-        poblarCrudos(resPolitica.data, "rawPoli", ['politica', 'valor', 'score', 'puntaje', 'estabilidad']);
-        poblarCrudos(resCultura.data, "rawCult", ['indice_globalizacion', 'cultura', 'valor', 'score', 'puntaje']);
+        // 2. Extraer los valores reales de cada tabla cubriendo variantes de nombres de columnas (incluyendo normalizados y específicos)
+        poblarCrudos(resCostos.data, "rawCost", ['costo', 'costos', 'costo_normalizado', 'valor', 'monto', 'score', 'puntaje', 'indice']);
+        poblarCrudos(resLogistica.data, "rawLogi", ['logistica', 'logística', 'logistica_normalizada', 'valor', 'score', 'puntaje', 'indice']);
+        poblarCrudos(resComercio.data, "rawComm", ['comercio', 'comercio_normalizado', 'valor', 'score', 'puntaje', 'exportaciones', 'importaciones']);
+        poblarCrudos(resEconomia.data, "rawEcon", ['economia', 'economía', 'economia_normalizada', 'pib', 'valor', 'score', 'puntaje']);
+        poblarCrudos(resPolitica.data, "rawPoli", ['politica', 'política', 'politica_normalizada', 'valor', 'score', 'puntaje', 'estabilidad']);
+        poblarCrudos(resCultura.data, "rawCult", ['indice_globalizacion', 'indiceglobalizacion', 'cultura', 'cultura_normalizada', 'valor', 'score', 'puntaje']);
 
         resEmisiones.data?.forEach(row => {
           const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
           if (pais && mapaPaises[pais]) {
-            const val = Number(row.emisionescarbono ?? row.edc ?? row.valor);
+            const val = Number(row.emisionescarbono ?? row.edc ?? row.emisiones ?? row.valor);
             if (!isNaN(val)) mapaPaises[pais].rawEdc = val;
           }
         });
@@ -131,7 +131,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         resIsg.data?.forEach(row => {
           const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
           if (pais && mapaPaises[pais]) {
-            const val = Number(row.indicesostenibilidaglobal ?? row.isg ?? row.valor);
+            const val = Number(row.indicesostenibilidaglobal ?? row.isg ?? row.sostenibilidad ?? row.valor);
             if (!isNaN(val)) mapaPaises[pais].rawIsg = val;
           }
         });
@@ -243,7 +243,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Consolidación Global</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Tablas Totales y Normalizadas</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Cruce integral de las 7 pestañas de análisis estratégico (tablas Supabase: <code className="text-slate-300">costos, logistica, comercio, economia, politica, indiceglobalizacion, emisiones_carbono, indice_sostenibilidad_global, paises</code>).
+          Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Cruce integral de las 7 pestañas de análisis estratégico.
         </p>
       </div>
 
