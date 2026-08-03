@@ -43,7 +43,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     setErrorLog(null);
 
     try {
-      // 1. Obtener lista de países (ampliando rango para evitar límite de 100)
+      // 1. Obtener lista de países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').range(0, 999).order('nombre');
       if (errPaises) throw errPaises;
 
@@ -67,7 +67,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
         if (isNaN(edcVal)) edcVal = null;
 
-        // Mapeo exacto para Índice de Sostenibilidad Global (ISG)
+        // Mapeo exacto para Índice de Sostenibilidad Global (ISG) - Corregido a indicesostenibilidaglobal
         const isgMatch = (dbIsg || []).find(c => {
           const valPaisI = String(c.pais || c.nombre || '').trim().toLowerCase();
           return valPaisI === nombrePais;
@@ -76,7 +76,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? isgMatch.isg ?? 0) : null;
         if (isNaN(isgVal)) isgVal = null;
 
-        // Riesgo País Global (RPG) se deja explícitamente en null por no tener tabla/datos
+        // Riesgo País Global (RPG) se mantiene en null por no tener tabla ni datos
         let rpgVal = null; 
 
         return {
