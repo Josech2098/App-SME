@@ -176,7 +176,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
       const { error: errI } = await supabase
         .from('indice_sostenibilidad_global')
-        .upsert({ pais: target.pais_nombre, indicesostenibilidaglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
+        .upsert({ pais: target.pais_nombre, indicesostenibilidadglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
       if (errI) throw errI;
 
       setSelectedPaisId(''); setEditEdc(''); setEditRpg(''); setEditIsg('');
