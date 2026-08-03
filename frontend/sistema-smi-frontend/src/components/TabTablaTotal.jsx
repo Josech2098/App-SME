@@ -79,18 +79,19 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           }
         });
 
-        // Función auxiliar robusta para extraer el valor numérico probando múltiples nombres de columnas
-        const extraerValorCrudo = (row, posiblesCampos) => {
+        // Función universal: busca cualquier propiedad numérica en el objeto que no sea ID ni campos de texto de control
+        const extraerCualquierValorNumerico = (row) => {
           if (!row) return null;
-          for (let campo of posiblesCampos) {
-            if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo]) && row[campo] !== "") {
-              return Number(row[campo]);
+          const ignorados = ['id', 'created_at', 'pais', 'paises', 'nombre', 'country', 'codigo', 'code'];
+          for (const [key, val] of Object.entries(row)) {
+            if (!ignorados.includes(key.toLowerCase()) && val !== null && val !== undefined && val !== "" && !isNaN(val)) {
+              return Number(val);
             }
           }
           return null;
         };
 
-        const poblarCrudos = (data, claveRaw, camposPosibles) => {
+        const poblarCrudosGenerico = (data, claveRaw) => {
           data?.forEach(row => {
             const nombrePais = (row.pais || row.Paises || row.nombre || row.country || "").trim();
             if (!nombrePais) return;
@@ -105,36 +106,22 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
               };
             }
 
-            const val = extraerValorCrudo(row, camposPosibles);
+            const val = extraerCualquierValorNumerico(row);
             if (val !== null) {
               mapaPaises[keyMap][claveRaw] = val;
             }
           });
         };
 
-        // 2. Extraer los valores reales de cada tabla cubriendo variantes de nombres de columnas (incluyendo normalizados y específicos)
-        poblarCrudos(resCostos.data, "rawCost", ['costo', 'costos', 'costo_normalizado', 'valor', 'monto', 'score', 'puntaje', 'indice']);
-        poblarCrudos(resLogistica.data, "rawLogi", ['logistica', 'logística', 'logistica_normalizada', 'valor', 'score', 'puntaje', 'indice']);
-        poblarCrudos(resComercio.data, "rawComm", ['comercio', 'comercio_normalizado', 'valor', 'score', 'puntaje', 'exportaciones', 'importaciones']);
-        poblarCrudos(resEconomia.data, "rawEcon", ['economia', 'economía', 'economia_normalizada', 'pib', 'valor', 'score', 'puntaje']);
-        poblarCrudos(resPolitica.data, "rawPoli", ['politica', 'política', 'politica_normalizada', 'valor', 'score', 'puntaje', 'estabilidad']);
-        poblarCrudos(resCultura.data, "rawCult", ['indice_globalizacion', 'indiceglobalizacion', 'cultura', 'cultura_normalizada', 'valor', 'score', 'puntaje']);
-
-        resEmisiones.data?.forEach(row => {
-          const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
-          if (pais && mapaPaises[pais]) {
-            const val = Number(row.emisionescarbono ?? row.edc ?? row.emisiones ?? row.valor);
-            if (!isNaN(val)) mapaPaises[pais].rawEdc = val;
-          }
-        });
-
-        resIsg.data?.forEach(row => {
-          const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
-          if (pais && mapaPaises[pais]) {
-            const val = Number(row.indicesostenibilidaglobal ?? row.isg ?? row.sostenibilidad ?? row.valor);
-            if (!isNaN(val)) mapaPaises[pais].rawIsg = val;
-          }
-        });
+        // 2. Extraer de forma automática el valor numérico de cada tabla de Supabase
+        poblarCrudosGenerico(resCostos.data, "rawCost");
+        poblarCrudosGenerico(resLogistica.data, "rawLogi");
+        poblarCrudosGenerico(resComercio.data, "rawComm");
+        poblarCrudosGenerico(resEconomia.data, "rawEcon");
+        poblarCrudosGenerico(resPolitica.data, "rawPoli");
+        poblarCrudosGenerico(resCultura.data, "rawCult");
+        poblarCrudosGenerico(resEmisiones.data, "rawEdc");
+        poblarCrudosGenerico(resIsg.data, "rawIsg");
 
         const allItems = Object.values(mapaPaises);
 
