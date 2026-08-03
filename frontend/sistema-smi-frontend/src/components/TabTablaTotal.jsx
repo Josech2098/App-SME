@@ -94,7 +94,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           return;
         }
 
-        // Filtrar estrictamente los países seleccionados en el dashboard principal
         const nombresBase = (paisesDestino && paisesDestino.length > 0)
           ? paisesDestino.map((p) => (typeof p === 'string' ? p : (p.nombre || p.pais)))
           : dbPaises.map((p) => p.nombre);
@@ -257,7 +256,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const mDein = (resDEIN.data || []).find((r) => normalizarTexto(r.pais) === key);
           const fsi = mFsi ? Number(mFsi.indice_de_estados_fragiles) : null;
           const inri = mInri ? Number(mInri.riesgo) : null;
-          const dein = mDein ? Number(mInin.indice_democracia ?? mInin.dein ?? mInin.indice_de_democracia) : null;
+          const dein = mDein ? Number(mDein.indice_democracia ?? mDein.dein ?? mDein.indice_de_democracia) : null;
 
           const fsiNorm = normInverso(fsi, FSI_min) ?? 0;
           const inriNorm = normInverso(inri, INRI_min) ?? 0;
@@ -304,7 +303,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           mapaSust[key] = faltan === 2 ? 5.0 : Number((edcNorm * 0.30 + isgNorm * 0.40).toFixed(2));
         });
 
-        // Construir la lista consolidada únicamente con los países que eligió el usuario
         const lista = paisesFiltrados.map((p) => {
           const key = normalizarTexto(p.nombre);
           const val = (mapa) => (mapa[key] !== undefined && mapa[key] !== null) ? mapa[key] : 5.0;
@@ -333,7 +331,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
     cargarYProcesarTodo();
   }, [paisesDestino, paisOrigen, productoActivo]);
 
-  // Cálculo del puntaje ponderado global respetando la escala de 0 a 10
   const datosCalculados = datosTotales.map((item) => {
     const puntajeBruto = (
       (item["1. Cost (COST)"] * (pesosCat.COST / 100)) +
