@@ -7,8 +7,9 @@ import TabComercial from './components/TabComercial';
 import TabEconomia from './components/TabEconomia';
 import TabPolitica from './components/TabPolitica';
 import TabCultura from './components/TabCultura';
+import TabSostenibilidad from './components/TabSostenibilidad'; // <- NUEVA IMPORTACIÓN
 import TabTablaTotal from './components/TabTablaTotal';
-import TabGraficosComparativos from './components/TabGraficos'; // <- CORREGIDO AQUÍ
+import TabGraficosComparativos from './components/TabGraficos';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -39,6 +40,7 @@ export default function App() {
   const [datosIndicePenetracion, setDatosIndicePenetracion] = useState([]);
   const [datosLibertadEconomica, setDatosLibertadEconomica] = useState([]);
   const [datosCostoDeVida, setDatosCostoDeVida] = useState([]);
+  const [datosSostenibilidad, setDatosSostenibilidad] = useState([]); // <- NUEVO ESTADO
 
   // 1. Cargar Categorías, Países de Origen y Datos Iniciales de Supabase
   useEffect(() => {
@@ -75,6 +77,12 @@ export default function App() {
         .select('*')
         .range(0, 999);
       if (costoData) setDatosCostoDeVida(costoData);
+
+      // Sostenibilidad (SUST)
+      const { data: sostData } = await supabase
+        .from('sostenibilidad')
+        .select('*');
+      if (sostData) setDatosSostenibilidad(sostData);
     }
     fetchIniciales();
   }, []);
@@ -111,6 +119,7 @@ export default function App() {
     "Economía (ECON)",
     "Política (POLI)",
     "Cultura (CULT)",
+    "Sostenibilidad (SUST)", // <- NUEVA PESTAÑA AÑADIDA AQUÍ
     "Visualización de Tablas Totales",
     "Gráficos"
   ];
@@ -321,6 +330,15 @@ export default function App() {
           )}
 
           {activeTab === 7 && (
+            <TabSostenibilidad 
+              productoActivo={productoSeleccionado}
+              paisesDestino={paisesDestino}
+              paisOrigen={paisOrigen}
+              datosSostenibilidad={datosSostenibilidad}
+            />
+          )}
+
+          {activeTab === 8 && (
             <TabTablaTotal 
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
@@ -328,13 +346,13 @@ export default function App() {
             />
           )}
 
-          {activeTab === 8 && (
+          {activeTab === 9 && (
             <TabGraficosComparativos 
               datosTotales={datosTablaTotal} 
             />
           )}
 
-          {activeTab > 8 && (
+          {activeTab > 9 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-white">
                 {tabList[activeTab]}
