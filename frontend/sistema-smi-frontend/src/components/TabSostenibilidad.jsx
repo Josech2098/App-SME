@@ -55,27 +55,25 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 999);
       if (errIsg) throw errIsg;
 
-      const normalizarTexto = (str) => 
-        (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-
       const datosConsolidados = (dbPaises || []).map((p) => {
-        const nombrePaisClean = normalizarTexto(p.nombre);
+        const nombrePais = (p.nombre || '').trim().toLowerCase();
 
-        // Búsqueda robusta para Emisiones
+        // Búsqueda exacta para Emisiones
         const emisMatch = (dbEmisiones || []).find(c => {
-          return normalizarTexto(c.pais) === nombrePaisClean;
+          const valPais = String(c.pais || '').trim().toLowerCase();
+          return valPais === nombrePais;
         });
         
         let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
         if (isNaN(edcVal)) edcVal = null;
 
-        // Búsqueda robusta para el Índice de Sostenibilidad Global usando la columna exacta 'indicesostenibilidaglobal'
+        // Búsqueda exacta para el Índice de Sostenibilidad Global usando la columna exacta 'indicesostenibilidaglobal'
         const isgMatch = (dbIsg || []).find(c => {
-          return normalizarTexto(c.pais) === nombrePaisClean;
+          const valPais = String(c.pais || '').trim().toLowerCase();
+          return valPais === nombrePais;
         });
 
-        let rawIsg = isgMatch ? isgMatch.indicesostenibilidaglobal : null;
-        let isgVal = (rawIsg !== null && rawIsg !== undefined && rawIsg !== '') ? Number(rawIsg) : null;
+        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? 0) : null;
         if (isNaN(isgVal)) isgVal = null;
 
         let rpgVal = null; 
