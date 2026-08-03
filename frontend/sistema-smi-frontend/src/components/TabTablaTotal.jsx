@@ -6,14 +6,15 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
   const [cargando, setCargando] = useState(true);
   const [errorNotif, setErrorNotif] = useState(null);
 
-  // Ponderaciones iniciales por categoría (Suman 100%)
+  // Ponderaciones iniciales por categoría (Ahora son 7 y suman 100%)
   const [pesosCat, setPesosCat] = useState({
-    COST: 20,
-    LOGI: 20,
+    COST: 15,
+    LOGI: 15,
     COMM: 15,
     ECON: 15,
     POLI: 15,
-    CULT: 15
+    CULT: 15,
+    SUST: 10
   });
 
   const handlePesoChange = (cat, valor) => {
@@ -36,14 +37,18 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           resEconomia,
           resPolitica,
           resCultura,
+          resEmisiones,
+          resIsg,
           resPaises
         ] = await Promise.all([
-          supabase.from("costos").select("*").range(0, 999),
-          supabase.from("logistica").select("*").range(0, 999),
-          supabase.from("comercio").select("*").range(0, 999),
-          supabase.from("economia").select("*").range(0, 999),
-          supabase.from("politica").select("*").range(0, 999),
-          supabase.from("indiceglobalizacion").select("*").range(0, 999),
+          supabase.from("costos").select("*").range(0, 9999),
+          supabase.from("logistica").select("*").range(0, 9999),
+          supabase.from("comercio").select("*").range(0, 9999),
+          supabase.from("economia").select("*").range(0, 9999),
+          supabase.from("politica").select("*").range(0, 9999),
+          supabase.from("indiceglobalizacion").select("*").range(0, 9999),
+          supabase.from("emisiones_carbono").select("*").range(0, 9999),
+          supabase.from("indice_sostenibilidad_global").select("*").range(0, 9999),
           supabase.from("paises").select("*").order("nombre")
         ]);
 
@@ -52,71 +57,104 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         resPaises.data?.forEach(p => {
           const nombre = (p.nombre || p.pais || "").trim();
           if (nombre) {
-            mapaPaises[nombre] = {
+            mapaPaises[nombre.toLowerCase()] = {
               Paises: nombre,
               "1. Cost (COST)": null,
               "2. Logistical (LOGI)": null,
               "3. Commercial (COMM)": null,
               "4. Economic (ECON)": null,
               "5. Political (POLI)": null,
-              "6. Cultura (CULT)": null
+              "6. Cultura (CULT)": null,
+              "7. Sostenibilidad (SUST)": null,
+              // Datos crudos para cálculo de Sostenibilidad si aplica
+              rawEdc: null,
+              rawIsg: null
             };
           }
         });
 
-        const extraerValorFlexible = (row) => {
+        const extraerValorEspecifico = (row, posiblesCampos, escala100 = false) => {
           if (!row) return null;
-          const camposPosibles = [
-            'costo_normalizado', 'logistica_normalizada', 'comercio_normalizado',
-            'economia_normalizada', 'politica_normalizada', 'indice_globalizacion',
-            'valor_normalizado', 'puntaje', 'score', 'valor', 'promedio',
-            'costo', 'logistica', 'comercio', 'economia', 'politica', 'cultura'
-          ];
-          for (let campo of camposPosibles) {
+          for (let campo of posiblesCampos) {
             if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo])) {
-              return Number(row[campo]);
-            }
-          }
-          for (let key in row) {
-            const val = Number(row[key]);
-            if (!isNaN(val) && val >= 0 && val <= 100 && key !== 'id' && !key.includes('codigo')) {
-              return val > 10 ? val / 10 : val;
+              const val = Number(row[campo]);
+              return escala100 && val > 10 ? val / 10 : val;
             }
           }
           return null;
         };
 
-        const procesarDataset = (data, claveMetrica) => {
+        const procesarDataset = (data, claveMetrica, camposPosibles, escala100 = false) => {
           data?.forEach(row => {
-            const pais = (row.pais || row.Paises || row.nombre || row.country || "").trim();
-            if (pais) {
-              if (!mapaPaises[pais]) {
-                mapaPaises[pais] = {
-                  Paises: pais,
-                  "1. Cost (COST)": null,
-                  "2. Logistical (LOGI)": null,
-                  "3. Commercial (COMM)": null,
-                  "4. Economic (ECON)": null,
-                  "5. Political (POLI)": null,
-                  "6. Cultura (CULT)": null
-                };
-              }
-              const val = extraerValorFlexible(row);
-              if (val !== null) {
-                mapaPaises[pais][claveMetrica] = val;
-              }
+            const nombrePais = (row.pais || row.Paises || row.nombre || row.country || "").trim();
+            if (!nombrePais) return;
+            const keyMap = nombrePais.toLowerCase();
+
+            if (!mapaPaises[keyMap]) {
+              mapaPaises[keyMap] = {
+                Paises: nombrePais,
+                "1. Cost (COST)": null,
+                "2. Logistical (LOGI)": null,
+                "3. Commercial (COMM)": null,
+                "4. Economic (ECON)": null,
+                "5. Political (POLI)": null,
+                "6. Cultura (CULT)": null,
+                "7. Sostenibilidad (SUST)": null,
+                rawEdc: null,
+                rawIsg: null
+              };
+            }
+
+            const val = extraerValorEspecifico(row, camposPosibles, escala100);
+            if (val !== null) {
+              mapaPaises[keyMap][claveMetrica] = val;
             }
           });
         };
 
-        procesarDataset(resCostos.data, "1. Cost (COST)");
-        procesarDataset(resLogistica.data, "2. Logistical (LOGI)");
-        procesarDataset(resComercio.data, "3. Commercial (COMM)");
-        procesarDataset(resEconomia.data, "4. Economic (ECON)");
-        procesarDataset(resPolitica.data, "5. Political (POLI)");
-        procesarDataset(resCultura.data, "6. Cultura (CULT)");
+        procesarDataset(resCostos.data, "1. Cost (COST)", ['costo_normalizado', 'costo', 'valor_normalizado', 'puntaje', 'score']);
+        procesarDataset(resLogistica.data, "2. Logistical (LOGI)", ['logistica_normalizada', 'logistica', 'valor_normalizado', 'puntaje', 'score']);
+        procesarDataset(resComercio.data, "3. Commercial (COMM)", ['comercio_normalizado', 'comercio', 'valor_normalizado', 'puntaje', 'score']);
+        procesarDataset(resEconomia.data, "4. Economic (ECON)", ['economia_normalizada', 'economia', 'valor_normalizado', 'puntaje', 'score']);
+        procesarDataset(resPolitica.data, "5. Political (POLI)", ['politica_normalizada', 'politica', 'valor_normalizado', 'puntaje', 'score']);
+        procesarDataset(resCultura.data, "6. Cultura (CULT)", ['indice_globalizacion', 'cultura', 'valor_normalizado', 'puntaje', 'score', 'indiceglobalizacion'], true);
 
-        let lista = Object.values(mapaPaises).map(item => ({
+        // Procesar datos crudos para Sostenibilidad (EDC e ISG)
+        resEmisiones.data?.forEach(row => {
+          const pais = (row.pais || "").trim().toLowerCase();
+          if (pais && mapaPaises[pais]) {
+            const val = Number(row.emisionescarbono ?? row.edc);
+            if (!isNaN(val)) mapaPaises[pais].rawEdc = val;
+          }
+        });
+
+        resIsg.data?.forEach(row => {
+          const pais = (row.pais || "").trim().toLowerCase();
+          if (pais && mapaPaises[pais]) {
+            const val = Number(row.indicesostenibilidaglobal ?? row.isg);
+            if (!isNaN(val)) mapaPaises[pais].rawIsg = val;
+          }
+        });
+
+        // Calcular Sostenibilidad (SUST) basada en min(EDC) y max(ISG) si existen los valores
+        const allItems = Object.values(mapaPaises);
+        const edcVals = allItems.map(i => i.rawEdc).filter(v => v !== null && v > 0);
+        const isgVals = allItems.map(i => i.rawIsg).filter(v => v !== null && v > 0);
+        const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null;
+        const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null;
+
+        allItems.forEach(item => {
+          let sustVal = null;
+          if (item.rawEdc !== null && item.rawIsg !== null && minEdc && maxIsg) {
+            const edcNorm = (10 * minEdc) / item.rawEdc;
+            const isgNorm = (10 * item.rawIsg) / maxIsg;
+            // Ponderación interna de Sustentabilidad (30% EDC, 70% ISG por defecto o ponderado)
+            sustVal = Number(((edcNorm * 0.3) + (isgNorm * 0.7)).toFixed(2));
+          }
+          item["7. Sostenibilidad (SUST)"] = sustVal;
+        });
+
+        let lista = allItems.map(item => ({
           ...item,
           "1. Cost (COST)": item["1. Cost (COST)"] !== null ? item["1. Cost (COST)"] : 5.0,
           "2. Logistical (LOGI)": item["2. Logistical (LOGI)"] !== null ? item["2. Logistical (LOGI)"] : 5.0,
@@ -124,6 +162,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           "4. Economic (ECON)": item["4. Economic (ECON)"] !== null ? item["4. Economic (ECON)"] : 5.0,
           "5. Political (POLI)": item["5. Political (POLI)"] !== null ? item["5. Political (POLI)"] : 5.0,
           "6. Cultura (CULT)": item["6. Cultura (CULT)"] !== null ? item["6. Cultura (CULT)"] : 5.0,
+          "7. Sostenibilidad (SUST)": item["7. Sostenibilidad (SUST)"] !== null ? item["7. Sostenibilidad (SUST)"] : 5.0,
         })).filter(item => {
           if (paisesDestino && paisesDestino.length > 0) {
             return paisesDestino.some(p => p.toLowerCase().trim() === item.Paises.toLowerCase().trim());
@@ -151,7 +190,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
       (item["3. Commercial (COMM)"] * (pesosCat.COMM / 100)) +
       (item["4. Economic (ECON)"] * (pesosCat.ECON / 100)) +
       (item["5. Political (POLI)"] * (pesosCat.POLI / 100)) +
-      (item["6. Cultura (CULT)"] * (pesosCat.CULT / 100))
+      (item["6. Cultura (CULT)"] * (pesosCat.CULT / 100)) +
+      (item["7. Sostenibilidad (SUST)"] * (pesosCat.SUST / 100))
     );
 
     const puntajeClampeado = Math.min(Math.max(puntajeBruto, 0), 10);
@@ -173,25 +213,26 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Consolidación Global</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Tablas Totales y Normalizadas</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Cruce integral de las 6 pestañas de análisis estratégico (Costo, Logística, Comercial, Economía, Política y Cultura).
+          Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Cruce integral de las 7 pestañas de análisis estratégico.
         </p>
       </div>
 
-      {/* AJUSTE MANUAL DE PONDERACIONES (GRID 2x3) */}
+      {/* AJUSTE MANUAL DE PONDERACIONES */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-base font-bold text-white">Ajuste manual de ponderaciones (IMSFE)</h3>
           <p className="text-xs text-slate-400 mt-1">Personaliza el peso porcentual de cada categoría. El acumulado debe sumar exactamente 100%.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
             { label: "COST (%)", cat: "COST" },
             { label: "COMM (%)", cat: "COMM" },
             { label: "POLI (%)", cat: "POLI" },
             { label: "LOGI (%)", cat: "LOGI" },
             { label: "ECON (%)", cat: "ECON" },
-            { label: "CULT (%)", cat: "CULT" }
+            { label: "CULT (%)", cat: "CULT" },
+            { label: "SUST (%)", cat: "SUST" }
           ].map(({ label, cat }) => (
             <div key={cat} className="bg-[#12141a] p-4 rounded-lg border border-slate-800 space-y-2">
               <label className="block text-xs font-semibold text-slate-300">{label}</label>
@@ -235,7 +276,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           <h3 className="text-lg font-bold text-white">Tabla General de Evaluación de Países (Datos Normalizados de Todas las Tabs)</h3>
           <p className="text-xs text-slate-400 mt-1 whitespace-pre-line">
             {`Países incluidos en el análisis global: ${paisesIncluidos} / ${totalPaisesBase} totales\n` +
-             `Pesos aplicados: COST=${pesosCat.COST}%, LOGI=${pesosCat.LOGI}%, COMM=${pesosCat.COMM}%, ECON=${pesosCat.ECON}%, POLI=${pesosCat.POLI}%, CULT=${pesosCat.CULT}%`}
+             `Pesos aplicados: COST=${pesosCat.COST}%, LOGI=${pesosCat.LOGI}%, COMM=${pesosCat.COMM}%, ECON=${pesosCat.ECON}%, POLI=${pesosCat.POLI}%, CULT=${pesosCat.CULT}%, SUST=${pesosCat.SUST}%`}
           </p>
         </div>
 
@@ -254,12 +295,13 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
                 <tr>
                   <th className="p-3">#</th>
                   <th className="p-3">Países</th>
-                  <th className="p-3">1. Cost (COST)</th>
-                  <th className="p-3">2. Logistical (LOGI)</th>
-                  <th className="p-3">3. Commercial (COMM)</th>
-                  <th className="p-3">4. Economic (ECON)</th>
-                  <th className="p-3">5. Political (POLI)</th>
-                  <th className="p-3">6. Cultura (CULT)</th>
+                  <th className="p-3">1. Cost</th>
+                  <th className="p-3">2. Logistical</th>
+                  <th className="p-3">3. Commercial</th>
+                  <th className="p-3">4. Economic</th>
+                  <th className="p-3">5. Political</th>
+                  <th className="p-3">6. Cultura</th>
+                  <th className="p-3">7. Sostenibilidad</th>
                   <th className="p-3 font-bold text-red-400">Puntaje Global – TOTAL</th>
                 </tr>
               </thead>
@@ -274,6 +316,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
                     <td className="p-3">{Number(item["4. Economic (ECON)"]).toFixed(2)}</td>
                     <td className="p-3">{Number(item["5. Political (POLI)"]).toFixed(2)}</td>
                     <td className="p-3">{Number(item["6. Cultura (CULT)"]).toFixed(2)}</td>
+                    <td className="p-3">{Number(item["7. Sostenibilidad (SUST)"]).toFixed(2)}</td>
                     <td className="p-3 font-bold text-red-400 bg-red-950/10">{item["Puntaje Global – TOTAL"]}</td>
                   </tr>
                 ))}
