@@ -10,13 +10,12 @@ export default function TabComercial({
   datosIndicePenetracion = [], 
   datosLibertadEconomica = []   
 }) {
-  // Estados para almacenar los datos obtenidos de Supabase
   const [dbPaises, setDbPaises] = useState([]);
   const [dbPenetracion, setDbPenetracion] = useState(datosIndicePenetracion);
   const [dbLibertad, setDbLibertad] = useState(datosLibertadEconomica);
   const [cargandoSupabase, setCargandoSupabase] = useState(false);
 
-  // Efecto para consultar directamente a Supabase tanto la tabla 'paises' como los índices
+  // Carga directa de Supabase para todas las tablas necesarias
   useEffect(() => {
     async function fetchDataFromSupabase() {
       setCargandoSupabase(true);
@@ -27,18 +26,19 @@ export default function TabComercial({
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
           
-          // 1. Consultar tabla exclusiva de países
+          // 1. Tabla exclusiva de países
           const { data: paisesData, error: paisesError } = await supabase.from('paises').select('*');
           if (paisesError) console.error('Error al consultar paises:', paisesError);
           else if (paisesData) setDbPaises(paisesData);
 
-          // 2. Consultar índices si no vienen por props
+          // 2. Tabla de penetración (índices en minúsculas / sin tildes)
           if (!datosIndicePenetracion || datosIndicePenetracion.length === 0) {
             const { data: penData, error: penError } = await supabase.from('indicepenetracion').select('*');
             if (penError) console.error('Error al consultar indicepenetracion:', penError);
             else if (penData) setDbPenetracion(penData);
           }
 
+          // 3. Tabla de libertad económica (índices en minúsculas / sin tildes)
           if (!datosLibertadEconomica || datosLibertadEconomica.length === 0) {
             const { data: libData, error: libError } = await supabase.from('libertadeconomica').select('*');
             if (libError) console.error('Error al consultar liberdadeconomica:', libError);
@@ -62,7 +62,7 @@ export default function TabComercial({
   const [datosCommNormalizados, setDatosCommNormalizados] = useState([]);
   const [errorProceso, setErrorProceso] = useState(null);
 
-  // Función auxiliar para normalizar texto (quitar tildes, espacios y minúsculas para cruces)
+  // Función robusta para normalizar (quita tildes, pasa a minúsculas y limpia espacios)
   const normalizarTexto = (texto) => {
     if (!texto || typeof texto !== 'string') return '';
     return texto
@@ -72,46 +72,27 @@ export default function TabComercial({
       .replace(/[\u0300-\u036f]/g, '');
   };
 
-  // Sincronización principal usando exclusivamente la tabla 'paises' de Supabase
   useEffect(() => {
     try {
-      const mapaPaisesUnicos = new Map();
-
-      // Tomamos los países directamente de la tabla 'paises' de Supabase (o respaldo de props)
-      const fuentePaises = (dbPaises && dbPaises.length > 0) ? dbPaises : paisesDestino;
-
-      if (Array.isArray(fuentePaises) && fuentePaises.length > 0) {
-        fuentePaises.forEach(item => {
-          // Extraemos el nombre del país de la tabla 'paises' (campos comunes: nombre, pais, Nombre)
-          const nombrePais = typeof item === 'string' ? item : (item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0]);
-          if (typeof nombrePais === 'string' && nombrePais.trim().length > 1) {
-            const limpio = nombrePais.trim();
-            const claveNorm = normalizarTexto(limpio);
-            if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
-              mapaPaisesUnicos.set(claveNorm, limpio); // Mantiene las mayúsculas originales de la BD
-            }
-          }
-        });
+      if (!dbPaises || dbPaises.length === 0) {
+        setDatosCommConsolidados([]);
+        setDatosCommNormalizados([]);
+        return;
       }
 
-      let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
+      // Procesar cada país de la tabla oficial 'paises' (que tiene mayúsculas y tildes)
+      const dfComm = dbPaises.map((itemPais, idx) => {
+        // Extraer el nombre original con mayúsculas/tildes
+        const nombreOriginal = itemPais.nombre || itemPais.pais || itemPais.Paises || itemPais.Nombre || Object.values(itemPais)[0];
+        const paisNorm = normalizarTexto(nombreOriginal);
 
-      commOverrides.forEach(ovr => {
-        const normOvr = normalizarTexto(ovr.Paises);
-        if (!Array.from(mapaPaisesUnicos.keys()).includes(normOvr)) {
-          listaPaisesFinal.push(ovr.Paises);
-        }
-      });
-
-      // Cruzar con los índices correspondientes
-      const dfComm = listaPaisesFinal.map((paisOriginal, idx) => {
-        const paisNorm = normalizarTexto(paisOriginal);
-
+        // Buscar coincidencia normalizada en la tabla de Penetración (aunque esté en minúsculas/sin tildes)
         const matchIemp = effectivePenetracion.find(item => {
           const valPais = item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0];
           return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
         });
 
+        // Buscar coincidencia normalizada en la tabla de Libertad Económica
         const matchIoef = effectiveLibertad.find(item => {
           const valPais = item.pais || item.nombre || item.Paises || item.Nombre || Object.values(item)[0];
           return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
@@ -134,14 +115,14 @@ export default function TabComercial({
 
         const valIemp = overrideMatch && overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] !== undefined
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp ? extraerNumero(matchIemp, ['indice_penetracion', 'Indice_penetracion', 'IEMP', 'indice']) ?? 5.0 : 5.0);
+          : (matchIemp ? extraerNumero(matchIemp, ['indice_penetracion', 'Indice_penetracion', 'IEMP', 'indice', 'valor']) ?? 5.0 : 5.0);
 
         const valIoef = overrideMatch && overrideMatch['Índice de Libertad Económica (IOEF)'] !== undefined
           ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef ? extraerNumero(matchIoef, ['indice_de_libertad_economica', 'Indice_de_libertad_economica', 'IOEF', 'indice']) ?? 6.0 : 6.0);
+          : (matchIoef ? extraerNumero(matchIoef, ['indice_de_libertad_economica', 'Indice_de_libertad_economica', 'IOEF', 'indice', 'valor']) ?? 6.0 : 6.0);
 
         return {
-          Paises: paisOriginal,
+          Paises: nombreOriginal, // Mantiene el formato con mayúsculas y tildes original de la tabla 'paises'
           'Aranceles aduaneros por país de origen (CTCO)': calculoArancelCTCO,
           'Índice de penetración en el mercado de exportación (IEMP)': Number(valIemp) || 0,
           'Índice de Libertad Económica (IOEF)': Number(valIoef) || 0
@@ -157,7 +138,7 @@ export default function TabComercial({
 
       setDatosCommConsolidados(dfComm);
 
-      // Normalización matemática
+      // Normalización matemática para la segunda tabla
       const A3 = 10;
       const getMinMax = (arr, key) => {
         const values = arr.map(item => item[key]).filter(v => v !== null && !isNaN(v));
@@ -195,14 +176,14 @@ export default function TabComercial({
       console.error("Error al procesar la sincronización:", err);
       setErrorProceso(err.message);
     }
-  }, [dbPaises, paisesDestino, effectivePenetracion, effectiveLibertad, commOverrides]);
+  }, [dbPaises, effectivePenetracion, effectiveLibertad, commOverrides]);
 
   return (
     <div className="space-y-6 text-slate-100 font-sans p-2">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Carga de países desde la tabla 'paises' de Supabase y cruce con índices.
+          Cruce inteligente entre la tabla 'paises' (con mayúsculas/tildes) y los índices en minúsculas.
         </p>
       </div>
 
