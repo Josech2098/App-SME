@@ -59,19 +59,22 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
       const datosConsolidados = (dbPaises || []).map((p) => {
-        const nombrePaisClean = normalizarTexto(p.nombre);
+        const nombreOriginal = (p.nombre || '').trim();
+        const nombreClean = normalizarTexto(nombreOriginal);
 
-        // Búsqueda robusta para Emisiones
+        // Búsqueda flexible para Emisiones (intenta primero exacto, luego normalizado)
         const emisMatch = (dbEmisiones || []).find(c => {
-          return normalizarTexto(c.pais) === nombrePaisClean;
+          const cPais = (c.pais || '').trim();
+          return cPais === nombreOriginal || normalizarTexto(cPais) === nombreClean;
         });
         
         let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
         if (isNaN(edcVal)) edcVal = null;
 
-        // Búsqueda robusta para el Índice de Sostenibilidad Global usando la columna exacta 'indicesostenibilidaglobal'
+        // Búsqueda flexible para el Índice de Sostenibilidad Global
         const isgMatch = (dbIsg || []).find(c => {
-          return normalizarTexto(c.pais) === nombrePaisClean;
+          const cPais = (c.pais || '').trim();
+          return cPais === nombreOriginal || normalizarTexto(cPais) === nombreClean;
         });
 
         let rawIsg = isgMatch ? isgMatch.indicesostenibilidaglobal : null;
