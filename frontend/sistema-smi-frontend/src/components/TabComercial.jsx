@@ -130,7 +130,7 @@ export default function TabComercial({
             const kNorm = normalizarTexto(key);
             if (kNorm !== 'id' && kNorm !== 'pais' && kNorm !== 'nombre' && kNorm !== 'created_at') {
               const val = Number(obj[key]);
-              if (!isNaN(val)) return val;
+              if (!isNaN(val) && val !== 0) return val;
             }
           }
           const valNum = Object.values(obj).find(v => typeof v === 'number' && !isNaN(v));
@@ -147,7 +147,7 @@ export default function TabComercial({
 
         const valIle = overrideMatch && overrideMatch['Índice de Libertad Económica (ILE)'] !== undefined
           ? overrideMatch['Índice de Libertad Económica (ILE)'] 
-          : (matchIle ? extraerValorFlexible(matchIle) ?? 7.0 : 7.0);
+          : (matchIle ? extraerValorFlexible(matchIle) ?? 60.0 : 60.0);
 
         return {
           Paises: nombreOriginal,
@@ -175,14 +175,14 @@ export default function TabComercial({
         const ileVal = item['Índice de Libertad Económica (ILE)'];
 
         // ARA (Inverso: menor arancel es mejor)
-        const araNorm = (araMax !== araMin) ? Number((A3 * (araMax - araVal) / (araMax - araMin)).toFixed(4)) : A3;
+        const araNorm = (araMax !== araMin) ? Number((A3 * (araMax - araVal) / (araMax - araMin)).toFixed(2)) : A3;
         
         // IBC e ILE (Directo: mayor índice es mejor)
-        const ibcNorm = (ibcMax !== ibcMin) ? Number((A3 * (ibcVal - ibcMin) / (ibcMax - ibcMin)).toFixed(4)) : 0;
-        const ileNorm = (ileMax !== ileMin) ? Number((A3 * (ileVal - ileMin) / (ileMax - ileMin)).toFixed(4)) : 0;
+        const ibcNorm = (ibcMax !== ibcMin) ? Number((A3 * (ibcVal - ibcMin) / (ibcMax - ibcMin)).toFixed(2)) : 0;
+        const ileNorm = (ileMax !== ileMin) ? Number((A3 * (ileVal - ileMin) / (ileMax - ileMin)).toFixed(2)) : 0;
 
-        // Ponderación exacta de la imagen: 46.50% ARA, 25.00% IBC, 28.50% ILE
-        const commTotal = Number((araNorm * 0.4650 + ibcNorm * 0.2500 + ileNorm * 0.2850).toFixed(4));
+        // Ponderación exacta actualizada: 46.50% ARA, 25.00% IBC, 28.50% ILE
+        const commTotal = Number((araNorm * 0.4650 + ibcNorm * 0.2500 + ileNorm * 0.2850).toFixed(2));
 
         return {
           Paises: item.Paises,
@@ -241,7 +241,7 @@ export default function TabComercial({
                   <tr key={index} className="hover:bg-[#16181d]">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3 font-semibold text-emerald-400">{row['Aranceles Aduaneros (ARA)']}</td>
+                    <td className="p-3">{row['Aranceles Aduaneros (ARA)']}</td>
                     <td className="p-3 font-semibold text-sky-400">{row['Índice de Barreras al Comercio Internacional (IBC)']}</td>
                     <td className="p-3 font-semibold text-indigo-400">{row['Índice de Libertad Económica (ILE)']}</td>
                   </tr>
