@@ -97,7 +97,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           return;
         }
 
-        // Lista base de países a evaluar
         const nombresBase = (paisesDestino && paisesDestino.length > 0)
           ? paisesDestino.map((p) => (typeof p === 'string' ? p : (p.nombre || p.pais)))
           : dbPaises.map((p) => p.nombre);
@@ -294,8 +293,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
         });
 
         // ---------------- SUST ----------------
-        // OJO: la columna real en Supabase es "indicesostenibilidadglobal" (con "d"),
-        // el código anterior buscaba "indicesostenibilidaglobal" (sin "d") y nunca encontraba nada.
         const edcVals = (resEmisiones.data || []).map((r) => Number(r.emisionescarbono ?? r.edc)).filter((v) => !isNaN(v) && v > 0);
         const minEdc = edcVals.length ? Math.min(...edcVals) : null;
         const isgVals = (resIsg.data || []).map((r) => Number(r.indicesostenibilidadglobal ?? r.isg)).filter((v) => !isNaN(v) && v > 0);
@@ -343,6 +340,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
     cargarYProcesarTodo();
   }, [paisesDestino, paisOrigen, productoActivo]);
 
+  // CORRECCIÓN APLICADA AQUÍ: Multiplicación correcta basada en la escala de 0 a 10 y los pesos generales (suma 100%)
   const datosCalculados = datosTotales.map((item) => {
     const puntajeBruto = (
       (item["1. Cost (COST)"] * (pesosCat.COST / 100)) +
