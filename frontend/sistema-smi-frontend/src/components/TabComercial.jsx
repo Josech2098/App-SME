@@ -153,57 +153,58 @@ export default function TabComercial({
 
         const calculoArancelCTCO = Number((2.0 + (idx * 0.7) % 5.0).toFixed(2));
 
-        const valIemp = overrideMatch && overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] !== undefined
-          ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
-          : (matchIemp ? extraerNumero(matchIemp, ['indice_penetracion', 'Indice_penetracion', 'IEMP', 'indice']) ?? 5.0 : 5.0);
+        const valIemp = overrideMatch && overrideMatch['Índice de Barreras al Comercio Internacional (IBC)'] !== undefined
+          ? overrideMatch['Índice de Barreras al Comercio Internacional (IBC)'] 
+          : (matchIemp ? extraerNumero(matchIemp, ['indice_penetracion', 'Indice_penetracion', 'IBC', 'indice']) ?? 5.0 : 5.0);
 
-        const valIoef = overrideMatch && overrideMatch['Índice de Libertad Económica (IOEF)'] !== undefined
-          ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
-          : (matchIoef ? extraerNumero(matchIoef, ['indice_de_libertad_economica', 'Indice_de_libertad_economica', 'IOEF', 'indice']) ?? 6.0 : 6.0);
+        const valIoef = overrideMatch && overrideMatch['Índice de Libertad Económica (ILE)'] !== undefined
+          ? overrideMatch['Índice de Libertad Económica (ILE)'] 
+          : (matchIoef ? extraerNumero(matchIoef, ['indice_de_libertad_economica', 'Indice_de_libertad_economica', 'ILE', 'indice']) ?? 6.0 : 6.0);
 
         return {
           Paises: paisOriginal,
-          'Aranceles aduaneros por país de origen (CTCO)': calculoArancelCTCO,
-          'Índice de penetración en el mercado de exportación (IEMP)': Number(valIemp) || 0,
-          'Índice de Libertad Económica (IOEF)': Number(valIoef) || 0
+          'Aranceles Aduaneros (ARA)': calculoArancelCTCO,
+          'Índice de Barreras al Comercio Internacional (IBC)': Number(valIemp) || 0,
+          'Índice de Libertad Económica (ILE)': Number(valIoef) || 0
         };
       });
 
       dfComm.sort((a, b) => {
-        if (a['Aranceles aduaneros por país de origen (CTCO)'] !== b['Aranceles aduaneros por país de origen (CTCO)']) {
-          return a['Aranceles aduaneros por país de origen (CTCO)'] - b['Aranceles aduaneros por país de origen (CTCO)'];
+        if (a['Aranceles Aduaneros (ARA)'] !== b['Aranceles Aduaneros (ARA)']) {
+          return a['Aranceles Aduaneros (ARA)'] - b['Aranceles Aduaneros (ARA)'];
         }
-        return b['Índice de penetración en el mercado de exportación (IEMP)'] - a['Índice de penetración en el mercado de exportación (IEMP)'];
+        return b['Índice de Barreras al Comercio Internacional (IBC)'] - a['Índice de Barreras al Comercio Internacional (IBC)'];
       });
 
       setDatosCommConsolidados(dfComm);
 
       const A3 = 10;
 
-      const ctcoValues = dfComm.map(item => item['Aranceles aduaneros por país de origen (CTCO)']).filter(v => v !== null && !isNaN(v) && v > 0);
-      const iempValues = dfComm.map(item => item['Índice de penetración en el mercado de exportación (IEMP)']).filter(v => v !== null && !isNaN(v) && v > 0);
-      const ioefValues = dfComm.map(item => item['Índice de Libertad Económica (IOEF)']).filter(v => v !== null && !isNaN(v));
+      const ctcoValues = dfComm.map(item => item['Aranceles Aduaneros (ARA)']).filter(v => v !== null && !isNaN(v) && v > 0);
+      const iempValues = dfComm.map(item => item['Índice de Barreras al Comercio Internacional (IBC)']).filter(v => v !== null && !isNaN(v) && v > 0);
+      const ioefValues = dfComm.map(item => item['Índice de Libertad Económica (ILE)']).filter(v => v !== null && !isNaN(v));
 
       const minCtco = ctcoValues.length > 0 ? Math.min(...ctcoValues) : 1;
       const minIemp = iempValues.length > 0 ? Math.min(...iempValues) : 1;
       const maxIoef = ioefValues.length > 0 ? Math.max(...ioefValues) : 1;
 
       const dfNorm = dfComm.map(item => {
-        const ctcoVal = item['Aranceles aduaneros por país de origen (CTCO)'];
-        const iempVal = item['Índice de penetración en el mercado de exportación (IEMP)'];
-        const ioefVal = item['Índice de Libertad Económica (IOEF)'];
+        const ctcoVal = item['Aranceles Aduaneros (ARA)'];
+        const iempVal = item['Índice de Barreras al Comercio Internacional (IBC)'];
+        const ioefVal = item['Índice de Libertad Económica (ILE)'];
 
         const ctcoNorm = (ctcoVal > 0) ? Number(((A3 * minCtco) / ctcoVal).toFixed(2)) : 0;
         const iempNorm = (iempVal > 0) ? Number(((A3 * minIemp) / iempVal).toFixed(2)) : 0;
         const ioefNorm = (maxIoef > 0) ? Number(((A3 * ioefVal) / maxIoef).toFixed(2)) : 0;
 
-        const commTotal = Number((ctcoNorm * 0.5 + iempNorm * 0.3 + ioefNorm * 0.2).toFixed(2));
+        // Ponderaciones actualizadas: ARA (46.5%), IBC (25%), ILE (28.5%)
+        const commTotal = Number((ctcoNorm * 0.465 + iempNorm * 0.25 + ioefNorm * 0.285).toFixed(2));
 
         return {
           Paises: item.Paises,
-          CTCO_norm: ctcoNorm,
-          IEMP_norm: iempNorm,
-          IOEF_norm: ioefNorm,
+          ARA_norm: ctcoNorm,
+          IBC_norm: iempNorm,
+          ILE_norm: ioefNorm,
           COMM_total: commTotal
         };
       });
@@ -220,7 +221,7 @@ export default function TabComercial({
   return (
     <div className="space-y-6 text-slate-100 font-sans p-2">
       <div className="border-b border-slate-800 pb-3">
-        <h2 className="text-xl font-bold text-white">3. Commercial (COMM)</h2>
+        <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
           Extracción de países desde productos y conexión con Supabase.
         </p>
@@ -246,9 +247,9 @@ export default function TabComercial({
               <tr>
                 <th className="p-3 w-12">#</th>
                 <th className="p-3">País (desde Productos)</th>
-                <th className="p-3">Aranceles aduaneros por país de origen (CTCO)</th>
-                <th className="p-3">Índice de penetración en el mercado de exportación (IEMP)</th>
-                <th className="p-3">Índice de Libertad Económica (IOEF)</th>
+                <th className="p-3">Aranceles Aduaneros (ARA)</th>
+                <th className="p-3">Índice de Barreras al Comercio Internacional (IBC)</th>
+                <th className="p-3">Índice de Libertad Económica (ILE)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
@@ -257,9 +258,9 @@ export default function TabComercial({
                   <tr key={index} className="hover:bg-[#16181d]">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
-                    <td className="p-3">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
-                    <td className="p-3">{row['Índice de Libertad Económica (IOEF)']}</td>
+                    <td className="p-3">{row['Aranceles Aduaneros (ARA)']}</td>
+                    <td className="p-3">{row['Índice de Barreras al Comercio Internacional (IBC)']}</td>
+                    <td className="p-3">{row['Índice de Libertad Económica (ILE)']}</td>
                   </tr>
                 ))
               ) : (
@@ -280,9 +281,9 @@ export default function TabComercial({
               <tr>
                 <th className="p-3 w-12">#</th>
                 <th className="p-3">País</th>
-                <th className="p-3">CTCO Norm</th>
-                <th className="p-3">IEMP Norm</th>
-                <th className="p-3">IOEF Norm</th>
+                <th className="p-3">ARA Norm</th>
+                <th className="p-3">IBC Norm</th>
+                <th className="p-3">ILE Norm</th>
                 <th className="p-3">COMM Total</th>
               </tr>
             </thead>
@@ -292,9 +293,9 @@ export default function TabComercial({
                   <tr key={index} className="hover:bg-[#16181d]">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{row.CTCO_norm}</td>
-                    <td className="p-3">{row.IEMP_norm}</td>
-                    <td className="p-3">{row.IOEF_norm}</td>
+                    <td className="p-3">{row.ARA_norm}</td>
+                    <td className="p-3">{row.IBC_norm}</td>
+                    <td className="p-3">{row.ILE_norm}</td>
                     <td className="p-3 font-bold text-emerald-400">{row.COMM_total}</td>
                   </tr>
                 ))
