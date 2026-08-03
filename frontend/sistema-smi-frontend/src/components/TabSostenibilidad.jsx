@@ -43,32 +43,43 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     setErrorLog(null);
 
     try {
-      // 1. Obtener países
+      // 1. Obtener la lista base de países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
 
-      // 2. Obtener datos de sostenibilidad (puedes ajustar el nombre de la tabla si es distinto, ej. 'sostenibilidad' o 'pais_sostenibilidad')
-      const { data: dbSostenibilidad, error: errSost } = await supabase.from('sostenibilidad').select('*');
-      if (errSost) console.warn("Aviso en tabla de sostenibilidad:", errSost);
+      // 2. Obtener datos de la tabla emisiones_carbono relacionándola con el país
+      // (Asumiendo que 'pais' o 'id_pais' relaciona el nombre/id con la tabla paises)
+      const { data: dbEmisiones, error: errEmis } = await supabase.from('emisiones_carbono').select('*');
+      if (errEmis) console.warn("Aviso en emisiones_carbono:", errEmis);
+
+      // 3. Obtener datos de la tabla indice_sostenibilidad_global
+      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*');
+      if (errIsg) console.warn("Aviso en indice_sostenibilidad_global:", errIsg);
 
       const datosConsolidados = dbPaises.map((p) => {
-        const nombreKey = p.nombre.trim().toLowerCase();
+        // Hacemos el match estricto o normalizado contra los datos de las tablas secundarias
+        const nombrePais = (p.nombre || '').trim().toLowerCase();
 
-        const sostMatch = (dbSostenibilidad || []).find(
-          (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
-        );
-
-        // EDC: Emisiones de Dióxido de Carbono (Inversa: menor emisión es mejor puntaje)
-        let edcVal = sostMatch ? Number(sostMatch.edc ?? sostMatch.emisiones ?? 0) : null;
+        // Buscar Emisiones (EDC) haciendo match por nombre o identificador de país existente
+        const emisMatch = (dbEmisiones || []).find(c => {
+          const valPaisC = String(c.pais || c.nombre || c.id_pais || '').trim().toLowerCase();
+          return valPaisC === nombrePais;
+        });
+        
+        let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
         if (isNaN(edcVal)) edcVal = null;
 
-        // RPG: Riesgo País Global (Inversa: menor riesgo es mejor puntaje)
-        let rpgVal = sostMatch ? Number(sostMatch.rpg ?? sostMatch.riesgo_pais ?? 0) : null;
-        if (isNaN(rpgVal)) rpgVal = null;
+        // Buscar Índice Global (ISG) haciendo match por nombre o identificador de país existente
+        const isgMatch = (dbIsg || []).find(c => {
+          const valPaisI = String(c.pais || c.nombre || c.id_pais || '').trim().toLowerCase();
+          return valPaisI === nombrePais;
+        });
 
-        // ISG: Índice de Sostenibilidad Global (Directa: mayor índice es mejor puntaje)
-        let isgVal = sostMatch ? Number(sostMatch.isg ?? sostMatch.indice_sostenibilidad ?? 0) : null;
+        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? isgMatch.isg ?? 0) : null;
         if (isNaN(isgVal)) isgVal = null;
+
+        // RPG por defecto o integrable si se requiere
+        let rpgVal = 0; 
 
         return {
           id: p.id,
@@ -98,14 +109,13 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   const PESO_ISG = 0.40; // 40.00% (Directa)
   const PUNTAJE_MAXIMO = 10;
 
-  // Filtrar valores válidos mayores a 0
   const edcVals = datosProductos.map(d => d.edc).filter(v => v !== null && v !== undefined && v > 0);
   const rpgVals = datosProductos.map(d => d.rpg).filter(v => v !== null && v !== undefined && v > 0);
   const isgVals = datosProductos.map(d => d.isg).filter(v => v !== null && v !== undefined && v > 0);
 
-  const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null; // Inversa -> usa min
-  const minRpg = rpgVals.length > 0 ? Math.min(...rpgVals) : null; // Inversa -> usa min
-  const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null; // Directa -> usa max
+  const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null; 
+  const minRpg = rpgVals.length > 0 ? Math.min(...rpgVals) : null; 
+  const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null; 
 
   const calcularNormalizadoInverso = (val, minVal) => {
     if (val === null || val === undefined || val <= 0 || minVal === null || minVal <= 0) return null;
@@ -170,24 +180,40 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   };
 
   async function handleAgregarPais() {
-    if (!nuevoPaisNombre) return alert("Por favor ingresa el nombre del país.");
+    if (!nuevoPaisNombre) return alert("Por favor ingresa o selecciona el nombre del país.");
 
     try {
-      const { error: errP } = await supabase
+      // Verificar si el país ya existe en la tabla principal de países, si no, insertarlo
+      const { data: existingPais } = await supabase
         .from('paises')
-        .insert([{ nombre: nuevoPaisNombre }]);
+        .select('id')
+        .ilike('nombre', nuevoPaisNombre.trim())
+        .maybeSingle();
 
-      if (errP) throw errP;
+      let nombreFinalPais = nuevoPaisNombre.trim();
 
-      const { error: errS } = await supabase
-        .from('sostenibilidad')
-        .insert([{ 
-          pais: nuevoPaisNombre, 
-          edc: parseFloat(nuevoEdc) || 0, 
-          rpg: parseFloat(nuevoRpg) || 0, 
-          isg: parseFloat(nuevoIsg) || 0 
-        }]);
-      if (errS) throw errS;
+      if (!existingPais) {
+        const { error: errP } = await supabase
+          .from('paises')
+          .insert([{ nombre: nombreFinalPais }]);
+        if (errP) throw errP;
+      } else {
+        // Si ya existe, aseguramos el nombre exacto registrado
+        const { data: pObj } = await supabase.from('paises').select('nombre').eq('id', existingPais.id).single();
+        if (pObj) nombreFinalPais = pObj.nombre;
+      }
+
+      // Upsert en emisiones_carbono usando la columna de país existente
+      const { error: errE } = await supabase
+        .from('emisiones_carbono')
+        .upsert({ pais: nombreFinalPais, emisionescarbono: parseFloat(nuevoEdc) || 0 }, { onConflict: 'pais' });
+      if (errE) throw errE;
+
+      // Upsert en indice_sostenibilidad_global usando la columna de país existente
+      const { error: errI } = await supabase
+        .from('indice_sostenibilidad_global')
+        .upsert({ pais: nombreFinalPais, indicesostenibilidaglobal: parseFloat(nuevoIsg) || 0 }, { onConflict: 'pais' });
+      if (errI) throw errI;
 
       setNuevoPaisNombre(''); setNuevoEdc(''); setNuevoRpg(''); setNuevoIsg('');
       setActiveAccordion(null);
@@ -204,16 +230,17 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     if (!target) return;
 
     try {
-      const { error: errS } = await supabase
-        .from('sostenibilidad')
-        .upsert({ 
-          pais: target.pais_nombre, 
-          edc: parseFloat(editEdc) || 0, 
-          rpg: parseFloat(editRpg) || 0, 
-          isg: parseFloat(editIsg) || 0 
-        }, { onConflict: 'pais' });
+      // Actualizar en emisiones_carbono haciendo match con el país existente
+      const { error: errE } = await supabase
+        .from('emisiones_carbono')
+        .upsert({ pais: target.pais_nombre, emisionescarbono: parseFloat(editEdc) || 0 }, { onConflict: 'pais' });
+      if (errE) throw errE;
 
-      if (errS) throw errS;
+      // Actualizar en indice_sostenibilidad_global haciendo match con el país existente
+      const { error: errI } = await supabase
+        .from('indice_sostenibilidad_global')
+        .upsert({ pais: target.pais_nombre, indicesostenibilidaglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
+      if (errI) throw errI;
 
       setSelectedPaisId(''); setEditEdc(''); setEditRpg(''); setEditIsg('');
       setActiveAccordion(null);
@@ -260,19 +287,22 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
               onClick={() => toggleAccordion('add')}
               className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
             >
-              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Añadir valores de Sostenibilidad por País
+              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Asignar / Añadir valores a Países existentes
             </button>
             {activeAccordion === 'add' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
                 <div>
-                  <label className="block text-slate-400 mb-1">Nombre del País</label>
-                  <input
-                    type="text"
+                  <label className="block text-slate-400 mb-1">Nombre del País (Catálogo)</label>
+                  <select
                     value={nuevoPaisNombre}
                     onChange={(e) => setNuevoPaisNombre(e.target.value)}
-                    placeholder="Ej. Costa Rica"
                     className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
-                  />
+                  >
+                    <option value="">-- Selecciona un país del catálogo --</option>
+                    {listaPaises.map(p => (
+                      <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
@@ -310,7 +340,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   onClick={handleAgregarPais}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors"
                 >
-                  Guardar
+                  Guardar / Actualizar
                 </button>
               </div>
             )}
