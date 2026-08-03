@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-// ============================================================
-// HELPERS COMPARTIDOS (mismos que usan las pestañas individuales)
-// ============================================================
 const normalizarTexto = (texto) => {
   if (texto === null || texto === undefined) return '';
   return texto
@@ -97,13 +94,15 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           return;
         }
 
+        // Filtrar estrictamente los países seleccionados en el dashboard principal
         const nombresBase = (paisesDestino && paisesDestino.length > 0)
           ? paisesDestino.map((p) => (typeof p === 'string' ? p : (p.nombre || p.pais)))
           : dbPaises.map((p) => p.nombre);
 
+        const paisesFiltrados = dbPaises.filter(p => nombresBase.some(n => normalizarTexto(n) === normalizarTexto(p.nombre)));
         const paisBaseObj = dbPaises.find((p) => normalizarTexto(p.nombre) === normalizarTexto(paisOrigen)) || dbPaises[0];
 
-        // ---------------- COST ----------------
+        // --- 1. COST ---
         let nombreProductoBuscado = '';
         if (typeof productoActivo === 'string') nombreProductoBuscado = productoActivo;
         else if (productoActivo && typeof productoActivo === 'object') {
@@ -146,10 +145,10 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const p2 = normInverso(d.cti, minCtiFinal) ?? 0;
           const p3 = normInverso(d.cic, minCicFinal) ?? 0;
           const faltan = [d.ppd, d.cti, d.cic].filter((v) => v === null).length;
-          mapaCost[normalizarTexto(d.pais)] = faltan === 3 ? null : Number((0.44 * p1 + 0.34 * p2 + 0.22 * p3).toFixed(2));
+          mapaCost[normalizarTexto(d.pais)] = faltan === 3 ? 5.0 : Number((0.44 * p1 + 0.34 * p2 + 0.22 * p3).toFixed(2));
         });
 
-        // ---------------- LOGI ----------------
+        // --- 2. LOGI ---
         const puertoOrigen = (resPuertos.data || []).find((p) => normalizarTexto(p.pais) === normalizarTexto(paisOrigen) && p.principal === 'Y')
           || (resPuertos.data || []).find((p) => normalizarTexto(p.pais) === normalizarTexto(paisOrigen));
 
@@ -158,7 +157,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const match = (resTabLogi.data || []).find((r) => normalizarTexto(r.pais) === key);
           const idl = match && match.lpi !== null ? Number(match.lpi) : null;
           const ccp = match && match.cfr !== null ? Number(match.cfr) : null;
-
           const puertoDestino = (resPuertos.data || []).find((pt) => normalizarTexto(pt.pais) === key && pt.principal === 'Y')
             || (resPuertos.data || []).find((pt) => normalizarTexto(pt.pais) === key);
 
@@ -182,10 +180,10 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const p2 = normDirecto(d.ccp, maxCcp) ?? 0;
           const p3 = normInverso(d.tti, minTti) ?? 0;
           const faltan = [d.idl, d.ccp, d.tti].filter((v) => v === null).length;
-          mapaLogi[normalizarTexto(d.pais)] = faltan === 3 ? null : Number((0.185 * p1 + 0.185 * p2 + 0.63 * p3).toFixed(2));
+          mapaLogi[normalizarTexto(d.pais)] = faltan === 3 ? 5.0 : Number((0.185 * p1 + 0.185 * p2 + 0.63 * p3).toFixed(2));
         });
 
-        // ---------------- COMM ----------------
+        // --- 3. COMM ---
         const commRaw = dbPaises.map((p, idx) => {
           const key = normalizarTexto(p.nombre);
           const matchIemp = (resPenetracion.data || []).find((r) => normalizarTexto(r.pais || r.nombre || r.Paises) === key);
@@ -220,11 +218,11 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const iempNorm = (d.iemp !== null && iempMax !== iempMin) ? Number((A3 * (d.iemp - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
           const ioefNorm = (d.ioef !== null && ioefMax !== ioefMin) ? Number((A3 * (d.ioef - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
           mapaComm[normalizarTexto(d.pais)] = (d.iemp === null && d.ioef === null)
-            ? null
+            ? 5.0
             : Number((ctcoNorm * 0.465 + iempNorm * 0.25 + ioefNorm * 0.285).toFixed(2));
         });
 
-        // ---------------- ECON ----------------
+        // --- 4. ECON ---
         const econRaw = dbPaises.map((p) => {
           const key = normalizarTexto(p.nombre);
           const mCv = (resCostoVida.data || []).find((r) => normalizarTexto(r.pais || r.nombre) === key);
@@ -233,12 +231,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const icv = mCv ? Number(mCv.costo_de_vida ?? mCv.icv ?? mCv.valor) : null;
           const tad = mDes ? Number(mDes.tasadesempleo ?? mDes.tasa_desempleo ?? mDes.desempleo) : null;
           const inan = mInf ? Number(mInf.inflacion_anual ?? mInf.inflacion) : null;
-          return {
-            pais: p.nombre,
-            icv: isNaN(icv) ? null : icv,
-            tad: isNaN(tad) ? null : tad,
-            inan: isNaN(inan) ? null : inan
-          };
+          return { pais: p.nombre, icv: isNaN(icv) ? null : icv, tad: isNaN(tad) ? null : tad, inan: isNaN(inan) ? null : inan };
         });
 
         const minIcv = econRaw.map((d) => d.icv).filter((v) => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
@@ -251,10 +244,10 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const p2 = normInverso(d.inan, isFinite(minInan) ? minInan : null) ?? 0;
           const p3 = normInverso(d.tad, isFinite(minTad) ? minTad : null) ?? 0;
           const faltan = [d.icv, d.inan, d.tad].filter((v) => v === null).length;
-          mapaEcon[normalizarTexto(d.pais)] = faltan === 3 ? null : Number((0.30 * p1 + 0.30 * p2 + 0.40 * p3).toFixed(2));
+          mapaEcon[normalizarTexto(d.pais)] = faltan === 3 ? 5.0 : Number((0.30 * p1 + 0.30 * p2 + 0.40 * p3).toFixed(2));
         });
 
-        // ---------------- POLI ----------------
+        // --- 5. POLI ---
         const FSI_min = 19.6, INRI_min = 1.7, DEIN_max = 8.85;
         const mapaPoli = {};
         dbPaises.forEach((p) => {
@@ -264,16 +257,16 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const mDein = (resDEIN.data || []).find((r) => normalizarTexto(r.pais) === key);
           const fsi = mFsi ? Number(mFsi.indice_de_estados_fragiles) : null;
           const inri = mInri ? Number(mInri.riesgo) : null;
-          const dein = mDein ? Number(mDein.indice_democracia) : null;
+          const dein = mDein ? Number(mInin.indice_democracia ?? mInin.dein ?? mInin.indice_de_democracia) : null;
 
           const fsiNorm = normInverso(fsi, FSI_min) ?? 0;
           const inriNorm = normInverso(inri, INRI_min) ?? 0;
           const deinNorm = normDirecto(dein, DEIN_max) ?? 0;
           const faltan = [fsi, inri, dein].filter((v) => v === null || isNaN(v)).length;
-          mapaPoli[key] = faltan === 3 ? null : Number((0.355 * fsiNorm + 0.350 * inriNorm + 0.295 * deinNorm).toFixed(2));
+          mapaPoli[key] = faltan === 3 ? 5.0 : Number((0.355 * fsiNorm + 0.350 * inriNorm + 0.295 * deinNorm).toFixed(2));
         });
 
-        // ---------------- CULT ----------------
+        // --- 6. CULT ---
         const glinVals = (resGLIN.data || []).map((r) => Number(r.indice_globalizacion)).filter((v) => !isNaN(v) && v > 0);
         const maxGlin = glinVals.length ? Math.max(...glinVals) : 100;
         const cpciVals = (resCPCI.data || []).map((r) => Number(r.indice_percepcion_corrupcion)).filter((v) => !isNaN(v) && v > 0);
@@ -289,10 +282,10 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const glinNorm = normDirecto(glin, maxGlin) ?? 0;
           const cpciNorm = normDirecto(cpci, maxCpci) ?? 0;
           const faltan = [glin, cpci].filter((v) => v === null).length;
-          mapaCult[key] = faltan === 2 ? null : Number((glinNorm * 0.30 + cpciNorm * 0.50).toFixed(2));
+          mapaCult[key] = faltan === 2 ? 5.0 : Number((glinNorm * 0.30 + cpciNorm * 0.50).toFixed(2));
         });
 
-        // ---------------- SUST ----------------
+        // --- 7. SUST ---
         const edcVals = (resEmisiones.data || []).map((r) => Number(r.emisionescarbono ?? r.edc)).filter((v) => !isNaN(v) && v > 0);
         const minEdc = edcVals.length ? Math.min(...edcVals) : null;
         const isgVals = (resIsg.data || []).map((r) => Number(r.indicesostenibilidadglobal ?? r.isg)).filter((v) => !isNaN(v) && v > 0);
@@ -308,15 +301,15 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const edcNorm = normInverso(isNaN(edc) ? null : edc, minEdc) ?? 0;
           const isgNorm = normDirecto(isNaN(isg) ? null : isg, maxIsg) ?? 0;
           const faltan = [edc, isg].filter((v) => v === null || isNaN(v)).length;
-          mapaSust[key] = faltan === 2 ? null : Number((edcNorm * 0.30 + isgNorm * 0.40).toFixed(2));
+          mapaSust[key] = faltan === 2 ? 5.0 : Number((edcNorm * 0.30 + isgNorm * 0.40).toFixed(2));
         });
 
-        // ---------------- CONSOLIDACIÓN FINAL ----------------
-        const lista = nombresBase.map((nombre) => {
-          const key = normalizarTexto(nombre);
+        // Construir la lista consolidada únicamente con los países que eligió el usuario
+        const lista = paisesFiltrados.map((p) => {
+          const key = normalizarTexto(p.nombre);
           const val = (mapa) => (mapa[key] !== undefined && mapa[key] !== null) ? mapa[key] : 5.0;
           return {
-            Paises: nombre,
+            Paises: p.nombre,
             "1. Cost (COST)": val(mapaCost),
             "2. Logistical (LOGI)": val(mapaLogi),
             "3. Commercial (COMM)": val(mapaComm),
@@ -330,7 +323,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
         setDatosTotales(lista);
         setErrorNotif(null);
       } catch (err) {
-        console.error("Error al calcular las métricas normalizadas:", err);
+        console.error("Error al calcular las métricas:", err);
         setErrorNotif("Hubo un problema al calcular automáticamente las métricas: " + err.message);
       } finally {
         setCargando(false);
@@ -340,7 +333,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
     cargarYProcesarTodo();
   }, [paisesDestino, paisOrigen, productoActivo]);
 
-  // CORRECCIÓN APLICADA AQUÍ: Multiplicación correcta basada en la escala de 0 a 10 y los pesos generales (suma 100%)
+  // Cálculo del puntaje ponderado global respetando la escala de 0 a 10
   const datosCalculados = datosTotales.map((item) => {
     const puntajeBruto = (
       (item["1. Cost (COST)"] * (pesosCat.COST / 100)) +
@@ -435,7 +428,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           </div>
         ) : datosCalculados.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400">
-            No se encontraron países disponibles para mostrar en la tabla consolidada.
+            No se encontraron países seleccionados para mostrar en la tabla consolidada. Asegúrate de elegir países destino en el menú principal.
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
