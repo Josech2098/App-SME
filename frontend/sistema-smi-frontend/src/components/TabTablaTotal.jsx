@@ -144,7 +144,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const p2 = normInverso(d.cti, minCtiFinal) ?? 0;
           const p3 = normInverso(d.cic, minCicFinal) ?? 0;
           const faltan = [d.ppd, d.cti, d.cic].filter((v) => v === null).length;
-          
           const valorBruto = faltan === 3 ? 0.5 : (0.44 * p1 + 0.34 * p2 + 0.22 * p3);
           mapaCost[normalizarTexto(d.pais)] = Number((valorBruto * 10).toFixed(2));
         });
@@ -181,7 +180,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const p2 = normDirecto(d.ccp, maxCcp) ?? 0;
           const p3 = normInverso(d.tti, minTti) ?? 0;
           const faltan = [d.idl, d.ccp, d.tti].filter((v) => v === null).length;
-          mapaLogi[normalizarTexto(d.pais)] = faltan === 3 ? 5.0 : Number((0.185 * p1 + 0.185 * p2 + 0.63 * p3).toFixed(2));
+          const valorBruto = faltan === 3 ? 0.5 : (0.185 * p1 + 0.185 * p2 + 0.63 * p3);
+          mapaLogi[normalizarTexto(d.pais)] = Number((valorBruto * 10).toFixed(2));
         });
 
         // --- 3. COMM ---
@@ -218,9 +218,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const ctcoNorm = ctcoMax !== ctcoMin ? Number((A3 * (ctcoMax - d.ctco) / (ctcoMax - ctcoMin)).toFixed(2)) : A3;
           const iempNorm = (d.iemp !== null && iempMax !== iempMin) ? Number((A3 * (d.iemp - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
           const ioefNorm = (d.ioef !== null && ioefMax !== ioefMin) ? Number((A3 * (d.ioef - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
-          mapaComm[normalizarTexto(d.pais)] = (d.iemp === null && d.ioef === null)
-            ? 5.0
-            : Number((ctcoNorm * 0.465 + iempNorm * 0.25 + ioefNorm * 0.285).toFixed(2));
+          const valorBruto = (d.iemp === null && d.ioef === null) ? 0.5 : (ctcoNorm * 0.465 + iempNorm * 0.25 + ioefNorm * 0.285);
+          mapaComm[normalizarTexto(d.pais)] = Number((valorBruto * 10).toFixed(2));
         });
 
         // --- 4. ECON ---
@@ -245,7 +244,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const p2 = normInverso(d.inan, isFinite(minInan) ? minInan : null) ?? 0;
           const p3 = normInverso(d.tad, isFinite(minTad) ? minTad : null) ?? 0;
           const faltan = [d.icv, d.inan, d.tad].filter((v) => v === null).length;
-          mapaEcon[normalizarTexto(d.pais)] = faltan === 3 ? 5.0 : Number((0.30 * p1 + 0.30 * p2 + 0.40 * p3).toFixed(2));
+          const valorBruto = faltan === 3 ? 0.5 : (0.30 * p1 + 0.30 * p2 + 0.40 * p3);
+          mapaEcon[normalizarTexto(d.pais)] = Number((valorBruto * 10).toFixed(2));
         });
 
         // --- 5. POLI ---
@@ -264,7 +264,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const inriNorm = normInverso(inri, INRI_min) ?? 0;
           const deinNorm = normDirecto(dein, DEIN_max) ?? 0;
           const faltan = [fsi, inri, dein].filter((v) => v === null || isNaN(v)).length;
-          mapaPoli[key] = faltan === 3 ? 5.0 : Number((0.355 * fsiNorm + 0.350 * inriNorm + 0.295 * deinNorm).toFixed(2));
+          const valorBruto = faltan === 3 ? 0.5 : (0.355 * fsiNorm + 0.350 * inriNorm + 0.295 * deinNorm);
+          mapaPoli[key] = Number((valorBruto * 10).toFixed(2));
         });
 
         // --- 6. CULT ---
@@ -283,7 +284,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const glinNorm = normDirecto(glin, maxGlin) ?? 0;
           const cpciNorm = normDirecto(cpci, maxCpci) ?? 0;
           const faltan = [glin, cpci].filter((v) => v === null).length;
-          mapaCult[key] = faltan === 2 ? 5.0 : Number((glinNorm * 0.30 + cpciNorm * 0.50).toFixed(2));
+          const valorBruto = faltan === 2 ? 0.5 : (glinNorm * 0.30 + cpciNorm * 0.50);
+          mapaCult[key] = Number((valorBruto * 10).toFixed(2));
         });
 
         // --- 7. SUST ---
@@ -302,7 +304,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const edcNorm = normInverso(isNaN(edc) ? null : edc, minEdc) ?? 0;
           const isgNorm = normDirecto(isNaN(isg) ? null : isg, maxIsg) ?? 0;
           const faltan = [edc, isg].filter((v) => v === null || isNaN(v)).length;
-          mapaSust[key] = faltan === 2 ? 5.0 : Number((edcNorm * 0.30 + isgNorm * 0.40).toFixed(2));
+          const valorBruto = faltan === 2 ? 0.5 : (edcNorm * 0.30 + isgNorm * 0.40);
+          mapaSust[key] = Number((valorBruto * 10).toFixed(2));
         });
 
         const lista = paisesFiltrados.map((p) => {
