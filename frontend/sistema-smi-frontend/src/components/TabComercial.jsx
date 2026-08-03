@@ -178,10 +178,6 @@ export default function TabComercial({
 
       setDatosCommConsolidados(dfComm);
 
-      // Normalización exacta basada en las fórmulas de Excel:
-      // ara: =($A$3*MIN($M$5:$M$14))/M5  (Criterio de costos: menor es mejor -> MIN / valor_actual)
-      // ibc: =($A$3*MIN($N$5:$N$14))/N5  (Criterio de penetración: menor es mejor o minimizado en este modelo específico de Excel)
-      // ibc/ioef: =($A$3*O6)/MAX($O$5:$O$14) (Criterio de beneficio: mayor es mejor -> valor_actual / MAX)
       const A3 = 10;
 
       const ctcoValues = dfComm.map(item => item['Aranceles aduaneros por país de origen (CTCO)']).filter(v => v !== null && !isNaN(v) && v > 0);
@@ -201,7 +197,6 @@ export default function TabComercial({
         const iempNorm = (iempVal > 0) ? Number(((A3 * minIemp) / iempVal).toFixed(2)) : 0;
         const ioefNorm = (maxIoef > 0) ? Number(((A3 * ioefVal) / maxIoef).toFixed(2)) : 0;
 
-        // Ponderaciones exactas de la imagen: Aranceles (50%), Penetración (30%), Libertad Económica (20%)
         const commTotal = Number((ctcoNorm * 0.5 + iempNorm * 0.3 + ioefNorm * 0.2).toFixed(2));
 
         return {
@@ -225,7 +220,7 @@ export default function TabComercial({
   return (
     <div className="space-y-6 text-slate-100 font-sans p-2">
       <div className="border-b border-slate-800 pb-3">
-        <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
+        <h2 className="text-xl font-bold text-white">3. Commercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
           Extracción de países desde productos y conexión con Supabase.
         </p>
