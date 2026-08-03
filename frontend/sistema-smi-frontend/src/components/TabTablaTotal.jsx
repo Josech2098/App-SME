@@ -144,7 +144,9 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActiv
           const p2 = normInverso(d.cti, minCtiFinal) ?? 0;
           const p3 = normInverso(d.cic, minCicFinal) ?? 0;
           const faltan = [d.ppd, d.cti, d.cic].filter((v) => v === null).length;
-          mapaCost[normalizarTexto(d.pais)] = faltan === 3 ? 5.0 : Number((0.44 * p1 + 0.34 * p2 + 0.22 * p3).toFixed(2));
+          
+          const valorBruto = faltan === 3 ? 0.5 : (0.44 * p1 + 0.34 * p2 + 0.22 * p3);
+          mapaCost[normalizarTexto(d.pais)] = Number((valorBruto * 10).toFixed(2));
         });
 
         // --- 2. LOGI ---
