@@ -154,7 +154,7 @@ export default function TabComercial({
       const [iempMin, iempMax] = getMinMax(dfComm, 'Índice de penetración en el mercado de exportación (IEMP)');
       const [ioefMin, ioefMax] = getMinMax(dfComm, 'Índice de Libertad Económica (IOEF)');
 
-      const PESO_FACTOR_COMERCIAL = 0.205; // 20.50% peso global
+      const PESO_GLOBAL_COMM = 0.205; // 20.50%
 
       const dfNorm = dfComm.map(item => {
         const ctcoVal = item['Aranceles aduaneros por país de origen (CTCO)'];
@@ -168,19 +168,16 @@ export default function TabComercial({
         const iempNorm = (iempMax !== iempMin) ? Number((A3 * (iempVal - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
         const ioefNorm = (ioefMax !== ioefMin) ? Number((A3 * (ioefVal - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
 
-        // Ponderación interna: 46.50% CTCO, 25.00% IEMP, 28.50% IOEF
-        const commTotal = Number((ctcoNorm * 0.4650 + iempNorm * 0.2500 + ioefNorm * 0.2850).toFixed(2));
-
-        // Cálculo del aporte global (20.50%)
-        const aporteFactorComercial = Number((commTotal * PESO_FACTOR_COMERCIAL).toFixed(2));
+        // Ponderación interna y escalado directo al 20.50% total del modelo
+        const subtotalPonderado = (ctcoNorm * 0.4650 + iempNorm * 0.2500 + ioefNorm * 0.2850);
+        const commTotal = Number((subtotalPonderado * PESO_GLOBAL_COMM).toFixed(2));
 
         return {
           Paises: item.Paises,
           CTCO_norm: ctcoNorm,
           IEMP_norm: iempNorm,
           IOEF_norm: ioefNorm,
-          COMM_total: commTotal,
-          aporteFactorComercial
+          COMM_total: commTotal
         };
       });
 
@@ -198,7 +195,7 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Cruce y normalización ponderada (46.50% Aranceles, 25.00% Penetración, 28.50% Libertad Económica) — (Aporte Global: 20.50%).
+          Cruce y normalización ponderada (46.50% Aranceles, 25.00% Penetración, 28.50% Libertad Económica) con Ponderación Global del 20.50%.
         </p>
       </div>
 
@@ -258,8 +255,7 @@ export default function TabComercial({
                 <th className="p-3">CTCO Norm (46.50%)</th>
                 <th className="p-3">IEMP Norm (25.00%)</th>
                 <th className="p-3">IOEF Norm (28.50%)</th>
-                <th className="p-3">COMM Total</th>
-                <th className="p-3">Aporte Global (20.50%)</th>
+                <th className="p-3">COMM Total (20.50%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
@@ -272,12 +268,11 @@ export default function TabComercial({
                     <td className="p-3">{row.IEMP_norm}</td>
                     <td className="p-3">{row.IOEF_norm}</td>
                     <td className="p-3 font-bold text-emerald-400">{row.COMM_total}</td>
-                    <td className="p-3 font-bold text-red-400">{row.aporteFactorComercial}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="p-4 text-center text-slate-500 italic">No hay registros normalizados disponibles.</td>
+                  <td colSpan="6" className="p-4 text-center text-slate-500 italic">No hay registros normalizados disponibles.</td>
                 </tr>
               )}
             </tbody>
