@@ -25,7 +25,6 @@ export default function TabComercial({
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
           
-          // Cargar desde la tabla 'paises'
           const { data: paisesData, error: paisesError } = await supabase.from('paises').select('*');
           if (paisesError) console.error('Error al consultar paises:', paisesError);
           else if (paisesData) setDbPaises(paisesData);
@@ -42,7 +41,7 @@ export default function TabComercial({
             else if (libData) setDbLibertad(libData);
           }
         }
-      } catch (e) {
+      }  catch (e) {
         console.error("Excepción al conectar con Supabase:", e);
       } finally {
         setCargandoSupabase(false);
@@ -72,42 +71,32 @@ export default function TabComercial({
     try {
       const mapaPaisesUnicos = new Map();
 
-      const registrarPais = (textoOriginal) => {
-        if (!textoOriginal || typeof textoOriginal !== 'string') return;
-        const limpio = textoOriginal.trim();
-        if (limpio.length > 1 && !/^\d+$/.test(limpio) && !limpio.toLowerCase().includes('indice')) {
-          const claveNorm = normalizarTexto(limpio);
-          if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
-            mapaPaisesUnicos.set(claveNorm, limpio);
-          }
-        }
-      };
-
-      // Carga directa de la tabla 'paises' de Supabase
+      // Tomamos el nombre exacto tal cual viene de la base de datos (con mayúsculas iniciales)
       if (Array.isArray(dbPaises) && dbPaises.length > 0) {
         dbPaises.forEach(item => {
           const nombrePais = item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0];
-          if (typeof nombrePais === 'string') {
-            registrarPais(nombrePais);
+          if (typeof nombrePais === 'string' && nombrePais.trim().length > 1) {
+            const limpio = nombrePais.trim();
+            const claveNorm = normalizarTexto(limpio);
+            if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
+              mapaPaisesUnicos.set(claveNorm, limpio); // Se guarda el texto original con mayúsculas
+            }
           }
         });
       }
 
-      // Respaldo por si la tabla 'paises' viene vacía o tarda en cargar
-      if (mapaPaisesUnicos.size === 0) {
-        if (Array.isArray(paisesDestino) && paisesDestino.length > 0) {
-          paisesDestino.forEach(p => {
-            if (typeof p === 'string') registrarPais(p);
-            else if (p && typeof p === 'object') {
-              Object.values(p).forEach(val => { if (typeof val === 'string') registrarPais(val); });
+      // Respaldo si dbPaises está vacío
+      if (mapaPaisesUnicos.size === 0 && Array.isArray(paisesDestino)) {
+        paisesDestino.forEach(p => {
+          const val = typeof p === 'string' ? p : (p?.nombre || p?.pais || Object.values(p)[0]);
+          if (typeof val === 'string' && val.trim().length > 1) {
+            const limpio = val.trim();
+            const claveNorm = normalizarTexto(limpio);
+            if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
+              mapaPaisesUnicos.set(claveNorm, limpio);
             }
-          });
-        } else {
-          effectivePenetracion.forEach(item => {
-            const pais = item.nombre || item.pais || item.Paises || item.Nombre;
-            if (pais) registrarPais(pais);
-          });
-        }
+          }
+        });
       }
 
       let listaPaisesFinal = Array.from(mapaPaisesUnicos.values());
@@ -216,13 +205,13 @@ export default function TabComercial({
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Carga de países desde la tabla 'paises' en Supabase y cruce con índices.
+          Carga de países desde la tabla 'paises' manteniendo sus mayúsculas originales.
         </p>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs flex items-center justify-between">
         <div>
-          <span className="text-slate-400">Países cargados desde BD:</span> <strong className="text-white">{dbPaises.length}</strong> | 
+          <span className="text-slate-400">Países en BD:</span> <strong className="text-white">{dbPaises.length}</strong> | 
           <span className="text-slate-400 ml-2">Registros procesados:</span> <strong className="text-emerald-400">{datosCommConsolidados.length}</strong>
         </div>
         <div>
