@@ -112,7 +112,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           });
         };
 
-        // 2. Extraer los valores reales/crudos de cada tabla
+        // 2. Extraer los valores reales/crudos de cada tabla (nombres oficiales: costos, logistica, comercio, economia, politica, indiceglobalizacion, emisiones_carbono, indice_sostenibilidad_global, paises)
         poblarCrudos(resCostos.data, "rawCost", ['costo', 'valor', 'monto', 'score', 'puntaje']);
         poblarCrudos(resLogistica.data, "rawLogi", ['logistica', 'valor', 'score', 'puntaje', 'indice']);
         poblarCrudos(resComercio.data, "rawComm", ['comercio', 'valor', 'score', 'puntaje', 'exportaciones']);
@@ -243,7 +243,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Consolidación Global</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Tablas Totales y Normalizadas</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Cruce integral de las 7 pestañas de análisis estratégico.
+          Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Cruce integral de las 7 pestañas de análisis estratégico (tablas Supabase: <code className="text-slate-300">costos, logistica, comercio, economia, politica, indiceglobalizacion, emisiones_carbono, indice_sostenibilidad_global, paises</code>).
         </p>
       </div>
 
