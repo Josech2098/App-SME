@@ -8,11 +8,13 @@ export default function TabComercial({
   paisOrigen, 
   archivoExcelBytes,
   datosIndicePenetracion = [], 
-  datosLibertadEconomica = []   
+  datosLibertadEconomica = [],
+  datosAranceles = [] 
 }) {
   const [dbPaises, setDbPaises] = useState([]);
   const [dbPenetracion, setDbPenetracion] = useState(datosIndicePenetracion);
   const [dbLibertad, setDbLibertad] = useState(datosLibertadEconomica);
+  const [dbAranceles, setDbAranceles] = useState(datosAranceles);
   const [cargandoSupabase, setCargandoSupabase] = useState(false);
 
   // Carga robusta desde Supabase con respaldo en props
@@ -26,27 +28,32 @@ export default function TabComercial({
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
           
-          // Intentar consultar la tabla 'paises' (o 'Paises')
-          let { data: paisesData, error: paisesError } = await supabase.from('paises').select('*');
-          if (paisesError || !paisesData || paisesData.length === 0) {
-            // Intento alternativo con mayúscula por si acaso
+          // 1. Intentar consultar la tabla 'paises' (o 'Paises')
+          let { data: paisesData } = await supabase.from('paises').select('*');
+          if (!paisesData || paisesData.length === 0) {
             const resAlt = await supabase.from('Paises').select('*');
-            if (!resAlt.error && resAlt.data) paisesData = resAlt.data;
+            if (resAlt.data) paisesData = resAlt.data;
           }
-
           if (paisesData && paisesData.length > 0) {
             setDbPaises(paisesData);
           }
 
-          // Consultar índices si no vienen por props
+          // 2. Consultar índices de penetración si no vienen por props
           if (!datosIndicePenetracion || datosIndicePenetracion.length === 0) {
             const { data: penData } = await supabase.from('indicepenetracion').select('*');
             if (penData) setDbPenetracion(penData);
           }
 
+          // 3. Consultar libertad económica si no vienen por props
           if (!datosLibertadEconomica || datosLibertadEconomica.length === 0) {
             const { data: libData } = await supabase.from('libertadeconomica').select('*');
             if (libData) setDbLibertad(libData);
+          }
+
+          // 4. Consultar aranceles aduaneros desde la tabla 'aranceles_paises'
+          if (!datosAranceles || datosAranceles.length === 0) {
+            const { data: aranData } = await supabase.from('aranceles_paises').select('*');
+            if (aranData) setDbAranceles(aranData);
           }
         }
       } catch (e) {
@@ -60,6 +67,7 @@ export default function TabComercial({
 
   const effectivePenetracion = (datosIndicePenetracion && datosIndicePenetracion.length > 0) ? datosIndicePenetracion : dbPenetracion;
   const effectiveLibertad = (datosLibertadEconomica && datosLibertadEconomica.length > 0) ? datosLibertadEconomica : dbLibertad;
+  const effectiveAranceles = (datosAranceles && datosAranceles.length > 0) ? datosAranceles : dbAranceles;
 
   const [commOverrides, setCommOverrides] = useState([]);
   const [datosCommConsolidados, setDatosCommConsolidados] = useState([]);
@@ -78,7 +86,6 @@ export default function TabComercial({
 
   useEffect(() => {
     try {
-      // FUENTE DE RESPALDO: Si Supabase falló o vino vacío, extraemos los países de las tablas de índices o de las props
       let listaPaisesFuente = dbPaises;
       
       if (!listaPaisesFuente || listaPaisesFuente.length === 0) {
@@ -113,6 +120,12 @@ export default function TabComercial({
         const nombreOriginal = typeof itemPais === 'string' ? itemPais : (itemPais.nombre || itemPais.pais || itemPais.Paises || itemPais.Nombre || Object.values(itemPais)[0]);
         const paisNorm = normalizarTexto(nombreOriginal);
 
+        // Buscar coincidencia en Aranceles reales desde Supabase
+        const matchArancel = effectiveAranceles.find(item => {
+          const valPais = item.pais || item.nombre || item.Paises || item.Nombre;
+          return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
+        });
+
         // Buscar coincidencia normalizada en Penetración
         const matchIemp = effectivePenetracion.find(item => {
           const valPais = item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0];
@@ -138,7 +151,10 @@ export default function TabComercial({
           return valNum !== undefined ? Number(valNum) : null;
         };
 
-        const calculoArancelCTCO = Number((2.0 + (idx * 0.7) % 5.0).toFixed(2));
+        // Obtener arancel real de Supabase o aplicar respaldo por defecto (5.0%) si no existe
+        const valorArancelReal = matchArancel 
+          ? extraerNumero(matchArancel, ['porcentaje_arancel', 'arancel', 'ctco', 'valor']) ?? 5.0 
+          : 5.0;
 
         const valIemp = overrideMatch && overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] !== undefined
           ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
@@ -150,7 +166,7 @@ export default function TabComercial({
 
         return {
           Paises: nombreOriginal,
-          'Aranceles aduaneros por país de origen (CTCO)': calculoArancelCTCO,
+          'Aranceles aduaneros por país de origen (CTCO)': Number(valorArancelReal),
           'Índice de penetración en el mercado de exportación (IEMP)': Number(valIemp) || 0,
           'Índice de Libertad Económica (IOEF)': Number(valIoef) || 0
         };
@@ -203,20 +219,21 @@ export default function TabComercial({
       console.error("Error al procesar la sincronización:", err);
       setErrorProceso(err.message);
     }
-  }, [dbPaises, effectivePenetracion, effectiveLibertad, commOverrides, paisesDestino]);
+  }, [dbPaises, effectivePenetracion, effectiveLibertad, effectiveAranceles, commOverrides, paisesDestino]);
 
   return (
     <div className="space-y-6 text-slate-100 font-sans p-2">
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Cruce inteligente con respaldo automático de catálogos y tablas de índices.
+          Cruce inteligente con aranceles aduaneros reales desde Supabase y tablas de índices.
         </p>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs flex items-center justify-between">
         <div>
           <span className="text-slate-400">Países en BD:</span> <strong className="text-white">{dbPaises.length}</strong> | 
+          <span className="text-slate-400 ml-2">Aranceles cargados:</span> <strong className="text-blue-400">{effectiveAranceles.length}</strong> | 
           <span className="text-slate-400 ml-2">Registros procesados:</span> <strong className="text-emerald-400">{datosCommConsolidados.length}</strong>
         </div>
         <div>
@@ -234,7 +251,7 @@ export default function TabComercial({
               <tr>
                 <th className="p-3 w-12">#</th>
                 <th className="p-3">País</th>
-                <th className="p-3">Aranceles (CTCO)</th>
+                <th className="p-3">Aranceles (CTCO) %</th>
                 <th className="p-3">Penetración (IEMP)</th>
                 <th className="p-3">Libertad Económica (IOEF)</th>
               </tr>
@@ -245,7 +262,7 @@ export default function TabComercial({
                   <tr key={index} className="hover:bg-[#16181d]">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
+                    <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']} %</td>
                     <td className="p-3">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
                     <td className="p-3">{row['Índice de Libertad Económica (IOEF)']}</td>
                   </tr>
