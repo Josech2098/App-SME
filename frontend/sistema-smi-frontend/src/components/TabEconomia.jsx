@@ -31,14 +31,25 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
   const [errorEco, setErrorEco] = useState(null);
 
   // Estados locales para las tablas de Supabase
+  const [listaPaisesDB, setListaPaisesDB] = useState([]);
   const [listaCostoVidaDB, setListaCostoVidaDB] = useState(datosCostoDeVida);
   const [listaDesempleoDB, setListaDesempleoDB] = useState([]);
+  const [listaInflacionDB, setListaInflacionDB] = useState([]);
 
   useEffect(() => {
     async function fetchDataDB() {
       try {
         setCargando(true);
-        // Consultar costo de vida
+        
+        // 1. Consultar tabla de países oficial
+        const { data: paisesData, error: paisesError } = await supabase.from('paises').select('*').range(0, 999);
+        if (paisesError) {
+          console.error("Error en Supabase paises:", paisesError.message);
+        } else if (paisesData) {
+          setListaPaisesDB(paisesData);
+        }
+
+        // 2. Consultar costo de vida
         const { data: cvData, error: cvError } = await supabase.from('costodevida').select('*').range(0, 999);
         if (cvError) {
           console.error("Error en Supabase costodevida:", cvError.message);
@@ -46,14 +57,20 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           setListaCostoVidaDB(cvData);
         }
 
-        // Consultar desempleo
+        // 3. Consultar desempleo
         const { data: desData, error: desError } = await supabase.from('desempleo').select('*').range(0, 999);
         if (desError) {
           console.error("Error en Supabase desempleo:", desError.message);
         } else if (desData) {
-          console.log("Datos de desempleo cargados desde Supabase:", desData);
           setListaDesempleoDB(desData);
         }
+
+        // 4. Consultar inflación (si aplica tabla independiente)
+        const { data: infData, error: infError } = await supabase.from('inflacion').select('*').range(0, 999);
+        if (!infError && infData) {
+          setListaInflacionDB(infData);
+        }
+
       } catch (err) {
         console.error("Error cargando datos de Supabase:", err.message);
       } finally {
@@ -142,7 +159,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     }
   };
 
-  // Procesamiento y cruce de tablas (costodevida + desempleo)
+  // Procesamiento y cruce de tablas utilizando la tabla oficial de países
   useEffect(() => {
     setCargando(true);
     try {
@@ -156,19 +173,32 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           .trim();
       };
 
-      const fuenteDatosCV = listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida;
+      // Si la tabla de países de Supabase tiene datos, úsela como base maestra
+      let listaBasePaises = listaPaisesDB.length > 0 ? listaPaisesDB : (listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida);
 
-      // Crear un mapa rápido de desempleo usando el país limpio como llave
-      const mapaDesempleo = {};
-      listaDesempleoDB.forEach(item => {
-        const nombrePaisDes = item.pais || item.País || item.PAIS || item.paises || item.Paises;
-        const valorTAD = item.tasadesempleo ?? item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.desempleo ?? item.tad;
-        if (nombrePaisDes) {
-          mapaDesempleo[limpiarTexto(nombrePaisDes)] = valorTAD !== null && !isNaN(Number(valorTAD)) ? Number(valorTAD) : null;
-        }
+      // Crear mapas rápidos para cruce de datos
+      const mapaCostoVida = {};
+      listaCostoVidaDB.forEach(item => {
+        const nombre = item.pais || item.País || item.PAIS || item.paises || item.Paises || item.nombre;
+        const val = item.costo_de_vida ?? item.Costo_de_Vida ?? item.icv ?? item.ICV ?? item.costovida;
+        if (nombre) mapaCostoVida[limpiarTexto(nombre)] = val !== null && !isNaN(Number(val)) ? Number(val) : null;
       });
 
-      let dfEcon = fuenteDatosCV.map((item, idx) => {
+      const mapaDesempleo = {};
+      listaDesempleoDB.forEach(item => {
+        const nombre = item.pais || item.País || item.PAIS || item.paises || item.Paises || item.nombre;
+        const val = item.tasadesempleo ?? item.tasa_desempleo ?? item.Tasa_de_Desempleo ?? item.desempleo ?? item.tad;
+        if (nombre) mapaDesempleo[limpiarTexto(nombre)] = val !== null && !isNaN(Number(val)) ? Number(val) : null;
+      });
+
+      const mapaInflacion = {};
+      listaInflacionDB.forEach(item => {
+        const nombre = item.pais || item.País || item.PAIS || item.paises || item.Paises || item.nombre;
+        const val = item.inflacion_anual ?? item.Inflacion_Anual ?? item.inflacion ?? item.inan ?? item.INAN;
+        if (nombre) mapaInflacion[limpiarTexto(nombre)] = val !== null && !isNaN(Number(val)) ? Number(val) : null;
+      });
+
+      let dfEcon = listaBasePaises.map((item, idx) => {
         const nombrePais = 
           item.pais || item.País || item.PAIS || 
           item.nombre || item.Nombre || item.NOMBRE || 
@@ -177,27 +207,19 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         
         const paisKey = limpiarTexto(nombrePais);
 
-        const valorICV = 
-          item.costo_de_vida ?? item.Costo_de_Vida ?? item.COSTO_DE_VIDA ?? 
-          item.icv ?? item.ICV ?? item.costovida ?? item.CostoVida;
-
-        const valorIAN = 
-          item.inflacion_anual ?? item.Inflacion_Anual ?? item.INFLACION_ANUAL ?? 
-          item.inflacion ?? item.Inflacion ?? item.INFLACION ?? 
-          item.inan ?? item.INAN;
-
-        // Buscar en la tabla de desempleo externa o dentro del mismo item si viniera ahí
-        const valorTAD = mapaDesempleo[paisKey] !== undefined ? mapaDesempleo[paisKey] : (item.tasadesempleo ?? item.tasa_desempleo ?? item.tad);
+        const valorICV = mapaCostoVida[paisKey] !== undefined ? mapaCostoVida[paisKey] : (item.costo_de_vida ?? item.icv ?? item.ICV ?? null);
+        const valorIAN = mapaInflacion[paisKey] !== undefined ? mapaInflacion[paisKey] : (item.inflacion_anual ?? item.inan ?? item.INAN ?? item.inflacion ?? null);
+        const valorTAD = mapaDesempleo[paisKey] !== undefined ? mapaDesempleo[paisKey] : (item.tasadesempleo ?? item.tasa_desempleo ?? item.tad ?? null);
 
         return {
           Paises: nombrePais,
-          ICV: valorICV !== null && valorICV !== undefined && !isNaN(Number(valorICV)) ? Number(valorICV) : null,
-          INAN: valorIAN !== null && valorIAN !== undefined && !isNaN(Number(valorIAN)) ? Number(valorIAN) : null,
-          TAD: valorTAD !== null && valorTAD !== undefined && !isNaN(Number(valorTAD)) ? Number(valorTAD) : null
+          ICV: valorICV !== null && !isNaN(Number(valorICV)) ? Number(valorICV) : null,
+          INAN: valorIAN !== null && !isNaN(Number(valorIAN)) ? Number(valorIAN) : null,
+          TAD: valorTAD !== null && !isNaN(Number(valorTAD)) ? Number(valorTAD) : null
         };
       });
 
-      // Filtrar por paisesDestino opcionalmente si se encuentra definido y con elementos
+      // Filtrar por paisesDestino opcionalmente si se encuentra definido
       if (paisesDestino && paisesDestino.length > 0) {
         const paisesDestinoLimpios = paisesDestino.map(p => limpiarTexto(p));
         dfEcon = dfEcon.filter(item => paisesDestinoLimpios.includes(limpiarTexto(item.Paises)));
@@ -227,7 +249,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       setDatosEconConsolidados(dfEcon);
 
-      // ================= NORMALIZACIÓN =================
+      // ================= NORMALIZACIÓN CON PONDERACIONES EXACTAS =================
       const valoresIcvPositivos = dfEcon.map(i => i.ICV).filter(v => v !== null && v > 0);
       const valoresInanPositivos = dfEcon.map(i => i.INAN).filter(v => v !== null && v > 0);
       const valoresTadPositivos = dfEcon.map(i => i.TAD).filter(v => v !== null && v > 0);
@@ -243,6 +265,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         return Number(((10 * minimo) / num).toFixed(4));
       };
 
+      // Porcentajes de ponderación oficiales solicitados: ICV 30%, IAN 30%, TAD 40%
       const P_ICV = 0.30;
       const P_INAN = 0.30;
       const P_TAD = 0.40;
@@ -283,7 +306,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     } finally {
       setCargando(false);
     }
-  }, [econOverrides, paisesDestino, listaCostoVidaDB, listaDesempleoDB, datosCostoDeVida]);
+  }, [econOverrides, paisesDestino, listaPaisesDB, listaCostoVidaDB, listaDesempleoDB, listaInflacionDB, datosCostoDeVida]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -292,7 +315,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="border-b border-slate-800 pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas `costodevida` y `desempleo` en Supabase.
+          Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas de Supabase.
         </p>
       </div>
 
@@ -473,9 +496,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
                 <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">ICV Norm</th>
-                <th className="p-3 bg-[#181a20]">IAN Norm</th>
-                <th className="p-3 bg-[#181a20]">TAD Norm</th>
+                <th className="p-3 bg-[#181a20]">ICV Norm (30%)</th>
+                <th className="p-3 bg-[#181a20]">IAN Norm (30%)</th>
+                <th className="p-3 bg-[#181a20]">TAD Norm (40%)</th>
                 <th className="p-3 bg-[#181a20]">Puntaje ECON Normalizado</th>
               </tr>
             </thead>
