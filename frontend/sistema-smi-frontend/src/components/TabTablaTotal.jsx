@@ -1,220 +1,349 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
+// ============================================================
+// HELPERS COMPARTIDOS (mismos que usan las pestañas individuales)
+// ============================================================
+const normalizarTexto = (texto) => {
+  if (texto === null || texto === undefined) return '';
+  return texto
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+};
+
+function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const parseCoord = (val) => parseFloat(String(val).replace(',', '.'));
+  const l1 = parseCoord(lat1), ln1 = parseCoord(lon1), l2 = parseCoord(lat2), ln2 = parseCoord(lon2);
+  if ([l1, ln1, l2, ln2].some((v) => isNaN(v))) return 0;
+  const R = 6371;
+  const dLat = (l2 - l1) * (Math.PI / 180);
+  const dLon = (ln2 - ln1) * (Math.PI / 180);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function calcularDistanciaNautica(lat1, lon1, lat2, lon2) {
+  if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return 0;
+  const R = 3440.06;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function limpiarPrecio(val) {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return val > 0 ? val : 0;
+  const str = String(val).trim();
+  if (str.toLowerCase().includes('no encontrado') || str === '' || str === '0' || str === '$0.00') return 0;
+  const numero = parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.'));
+  return isNaN(numero) || numero <= 0 ? 0 : numero;
+}
+
+const A3 = 10;
+const normDirecto = (val, max) => (val !== null && val > 0 && max > 0) ? Number((A3 * val / max).toFixed(2)) : null;
+const normInverso = (val, min) => (val !== null && val > 0 && min !== null && min > 0) ? Number((A3 * min / val).toFixed(2)) : null;
+
+export default function TabTablaTotal({ paisesDestino, paisOrigen, productoActivo }) {
   const [datosTotales, setDatosTotales] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [errorNotif, setErrorNotif] = useState(null);
 
-  // Ponderaciones iniciales por categoría (7 categorías, suman 100%)
-  const [pesosCat, setPesosCat] = useState({
-    COST: 15,
-    LOGI: 15,
-    COMM: 15,
-    ECON: 15,
-    POLI: 15,
-    CULT: 15,
-    SUST: 10
-  });
-
-  const handlePesoChange = (cat, valor) => {
-    setPesosCat(prev => ({
-      ...prev,
-      [cat]: parseFloat(valor) || 0
-    }));
-  };
-
+  const [pesosCat, setPesosCat] = useState({ COST: 15, LOGI: 15, COMM: 15, ECON: 15, POLI: 15, CULT: 15, SUST: 10 });
+  const handlePesoChange = (cat, valor) => setPesosCat((prev) => ({ ...prev, [cat]: parseFloat(valor) || 0 }));
   const sumaPesos = Object.values(pesosCat).reduce((acc, val) => acc + val, 0);
 
   useEffect(() => {
-    async function cargarYProcesarTablas() {
+    async function cargarYProcesarTodo() {
       setCargando(true);
       try {
         const [
-          resCostos,
-          resLogistica,
-          resComercio,
-          resEconomia,
-          resPolitica,
-          resCultura,
-          resEmisiones,
-          resIsg,
-          resPaises
+          resPaises, resCostoImportacion, resProductos,
+          resTabLogi, resPuertos,
+          resPenetracion, resLibertad,
+          resCostoVida, resDesempleo, resInflacion,
+          resFSI, resINRI, resDEIN,
+          resGLIN, resCPCI,
+          resEmisiones, resIsg
         ] = await Promise.all([
-          supabase.from("costos").select("*").range(0, 9999),
-          supabase.from("logistica").select("*").range(0, 9999),
-          supabase.from("comercio").select("*").range(0, 9999),
-          supabase.from("economia").select("*").range(0, 9999),
-          supabase.from("politica").select("*").range(0, 9999),
-          supabase.from("indiceglobalizacion").select("*").range(0, 9999),
-          supabase.from("emisiones_carbono").select("*").range(0, 9999),
-          supabase.from("indice_sostenibilidad_global").select("*").range(0, 9999),
-          supabase.from("paises").select("*").order("nombre")
+          supabase.from('paises').select('*').order('nombre'),
+          supabase.from('costo_importacion').select('*'),
+          supabase.from('productos').select('*'),
+          supabase.from('tablogi').select('*'),
+          supabase.from('puertos').select('*'),
+          supabase.from('indicepenetracion').select('*'),
+          supabase.from('libertadeconomica').select('*'),
+          supabase.from('costodevida').select('*'),
+          supabase.from('desempleo').select('*'),
+          supabase.from('inflacion').select('*'),
+          supabase.from('estadosfragiles').select('*'),
+          supabase.from('informeriesgo').select('*'),
+          supabase.from('indicedemocracia').select('*'),
+          supabase.from('indiceglobalizacion').select('*'),
+          supabase.from('indicecorrupcion').select('*'),
+          supabase.from('emisiones_carbono').select('*'),
+          supabase.from('indice_sostenibilidad_global').select('*'),
         ]);
 
-        const mapaPaises = {};
+        const dbPaises = resPaises.data || [];
+        if (dbPaises.length === 0) {
+          setDatosTotales([]);
+          setErrorNotif('No se pudo cargar la tabla "paises" desde Supabase.');
+          return;
+        }
 
-        // 1. Inicializar con la lista oficial de países
-        resPaises.data?.forEach(p => {
-          const nombre = (p.nombre || p.pais || p.country || "").trim();
-          if (nombre) {
-            mapaPaises[nombre.toLowerCase()] = {
-              Paises: nombre,
-              rawCost: null,
-              rawLogi: null,
-              rawComm: null,
-              rawEcon: null,
-              rawPoli: null,
-              rawCult: null,
-              rawEdc: null,
-              rawIsg: null,
-              "1. Cost (COST)": null,
-              "2. Logistical (LOGI)": null,
-              "3. Commercial (COMM)": null,
-              "4. Economic (ECON)": null,
-              "5. Political (POLI)": null,
-              "6. Cultura (CULT)": null,
-              "7. Sostenibilidad (SUST)": null,
-            };
+        // Lista base de países a evaluar
+        const nombresBase = (paisesDestino && paisesDestino.length > 0)
+          ? paisesDestino.map((p) => (typeof p === 'string' ? p : (p.nombre || p.pais)))
+          : dbPaises.map((p) => p.nombre);
+
+        const paisBaseObj = dbPaises.find((p) => normalizarTexto(p.nombre) === normalizarTexto(paisOrigen)) || dbPaises[0];
+
+        // ---------------- COST ----------------
+        let nombreProductoBuscado = '';
+        if (typeof productoActivo === 'string') nombreProductoBuscado = productoActivo;
+        else if (productoActivo && typeof productoActivo === 'object') {
+          nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
+        }
+        if (!nombreProductoBuscado) nombreProductoBuscado = 'Botella de vino (Calidad media)';
+        const queryLimpia = nombreProductoBuscado.trim().toLowerCase();
+
+        const mapaPrecios = {};
+        (resProductos.data || []).forEach((item) => {
+          const nombreProd = (item.nombre || item.producto || item.titulo || '').trim().toLowerCase();
+          if (nombreProd.includes(queryLimpia) || queryLimpia.includes(nombreProd)) {
+            const paisItem = item.pais || item.Pais;
+            if (paisItem) {
+              const precio = limpiarPrecio(item.precio);
+              if (precio > 0) mapaPrecios[normalizarTexto(paisItem)] = precio;
+            }
           }
         });
 
-        // Función auxiliar robusta para extraer el valor numérico probando múltiples nombres de columnas
-        const extraerValorCrudo = (row, posiblesCampos) => {
-          if (!row) return null;
-          for (let campo of posiblesCampos) {
-            if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo]) && row[campo] !== "") {
-              return Number(row[campo]);
-            }
-          }
-          return null;
-        };
-
-        const poblarCrudos = (data, claveRaw, camposPosibles) => {
-          data?.forEach(row => {
-            const nombrePais = (row.pais || row.Paises || row.nombre || row.country || "").trim();
-            if (!nombrePais) return;
-            const keyMap = nombrePais.toLowerCase();
-
-            if (!mapaPaises[keyMap]) {
-              mapaPaises[keyMap] = {
-                Paises: nombrePais,
-                rawCost: null, rawLogi: null, rawComm: null, rawEcon: null, rawPoli: null, rawCult: null, rawEdc: null, rawIsg: null,
-                "1. Cost (COST)": null, "2. Logistical (LOGI)": null, "3. Commercial (COMM)": null,
-                "4. Economic (ECON)": null, "5. Political (POLI)": null, "6. Cultura (CULT)": null, "7. Sostenibilidad (SUST)": null
-              };
-            }
-
-            const val = extraerValorCrudo(row, camposPosibles);
-            if (val !== null) {
-              mapaPaises[keyMap][claveRaw] = val;
-            }
-          });
-        };
-
-        // 2. Extraer los valores reales de cada tabla cubriendo variantes de nombres de columnas (incluyendo normalizados y específicos)
-        poblarCrudos(resCostos.data, "rawCost", ['costo', 'costos', 'costo_normalizado', 'valor', 'monto', 'score', 'puntaje', 'indice']);
-        poblarCrudos(resLogistica.data, "rawLogi", ['logistica', 'logística', 'logistica_normalizada', 'valor', 'score', 'puntaje', 'indice']);
-        poblarCrudos(resComercio.data, "rawComm", ['comercio', 'comercio_normalizado', 'valor', 'score', 'puntaje', 'exportaciones', 'importaciones']);
-        poblarCrudos(resEconomia.data, "rawEcon", ['economia', 'economía', 'economia_normalizada', 'pib', 'valor', 'score', 'puntaje']);
-        poblarCrudos(resPolitica.data, "rawPoli", ['politica', 'política', 'politica_normalizada', 'valor', 'score', 'puntaje', 'estabilidad']);
-        poblarCrudos(resCultura.data, "rawCult", ['indice_globalizacion', 'indiceglobalizacion', 'cultura', 'cultura_normalizada', 'valor', 'score', 'puntaje']);
-
-        resEmisiones.data?.forEach(row => {
-          const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
-          if (pais && mapaPaises[pais]) {
-            const val = Number(row.emisionescarbono ?? row.edc ?? row.emisiones ?? row.valor);
-            if (!isNaN(val)) mapaPaises[pais].rawEdc = val;
-          }
+        const costoRaw = dbPaises.map((p) => {
+          const key = normalizarTexto(p.nombre);
+          const ppd = mapaPrecios[key] ?? null;
+          const cicMatch = (resCostoImportacion.data || []).find((c) => normalizarTexto(c.pais || c.pais_nombre) === key);
+          const cic = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? null) : null;
+          const distKm = calcularDistanciaKm(paisBaseObj?.latitud, paisBaseObj?.longitud, p.latitud, p.longitud);
+          const cti = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : null;
+          return { pais: p.nombre, ppd, cti, cic };
         });
 
-        resIsg.data?.forEach(row => {
-          const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
-          if (pais && mapaPaises[pais]) {
-            const val = Number(row.indicesostenibilidaglobal ?? row.isg ?? row.sostenibilidad ?? row.valor);
-            if (!isNaN(val)) mapaPaises[pais].rawIsg = val;
-          }
+        const maxPpd = Math.max(0, ...costoRaw.map((d) => d.ppd).filter((v) => v > 0)) || null;
+        const minCti = costoRaw.map((d) => d.cti).filter((v) => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
+        const minCtiFinal = isFinite(minCti) ? minCti : null;
+        const minCic = costoRaw.map((d) => d.cic).filter((v) => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
+        const minCicFinal = isFinite(minCic) ? minCic : null;
+
+        const mapaCost = {};
+        costoRaw.forEach((d) => {
+          const p1 = normDirecto(d.ppd, maxPpd) ?? 0;
+          const p2 = normInverso(d.cti, minCtiFinal) ?? 0;
+          const p3 = normInverso(d.cic, minCicFinal) ?? 0;
+          const faltan = [d.ppd, d.cti, d.cic].filter((v) => v === null).length;
+          mapaCost[normalizarTexto(d.pais)] = faltan === 3 ? null : Number((0.44 * p1 + 0.34 * p2 + 0.22 * p3).toFixed(2));
         });
 
-        const allItems = Object.values(mapaPaises);
+        // ---------------- LOGI ----------------
+        const puertoOrigen = (resPuertos.data || []).find((p) => normalizarTexto(p.pais) === normalizarTexto(paisOrigen) && p.principal === 'Y')
+          || (resPuertos.data || []).find((p) => normalizarTexto(p.pais) === normalizarTexto(paisOrigen));
 
-        // 3. Calcular Mínimos y Máximos globales para la Normalización Automática (Min-Max Scaling 0 a 10)
-        const obtenerMinMax = (key) => {
-          const vals = allItems.map(i => i[key]).filter(v => v !== null && !isNaN(v));
+        const logiRaw = dbPaises.map((p) => {
+          const key = normalizarTexto(p.nombre);
+          const match = (resTabLogi.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const idl = match && match.lpi !== null ? Number(match.lpi) : null;
+          const ccp = match && match.cfr !== null ? Number(match.cfr) : null;
+
+          const puertoDestino = (resPuertos.data || []).find((pt) => normalizarTexto(pt.pais) === key && pt.principal === 'Y')
+            || (resPuertos.data || []).find((pt) => normalizarTexto(pt.pais) === key);
+
+          let tti = null;
+          if (puertoOrigen && puertoDestino) {
+            const distNm = calcularDistanciaNautica(puertoOrigen.latitud, puertoOrigen.longitud, puertoDestino.latitud, puertoDestino.longitud);
+            const dias = distNm / 18.5 / 24 + (Number(puertoDestino.manejo_dias) || 0) + (Number(puertoOrigen.manejo_dias) || 0);
+            tti = distNm > 0 ? Number(Math.max(1, dias).toFixed(1)) : null;
+          }
+          return { pais: p.nombre, idl, ccp, tti };
+        });
+
+        const maxIdl = Math.max(0, ...logiRaw.map((d) => d.idl).filter((v) => v > 0)) || null;
+        const maxCcp = Math.max(0, ...logiRaw.map((d) => d.ccp).filter((v) => v > 0)) || null;
+        const minTtiArr = logiRaw.map((d) => d.tti).filter((v) => v > 0);
+        const minTti = minTtiArr.length > 0 ? Math.min(...minTtiArr) : null;
+
+        const mapaLogi = {};
+        logiRaw.forEach((d) => {
+          const p1 = normDirecto(d.idl, maxIdl) ?? 0;
+          const p2 = normDirecto(d.ccp, maxCcp) ?? 0;
+          const p3 = normInverso(d.tti, minTti) ?? 0;
+          const faltan = [d.idl, d.ccp, d.tti].filter((v) => v === null).length;
+          mapaLogi[normalizarTexto(d.pais)] = faltan === 3 ? null : Number((0.185 * p1 + 0.185 * p2 + 0.63 * p3).toFixed(2));
+        });
+
+        // ---------------- COMM ----------------
+        const commRaw = dbPaises.map((p, idx) => {
+          const key = normalizarTexto(p.nombre);
+          const matchIemp = (resPenetracion.data || []).find((r) => normalizarTexto(r.pais || r.nombre || r.Paises) === key);
+          const matchIoef = (resLibertad.data || []).find((r) => normalizarTexto(r.pais || r.nombre || r.Paises) === key);
+          const extraerValor = (obj) => {
+            if (!obj) return null;
+            for (const k of Object.keys(obj)) {
+              const kn = normalizarTexto(k);
+              if (!['id', 'pais', 'nombre', 'created_at'].includes(kn)) {
+                const v = Number(obj[k]);
+                if (!isNaN(v) && v !== 0) return v;
+              }
+            }
+            return null;
+          };
+          const ctco = Number((2.0 + idx * 0.1).toFixed(2));
+          const iemp = matchIemp ? extraerValor(matchIemp) : null;
+          const ioef = matchIoef ? extraerValor(matchIoef) : null;
+          return { pais: p.nombre, ctco, iemp, ioef };
+        });
+
+        const ctcoVals = commRaw.map((d) => d.ctco);
+        const [ctcoMin, ctcoMax] = [Math.min(...ctcoVals), Math.max(...ctcoVals)];
+        const iempVals = commRaw.map((d) => d.iemp).filter((v) => v !== null);
+        const [iempMin, iempMax] = iempVals.length ? [Math.min(...iempVals), Math.max(...iempVals)] : [0, 1];
+        const ioefVals = commRaw.map((d) => d.ioef).filter((v) => v !== null);
+        const [ioefMin, ioefMax] = ioefVals.length ? [Math.min(...ioefVals), Math.max(...ioefVals)] : [0, 1];
+
+        const mapaComm = {};
+        commRaw.forEach((d) => {
+          const ctcoNorm = ctcoMax !== ctcoMin ? Number((A3 * (ctcoMax - d.ctco) / (ctcoMax - ctcoMin)).toFixed(2)) : A3;
+          const iempNorm = (d.iemp !== null && iempMax !== iempMin) ? Number((A3 * (d.iemp - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
+          const ioefNorm = (d.ioef !== null && ioefMax !== ioefMin) ? Number((A3 * (d.ioef - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
+          mapaComm[normalizarTexto(d.pais)] = (d.iemp === null && d.ioef === null)
+            ? null
+            : Number((ctcoNorm * 0.465 + iempNorm * 0.25 + ioefNorm * 0.285).toFixed(2));
+        });
+
+        // ---------------- ECON ----------------
+        const econRaw = dbPaises.map((p) => {
+          const key = normalizarTexto(p.nombre);
+          const mCv = (resCostoVida.data || []).find((r) => normalizarTexto(r.pais || r.nombre) === key);
+          const mDes = (resDesempleo.data || []).find((r) => normalizarTexto(r.pais || r.nombre) === key);
+          const mInf = (resInflacion.data || []).find((r) => normalizarTexto(r.pais || r.nombre) === key);
+          const icv = mCv ? Number(mCv.costo_de_vida ?? mCv.icv ?? mCv.valor) : null;
+          const tad = mDes ? Number(mDes.tasadesempleo ?? mDes.tasa_desempleo ?? mDes.desempleo) : null;
+          const inan = mInf ? Number(mInf.inflacion_anual ?? mInf.inflacion) : null;
           return {
-            min: vals.length > 0 ? Math.min(...vals) : 0,
-            max: vals.length > 0 ? Math.max(...vals) : 1
+            pais: p.nombre,
+            icv: isNaN(icv) ? null : icv,
+            tad: isNaN(tad) ? null : tad,
+            inan: isNaN(inan) ? null : inan
           };
-        };
-
-        const mmCost = obtenerMinMax("rawCost");
-        const mmLogi = obtenerMinMax("rawLogi");
-        const mmComm = obtenerMinMax("rawComm");
-        const mmEcon = obtenerMinMax("rawEcon");
-        const mmPoli = obtenerMinMax("rawPoli");
-        const mmCult = obtenerMinMax("rawCult");
-
-        const edcVals = allItems.map(i => i.rawEdc).filter(v => v !== null && v > 0);
-        const isgVals = allItems.map(i => i.rawIsg).filter(v => v !== null && v > 0);
-        const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null;
-        const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null;
-
-        // 4. Aplicar normalización automática a escala de 0 a 10
-        allItems.forEach(item => {
-          const normalizar = (val, mm) => {
-            if (val === null || mm.max === mm.min) return null;
-            const res = ((val - mm.min) / (mm.max - mm.min)) * 10;
-            return Number(res.toFixed(2));
-          };
-
-          item["1. Cost (COST)"] = normalizar(item.rawCost, mmCost);
-          item["2. Logistical (LOGI)"] = normalizar(item.rawLogi, mmLogi);
-          item["3. Commercial (COMM)"] = normalizar(item.rawComm, mmComm);
-          item["4. Economic (ECON)"] = normalizar(item.rawEcon, mmEcon);
-          item["5. Political (POLI)"] = normalizar(item.rawPoli, mmPoli);
-          item["6. Cultura (CULT)"] = normalizar(item.rawCult, mmCult);
-
-          // Sostenibilidad
-          let sustVal = null;
-          if (item.rawEdc !== null && item.rawIsg !== null && minEdc && maxIsg) {
-            const edcNorm = (10 * minEdc) / item.rawEdc;
-            const isgNorm = (10 * item.rawIsg) / maxIsg;
-            sustVal = Number(((edcNorm * 0.3) + (isgNorm * 0.7)).toFixed(2));
-          }
-          item["7. Sostenibilidad (SUST)"] = sustVal;
         });
 
-        // 5. Asignar fallback de 5.0 si algún dato no existe, y filtrar por países destino
-        let lista = allItems.map(item => ({
-          ...item,
-          "1. Cost (COST)": item["1. Cost (COST)"] !== null ? item["1. Cost (COST)"] : 5.0,
-          "2. Logistical (LOGI)": item["2. Logistical (LOGI)"] !== null ? item["2. Logistical (LOGI)"] : 5.0,
-          "3. Commercial (COMM)": item["3. Commercial (COMM)"] !== null ? item["3. Commercial (COMM)"] : 5.0,
-          "4. Economic (ECON)": item["4. Economic (ECON)"] !== null ? item["4. Economic (ECON)"] : 5.0,
-          "5. Political (POLI)": item["5. Political (POLI)"] !== null ? item["5. Political (POLI)"] : 5.0,
-          "6. Cultura (CULT)": item["6. Cultura (CULT)"] !== null ? item["6. Cultura (CULT)"] : 5.0,
-          "7. Sostenibilidad (SUST)": item["7. Sostenibilidad (SUST)"] !== null ? item["7. Sostenibilidad (SUST)"] : 5.0,
-        })).filter(item => {
-          if (paisesDestino && paisesDestino.length > 0) {
-            return paisesDestino.some(p => p.toLowerCase().trim() === item.Paises.toLowerCase().trim());
-          }
-          return true;
+        const minIcv = econRaw.map((d) => d.icv).filter((v) => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
+        const minTad = econRaw.map((d) => d.tad).filter((v) => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
+        const minInan = econRaw.map((d) => d.inan).filter((v) => v > 0).reduce((a, b) => Math.min(a, b), Infinity);
+
+        const mapaEcon = {};
+        econRaw.forEach((d) => {
+          const p1 = normInverso(d.icv, isFinite(minIcv) ? minIcv : null) ?? 0;
+          const p2 = normInverso(d.inan, isFinite(minInan) ? minInan : null) ?? 0;
+          const p3 = normInverso(d.tad, isFinite(minTad) ? minTad : null) ?? 0;
+          const faltan = [d.icv, d.inan, d.tad].filter((v) => v === null).length;
+          mapaEcon[normalizarTexto(d.pais)] = faltan === 3 ? null : Number((0.30 * p1 + 0.30 * p2 + 0.40 * p3).toFixed(2));
+        });
+
+        // ---------------- POLI ----------------
+        const FSI_min = 19.6, INRI_min = 1.7, DEIN_max = 8.85;
+        const mapaPoli = {};
+        dbPaises.forEach((p) => {
+          const key = normalizarTexto(p.nombre);
+          const mFsi = (resFSI.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const mInri = (resINRI.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const mDein = (resDEIN.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const fsi = mFsi ? Number(mFsi.indice_de_estados_fragiles) : null;
+          const inri = mInri ? Number(mInri.riesgo) : null;
+          const dein = mDein ? Number(mDein.indice_democracia) : null;
+
+          const fsiNorm = normInverso(fsi, FSI_min) ?? 0;
+          const inriNorm = normInverso(inri, INRI_min) ?? 0;
+          const deinNorm = normDirecto(dein, DEIN_max) ?? 0;
+          const faltan = [fsi, inri, dein].filter((v) => v === null || isNaN(v)).length;
+          mapaPoli[key] = faltan === 3 ? null : Number((0.355 * fsiNorm + 0.350 * inriNorm + 0.295 * deinNorm).toFixed(2));
+        });
+
+        // ---------------- CULT ----------------
+        const glinVals = (resGLIN.data || []).map((r) => Number(r.indice_globalizacion)).filter((v) => !isNaN(v) && v > 0);
+        const maxGlin = glinVals.length ? Math.max(...glinVals) : 100;
+        const cpciVals = (resCPCI.data || []).map((r) => Number(r.indice_percepcion_corrupcion)).filter((v) => !isNaN(v) && v > 0);
+        const maxCpci = cpciVals.length ? Math.max(...cpciVals) : 100;
+
+        const mapaCult = {};
+        dbPaises.forEach((p) => {
+          const key = normalizarTexto(p.nombre);
+          const mGlin = (resGLIN.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const mCpci = (resCPCI.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const glin = mGlin ? Number(mGlin.indice_globalizacion) : null;
+          const cpci = mCpci ? Number(mCpci.indice_percepcion_corrupcion) : null;
+          const glinNorm = normDirecto(glin, maxGlin) ?? 0;
+          const cpciNorm = normDirecto(cpci, maxCpci) ?? 0;
+          const faltan = [glin, cpci].filter((v) => v === null).length;
+          mapaCult[key] = faltan === 2 ? null : Number((glinNorm * 0.30 + cpciNorm * 0.50).toFixed(2));
+        });
+
+        // ---------------- SUST ----------------
+        // OJO: la columna real en Supabase es "indicesostenibilidadglobal" (con "d"),
+        // el código anterior buscaba "indicesostenibilidaglobal" (sin "d") y nunca encontraba nada.
+        const edcVals = (resEmisiones.data || []).map((r) => Number(r.emisionescarbono ?? r.edc)).filter((v) => !isNaN(v) && v > 0);
+        const minEdc = edcVals.length ? Math.min(...edcVals) : null;
+        const isgVals = (resIsg.data || []).map((r) => Number(r.indicesostenibilidadglobal ?? r.isg)).filter((v) => !isNaN(v) && v > 0);
+        const maxIsg = isgVals.length ? Math.max(...isgVals) : null;
+
+        const mapaSust = {};
+        dbPaises.forEach((p) => {
+          const key = normalizarTexto(p.nombre);
+          const mEdc = (resEmisiones.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const mIsg = (resIsg.data || []).find((r) => normalizarTexto(r.pais) === key);
+          const edc = mEdc ? Number(mEdc.emisionescarbono ?? mEdc.edc) : null;
+          const isg = mIsg ? Number(mIsg.indicesostenibilidadglobal ?? mIsg.isg) : null;
+          const edcNorm = normInverso(isNaN(edc) ? null : edc, minEdc) ?? 0;
+          const isgNorm = normDirecto(isNaN(isg) ? null : isg, maxIsg) ?? 0;
+          const faltan = [edc, isg].filter((v) => v === null || isNaN(v)).length;
+          mapaSust[key] = faltan === 2 ? null : Number((edcNorm * 0.30 + isgNorm * 0.40).toFixed(2));
+        });
+
+        // ---------------- CONSOLIDACIÓN FINAL ----------------
+        const lista = nombresBase.map((nombre) => {
+          const key = normalizarTexto(nombre);
+          const val = (mapa) => (mapa[key] !== undefined && mapa[key] !== null) ? mapa[key] : 5.0;
+          return {
+            Paises: nombre,
+            "1. Cost (COST)": val(mapaCost),
+            "2. Logistical (LOGI)": val(mapaLogi),
+            "3. Commercial (COMM)": val(mapaComm),
+            "4. Economic (ECON)": val(mapaEcon),
+            "5. Political (POLI)": val(mapaPoli),
+            "6. Cultura (CULT)": val(mapaCult),
+            "7. Sostenibilidad (SUST)": val(mapaSust),
+          };
         });
 
         setDatosTotales(lista);
         setErrorNotif(null);
       } catch (err) {
         console.error("Error al calcular las métricas normalizadas:", err);
-        setErrorNotif("Hubo un problema al calcular automáticamente las métricas.");
+        setErrorNotif("Hubo un problema al calcular automáticamente las métricas: " + err.message);
       } finally {
         setCargando(false);
       }
     }
 
-    cargarYProcesarTablas();
-  }, [paisesDestino]);
+    cargarYProcesarTodo();
+  }, [paisesDestino, paisOrigen, productoActivo]);
 
-  const datosCalculados = datosTotales.map(item => {
+  const datosCalculados = datosTotales.map((item) => {
     const puntajeBruto = (
       (item["1. Cost (COST)"] * (pesosCat.COST / 100)) +
       (item["2. Logistical (LOGI)"] * (pesosCat.LOGI / 100)) +
@@ -224,13 +353,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
       (item["6. Cultura (CULT)"] * (pesosCat.CULT / 100)) +
       (item["7. Sostenibilidad (SUST)"] * (pesosCat.SUST / 100))
     );
-
     const puntajeClampeado = Math.min(Math.max(puntajeBruto, 0), 10);
-
-    return {
-      ...item,
-      "Puntaje Global – TOTAL": Number(puntajeClampeado.toFixed(2))
-    };
+    return { ...item, "Puntaje Global – TOTAL": Number(puntajeClampeado.toFixed(2)) };
   }).sort((a, b) => b["Puntaje Global – TOTAL"] - a["Puntaje Global – TOTAL"]);
 
   const totalPaisesBase = datosTotales.length;
@@ -238,7 +362,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
-      {/* ENCABEZADO */}
       <div className="bg-[#181a20] p-6 rounded-xl border border-slate-800 shadow-sm">
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Consolidación Global</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Tablas Totales y Normalizadas</h2>
@@ -247,7 +370,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         </p>
       </div>
 
-      {/* AJUSTE MANUAL DE PONDERACIONES */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-base font-bold text-white">Ajuste manual de ponderaciones (IMSFE)</h3>
@@ -300,7 +422,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         </div>
       )}
 
-      {/* TABLA 1: TABLA GENERAL DE EVALUACIÓN CONSOLIDADA */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla General de Evaluación de Países (Datos Normalizados de Todas las Tabs)</h3>
@@ -356,7 +477,6 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         )}
       </div>
 
-      {/* TABLA 2: TABLA RESUMEN */}
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla Resumen — Puntaje Ponderado Total</h3>
@@ -366,13 +486,9 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         </div>
 
         {cargando ? (
-          <div className="py-8 text-center text-xs text-slate-400">
-            Generando resumen de ranking...
-          </div>
+          <div className="py-8 text-center text-xs text-slate-400">Generando resumen de ranking...</div>
         ) : datosCalculados.length === 0 ? (
-          <div className="py-8 text-center text-xs text-slate-400">
-            No hay datos suficientes para mostrar el resumen.
-          </div>
+          <div className="py-8 text-center text-xs text-slate-400">No hay datos suficientes para mostrar el resumen.</div>
         ) : (
           <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
             <table className="w-full text-left text-xs text-slate-300 border-collapse">
