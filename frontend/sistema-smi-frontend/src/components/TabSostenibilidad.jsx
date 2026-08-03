@@ -79,7 +79,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
           (c.nombre && c.nombre.trim().toLowerCase() === nombrePais.toLowerCase())
         );
 
-        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? isgMatch.isg ?? isgMatch.valor ?? 0) : null;
+        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidadglobal ?? isgMatch.isg ?? isgMatch.valor ?? 0) : null;
         if (isNaN(isgVal)) isgVal = null;
 
         let rpgVal = null; 
