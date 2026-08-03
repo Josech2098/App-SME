@@ -26,7 +26,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [paisLlegadaCalc, setPaisLlegadaCalc] = useState('');
   const [puertoSalidaCalc, setPuertoSalidaCalc] = useState('');
   const [puertoLlegadaCalc, setPuertoLlegadaCalc] = useState('');
-  const [velocidadBuque, setVelocidadBuque] = useState(18.00);
+  const [velocidadBuque, setVelocidadBuque] = useState(18.50);
   const [resultadoTti, setResultadoTti] = useState({ distancia: '0 nm', tiempo: '0 días' });
 
   // Almacenar los TTI calculados por país de llegada
@@ -95,7 +95,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     if (!puertoO || !puertoD) return '11.2 días';
 
     const distNm = calcularDistanciaNautica(puertoO.latitud, puertoO.longitud, puertoD.latitud, puertoD.longitud);
-    const horasNavegacion = distNm / 15; 
+    const horasNavegacion = distNm / 18.50; 
     const diasNavegacion = horasNavegacion / 24;
     const manejoDias = (Number(puertoD.manejo_dias) || 0) + (Number(puertoO.manejo_dias) || 0);
     const totalDias = Math.max(1, diasNavegacion + manejoDias);
@@ -295,7 +295,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
 
     const distNm = calcularDistanciaNautica(pO.latitud, pO.longitud, pD.latitud, pD.longitud);
-    const vel = Number(velocidadBuque) || 18;
+    const vel = Number(velocidadBuque) || 18.50;
     const horasNavegacion = distNm / vel;
     const diasNavegacion = horasNavegacion / 24;
     const manejoDias = (Number(pD.manejo_dias) || 0) + (Number(pO.manejo_dias) || 0);
@@ -741,7 +741,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                     <td className="p-3">{row.idlNorm}</td>
                     <td className="p-3">{row.ccpNorm}</td>
                     <td className="p-3">{row.ttiNorm}</td>
-                    <td className="p-3 font-bold text-emerald-400">{row.costoTotal}</td>
+                    <td className="p-3 text-emerald-400 font-semibold">{row.costoTotal}</td>
                   </tr>
                 ));
               })()}
