@@ -55,41 +55,38 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 999);
       if (errIsg) console.warn("Aviso en indice_sostenibilidad_global:", errIsg);
 
-      // Depuración en consola para verificar qué trae Supabase
-      console.log("DB Paises muestra:", dbPaises?.slice(0, 3));
-      console.log("DB ISG muestra:", dbIsg?.slice(0, 3));
+      // Depuración detallada en consola para inspeccionar las columnas exactas que devuelve Supabase
+      console.log("--- DEBUG SUPABASE ---");
+      console.log("Países:", dbPaises);
+      console.log("Emisiones:", dbEmisiones);
+      console.log("ISG:", dbIsg);
 
-      const normalizarTexto = (str) => 
-        (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+      const datosConsolidados = (dbPaises || []).map((p) => {
+        const nombrePais = (p.nombre || '').trim();
 
-      const datosConsolidados = dbPaises.map((p) => {
-        const nombrePaisRaw = p.nombre || '';
-        const nombrePaisClean = normalizarTexto(nombrePaisRaw);
-
-        // Mapeo flexible para Emisiones de Dióxido de Carbono (EDC)
-        const emisMatch = (dbEmisiones || []).find(c => {
-          const valPaisC = normalizarTexto(c.pais || c.nombre || '');
-          return valPaisC === nombrePaisClean;
-        });
+        // Buscamos coincidencia ya sea por ID o por nombre de país en las tablas secundarias
+        const emisMatch = (dbEmisiones || []).find(c => 
+          String(c.pais_id ?? c.id_pais ?? c.id) === String(p.id) ||
+          (c.pais && c.pais.trim().toLowerCase() === nombrePais.toLowerCase())
+        );
         
-        let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
+        let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? emisMatch.valor ?? 0) : null;
         if (isNaN(edcVal)) edcVal = null;
 
-        // Mapeo flexible para Índice de Sostenibilidad Global (ISG)
-        const isgMatch = (dbIsg || []).find(c => {
-          const valPaisI = normalizarTexto(c.pais || c.nombre || '');
-          return valPaisI === nombrePaisClean;
-        });
+        const isgMatch = (dbIsg || []).find(c => 
+          String(c.pais_id ?? c.id_pais ?? c.id) === String(p.id) ||
+          (c.pais && c.pais.trim().toLowerCase() === nombrePais.toLowerCase()) ||
+          (c.nombre && c.nombre.trim().toLowerCase() === nombrePais.toLowerCase())
+        );
 
-        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? isgMatch.isg ?? 0) : null;
+        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? isgMatch.isg ?? isgMatch.valor ?? 0) : null;
         if (isNaN(isgVal)) isgVal = null;
 
-        // Riesgo País Global (RPG) se mantiene vacío por no tener tabla/datos
         let rpgVal = null; 
 
         return {
           id: p.id,
-          pais_nombre: nombrePaisRaw,
+          pais_nombre: nombrePais,
           edc: edcVal,
           rpg: rpgVal,
           isg: isgVal
@@ -166,15 +163,13 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     return b.aporteFactorSostenibilidad - a.aporteFactorSostenibilidad; 
   });
 
-  const matrizFiltrada = matrizCalculadaCompleta;
-
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
   };
 
   const handleSelectEdit = (id) => {
     setSelectedPaisId(id);
-    const target = datosProductos.find(p => p.id === parseInt(id) || p.id === id);
+    const target = datosProductos.find(p => String(p.id) === String(id));
     if (target) {
       setEditEdc(target.edc ?? '');
       setEditRpg(target.rpg ?? '');
@@ -186,30 +181,28 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     if (!nuevoPaisNombre) return alert("Por favor selecciona el nombre del país.");
 
     try {
-      const { data: existingPais } = await supabase
-        .from('paises')
-        .select('id')
-        .ilike('nombre', nuevoPaisNombre.trim())
-        .maybeSingle();
+      const selectedPaisObj = listaPaises.find(p => p.nombre === nuevoPaisNombre);
+      const paisId = selectedPaisObj ? selectedPaisObj.id : null;
 
-      let nombreFinalPais = nuevoPaisNombre.trim();
-
-      if (!existingPais) {
-        const { error: errP } = await supabase
-          .from('paises')
-          .insert([{ nombre: nombreFinalPais }]);
-        if (errP) throw errP;
-      }
+      // Guardar en emisiones_carbono (intentando por id_pais y por texto)
+      const payloadEmis = { emisionescarbono: parseFloat(nuevoEdc) || 0 };
+      if (paisId) payloadEmis.pais_id = paisId;
+      payloadEmis.pais = nuevoPaisNombre;
 
       const { error: errE } = await supabase
         .from('emisiones_carbono')
-        .upsert({ pais: nombreFinalPais, emisionescarbono: parseFloat(nuevoEdc) || 0 }, { onConflict: 'pais' });
-      if (errE) throw errE;
+        .upsert(payloadEmis, { onConflict: 'pais' });
+      if (errE) console.warn("Aviso upsert emisiones:", errE);
+
+      // Guardar en indice_sostenibilidad_global
+      const payloadIsg = { indicesostenibilidaglobal: parseFloat(nuevoIsg) || 0 };
+      if (paisId) payloadIsg.pais_id = paisId;
+      payloadIsg.pais = nuevoPaisNombre;
 
       const { error: errI } = await supabase
         .from('indice_sostenibilidad_global')
-        .upsert({ pais: nombreFinalPais, indicesostenibilidaglobal: parseFloat(nuevoIsg) || 0 }, { onConflict: 'pais' });
-      if (errI) throw errI;
+        .upsert(payloadIsg, { onConflict: 'pais' });
+      if (errI) console.warn("Aviso upsert ISG:", errI);
 
       setNuevoPaisNombre(''); setNuevoEdc(''); setNuevoRpg(''); setNuevoIsg('');
       setActiveAccordion(null);
@@ -222,19 +215,19 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   async function handleGuardarCambios() {
     if (!selectedPaisId) return alert("Selecciona un país para editar.");
 
-    const target = datosProductos.find(p => p.id === parseInt(selectedPaisId) || p.id === selectedPaisId);
+    const target = datosProductos.find(p => String(p.id) === String(selectedPaisId));
     if (!target) return;
 
     try {
       const { error: errE } = await supabase
         .from('emisiones_carbono')
         .upsert({ pais: target.pais_nombre, emisionescarbono: parseFloat(editEdc) || 0 }, { onConflict: 'pais' });
-      if (errE) throw errE;
+      if (errE) console.warn("Aviso upsert emisiones:", errE);
 
       const { error: errI } = await supabase
         .from('indice_sostenibilidad_global')
         .upsert({ pais: target.pais_nombre, indicesostenibilidaglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
-      if (errI) throw errI;
+      if (errI) console.warn("Aviso upsert ISG:", errI);
 
       setSelectedPaisId(''); setEditEdc(''); setEditRpg(''); setEditIsg('');
       setActiveAccordion(null);
@@ -279,7 +272,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
               onClick={() => toggleAccordion('add')}
               className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
             >
-              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Asignar / Añadir valores a Países existentes
+              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Asignar / Añadir valores a Países
             </button>
             {activeAccordion === 'add' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
@@ -353,8 +346,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
                 >
                   <option value="">-- Selecciona un país --</option>
-                  {listaPaises.map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                  {datosProductos.map(p => (
+                    <option key={p.id} value={p.id}>{p.pais_nombre}</option>
                   ))}
                 </select>
 
@@ -434,8 +427,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                     Cargando datos...
                   </td>
                 </tr>
-              ) : matrizFiltrada.length > 0 ? (
-                matrizFiltrada.map((row, idx) => (
+              ) : datosProductos.length > 0 ? (
+                datosProductos.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
@@ -481,17 +474,29 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                     Calculando...
                   </td>
                 </tr>
-              ) : matrizFiltrada.length > 0 ? (
-                matrizFiltrada.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
-                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.edcNorm ?? '-'}</td>
-                    <td className="p-3 text-right">-</td>
-                    <td className="p-3 text-right">{row.isgNorm ?? '-'}</td>
-                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorSostenibilidad}</td>
-                  </tr>
-                ))
+              ) : datosProductos.length > 0 ? (
+                datosProductos.map((row, idx) => {
+                  const edcNorm = calcularNormalizadoInverso(row.edc, minEdc);
+                  const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
+                  const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
+
+                  const p1 = edcNorm ?? 0;
+                  const p2 = rpgNorm ?? 0;
+                  const p3 = isgNorm ?? 0;
+
+                  const aporteFactorSostenibilidad = Number((((PESO_EDC * p1) + (PESO_RPG * p2) + (PESO_ISG * p3)) * PESO_FACTOR_SOST).toFixed(2));
+
+                  return (
+                    <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
+                      <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
+                      <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
+                      <td className="p-3 text-right">{edcNorm ?? '-'}</td>
+                      <td className="p-3 text-right">-</td>
+                      <td className="p-3 text-right">{isgNorm ?? '-'}</td>
+                      <td className="p-3 text-right pr-6 font-bold text-emerald-400">{aporteFactorSostenibilidad}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
