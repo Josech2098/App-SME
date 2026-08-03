@@ -201,15 +201,15 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       dfPoli.sort((a, b) => a._faltantes - b._faltantes);
       setDatosPoliConsolidados(dfPoli);
 
-      // ================= NORMALIZACIÓN =================
+      // ================= NORMALIZACIÓN (Porcentajes corregidos: 35.50% / 35.00% / 29.50%) =================
       const A3 = 10;
       const FSI_min = 19.6;  
       const INRI_min = 1.7;  
       const DEIN_max = 8.85; 
 
-      const P_FSI = 0.35;
-      const P_INRI = 0.35;
-      const P_DEIN = 0.30;
+      const P_FSI = 0.355;
+      const P_INRI = 0.350;
+      const P_DEIN = 0.295;
 
       const dfNorm = dfPoli.map(item => {
         const fsiNorm = item.FSI !== null && item.FSI > 0 ? Number(((A3 * FSI_min) / item.FSI).toFixed(2)) : null;
@@ -288,7 +288,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Índice de Estados Frágiles (FSI):</label>
+                <label className="block text-xs text-slate-400 mb-1">Índice de Estados Frágiles (IEF):</label>
                 <input 
                   type="number" 
                   step="0.01" 
@@ -299,7 +299,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Informe sobre el riesgo (INRI):</label>
+                <label className="block text-xs text-slate-400 mb-1">Índice de Riesgo (IDR):</label>
                 <input 
                   type="number" 
                   step="0.01" 
@@ -310,7 +310,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Índice de Democracia (DEIN):</label>
+                <label className="block text-xs text-slate-400 mb-1">Índice de Democracia (IDE):</label>
                 <input 
                   type="number" 
                   step="0.01" 
@@ -368,7 +368,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo FSI:</label>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo IEF:</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -379,7 +379,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo INRI:</label>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo IDR:</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -390,7 +390,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Nuevo DEIN:</label>
+                  <label className="block text-xs text-slate-400 mb-1">Nuevo IDE:</label>
                   <input 
                     type="number" 
                     step="0.01" 
@@ -479,9 +479,9 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                 <tr>
                   <th className="p-3 w-12 bg-[#181a20]">#</th>
                   <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Índice de Estados Frágiles (FSI)</th>
-                  <th className="p-3 bg-[#181a20]">Informe sobre el riesgo (INRI)</th>
-                  <th className="p-3 bg-[#181a20]">Índice de Democracia (DEIN)</th>
+                  <th className="p-3 bg-[#181a20]">Índice de Estados Frágiles (IEF)</th>
+                  <th className="p-3 bg-[#181a20]">Índice de Riesgo (IDR)</th>
+                  <th className="p-3 bg-[#181a20]">Índice de Democracia (IDE)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
@@ -503,7 +503,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       {/* ================= TABLA DE NORMALIZACIÓN POLÍTICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Política Normalizada (POLI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: FSI = 35% | INRI = 35% | DEIN = 30%</p>
+        <p className="text-xs text-slate-400">Ponderaciones: IEF = 35.50% | IDR = 35.00% | IDE = 29.50%</p>
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-800 rounded-lg">
           <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
@@ -511,9 +511,9 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
               <tr>
                 <th className="p-3 w-12 bg-[#181a20]">#</th>
                 <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">FSI Norm</th>
-                <th className="p-3 bg-[#181a20]">INRI Norm</th>
-                <th className="p-3 bg-[#181a20]">DEIN Norm</th>
+                <th className="p-3 bg-[#181a20]">IEF Norm (35.50%)</th>
+                <th className="p-3 bg-[#181a20]">IDR Norm (35.00%)</th>
+                <th className="p-3 bg-[#181a20]">IDE Norm (29.50%)</th>
                 <th className="p-3 bg-[#181a20]">Puntaje POLI Normalizado</th>
               </tr>
             </thead>
@@ -523,7 +523,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                   <td className="p-3 text-slate-500">{index + 1}</td>
                   <td className="p-3 font-medium text-white">{row.Paises}</td>
                   <td className="p-3">{row.FSI_norm !== null ? row.FSI_norm : '-'}</td>
-                  <td className="p-3">{row.inri_norm !== null ? row.INRI_norm : '-'}</td>
+                  <td className="p-3">{row.INRI_norm !== null ? row.INRI_norm : '-'}</td>
                   <td className="p-3">{row.DEIN_norm !== null ? row.DEIN_norm : '-'}</td>
                   <td className="p-3 font-bold text-emerald-400">{row.Puntaje_POLI_Normalizado}</td>
                 </tr>
