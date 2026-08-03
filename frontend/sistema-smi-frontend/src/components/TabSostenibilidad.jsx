@@ -28,7 +28,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
   useEffect(() => {
     async function fetchPaises() {
-      const { data } = await supabase.from('paises').select('*').range(0, 9999).order('nombre');
+      const { data } = await supabase.from('paises').select('*').order('nombre');
       if (data) setListaPaises(data);
     }
     fetchPaises();
@@ -43,48 +43,38 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     setErrorLog(null);
 
     try {
-      // 1. Obtener lista de países (sin límite de 100)
-      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').range(0, 9999).order('nombre');
+      // 1. Obtener lista de países
+      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').range(0, 999).order('nombre');
       if (errPaises) throw errPaises;
 
       // 2. Obtener datos de emisiones_carbono
-      const { data: dbEmisiones, error: errEmis } = await supabase.from('emisiones_carbono').select('*').range(0, 9999);
+      const { data: dbEmisiones, error: errEmis } = await supabase.from('emisiones_carbono').select('*').range(0, 999);
       if (errEmis) console.warn("Aviso en emisiones_carbono:", errEmis);
 
-      // 3. Obtener datos de indice_sostenibilidad_global con su nombre exacto de columna
-      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 9999);
+      // 3. Obtener datos de indice_sostenibilidad_global
+      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 999);
       if (errIsg) throw errIsg;
 
       const datosConsolidados = (dbPaises || []).map((p) => {
-        const nombrePais = (p.nombre || '').trim();
+        const nombrePais = (p.nombre || '').trim().toLowerCase();
 
-        // Búsqueda robusta case-insensitive para Emisiones
+        // Búsqueda exacta para Emisiones
         const emisMatch = (dbEmisiones || []).find(c => {
-          return String(c.pais || '').trim().toLowerCase() === nombrePais.toLowerCase();
+          const valPais = String(c.pais || '').trim().toLowerCase();
+          return valPais === nombrePais;
         });
         
-        let edcVal = null;
-        if (emisMatch) {
-          const rawEdc = emisMatch.emisionescarbono ?? emisMatch.edc;
-          if (rawEdc !== null && rawEdc !== undefined && rawEdc !== '') {
-            const parsed = Number(rawEdc);
-            if (!isNaN(parsed)) edcVal = parsed;
-          }
-        }
+        let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
+        if (isNaN(edcVal)) edcVal = null;
 
-        // Búsqueda robusta case-insensitive para Índice de Sostenibilidad Global
+        // Búsqueda exacta para el Índice de Sostenibilidad Global usando la columna exacta 'indicesostenibilidaglobal'
         const isgMatch = (dbIsg || []).find(c => {
-          return String(c.pais || '').trim().toLowerCase() === nombrePais.toLowerCase();
+          const valPais = String(c.pais || '').trim().toLowerCase();
+          return valPais === nombrePais;
         });
 
-        let isgVal = null;
-        if (isgMatch) {
-          const rawIsg = isgMatch.indicesostenibilidaglobal;
-          if (rawIsg !== null && rawIsg !== undefined && rawIsg !== '') {
-            const parsed = Number(rawIsg);
-            if (!isNaN(parsed)) isgVal = parsed;
-          }
-        }
+        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidadglobal ?? 0) : null;
+        if (isNaN(isgVal)) isgVal = null;
 
         let rpgVal = null; 
 
@@ -161,7 +151,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
       const { error: errI } = await supabase
         .from('indice_sostenibilidad_global')
-        .upsert({ pais: nuevoPaisNombre.trim(), indicesostenibilidaglobal: parseFloat(nuevoIsg) || 0 }, { onConflict: 'pais' });
+        .upsert({ pais: nuevoPaisNombre.trim(), indicesostenibilidadglobal: parseFloat(nuevoIsg) || 0 }, { onConflict: 'pais' });
       if (errI) throw errI;
 
       setNuevoPaisNombre(''); setNuevoEdc(''); setNuevoRpg(''); setNuevoIsg('');
@@ -186,7 +176,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
       const { error: errI } = await supabase
         .from('indice_sostenibilidad_global')
-        .upsert({ pais: target.pais_nombre, indicesostenibilidaglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
+        .upsert({ pais: target.pais_nombre, indicesostenibilidadglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
       if (errI) throw errI;
 
       setSelectedPaisId(''); setEditEdc(''); setEditRpg(''); setEditIsg('');
