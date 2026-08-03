@@ -79,84 +79,66 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
           }
         });
 
-        const extraerNombrePais = (row) => (row.pais || row.Paises || row.nombre || row.country || "").trim();
+        // Función auxiliar robusta para extraer el valor numérico probando múltiples nombres de columnas
+        const extraerValorCrudo = (row, posiblesCampos) => {
+          if (!row) return null;
+          for (let campo of posiblesCampos) {
+            if (row[campo] !== undefined && row[campo] !== null && !isNaN(row[campo]) && row[campo] !== "") {
+              return Number(row[campo]);
+            }
+          }
+          return null;
+        };
 
-        // 2. Mapeo específico usando tus nombres de columnas exactos
-        resCostos.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.costoTotal ?? row.costo ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawCost = val;
-        });
+        const poblarCrudos = (data, claveRaw, camposPosibles) => {
+          data?.forEach(row => {
+            const nombrePais = (row.pais || row.Paises || row.nombre || row.country || "").trim();
+            if (!nombrePais) return;
+            const keyMap = nombrePais.toLowerCase();
 
-        resLogistica.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.logística ?? row.logistica ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawLogi = val;
-        });
+            if (!mapaPaises[keyMap]) {
+              mapaPaises[keyMap] = {
+                Paises: nombrePais,
+                rawCost: null, rawLogi: null, rawComm: null, rawEcon: null, rawPoli: null, rawCult: null, rawEdc: null, rawIsg: null,
+                "1. Cost (COST)": null, "2. Logistical (LOGI)": null, "3. Commercial (COMM)": null,
+                "4. Economic (ECON)": null, "5. Political (POLI)": null, "6. Cultura (CULT)": null, "7. Sostenibilidad (SUST)": null
+              };
+            }
 
-        resComercio.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.COMM_total ?? row.comercio ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawComm = val;
-        });
+            const val = extraerValorCrudo(row, camposPosibles);
+            if (val !== null) {
+              mapaPaises[keyMap][claveRaw] = val;
+            }
+          });
+        };
 
-        resEconomia.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.Puntaje_ECON_Normalizado ?? row.economia ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawEcon = val;
-        });
-
-        resPolitica.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.Puntaje_POLI_Normalizado ?? row.politica ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawPoli = val;
-        });
-
-        resCultura.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.Puntaje_CULT_Normalizado ?? row.indice_globalizacion ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawCult = val;
-        });
+        // 2. Extraer los valores reales de cada tabla cubriendo variantes de nombres de columnas (incluyendo normalizados y específicos)
+        poblarCrudos(resCostos.data, "rawCost", ['costo', 'costos', 'costo_normalizado', 'valor', 'monto', 'score', 'puntaje', 'indice']);
+        poblarCrudos(resLogistica.data, "rawLogi", ['logistica', 'logística', 'logistica_normalizada', 'valor', 'score', 'puntaje', 'indice']);
+        poblarCrudos(resComercio.data, "rawComm", ['comercio', 'comercio_normalizado', 'valor', 'score', 'puntaje', 'exportaciones', 'importaciones']);
+        poblarCrudos(resEconomia.data, "rawEcon", ['economia', 'economía', 'economia_normalizada', 'pib', 'valor', 'score', 'puntaje']);
+        poblarCrudos(resPolitica.data, "rawPoli", ['politica', 'política', 'politica_normalizada', 'valor', 'score', 'puntaje', 'estabilidad']);
+        poblarCrudos(resCultura.data, "rawCult", ['indice_globalizacion', 'indiceglobalizacion', 'cultura', 'cultura_normalizada', 'valor', 'score', 'puntaje']);
 
         resEmisiones.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.emisionescarbono ?? row.edc ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawEdc = val;
+          const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
+          if (pais && mapaPaises[pais]) {
+            const val = Number(row.emisionescarbono ?? row.edc ?? row.emisiones ?? row.valor);
+            if (!isNaN(val)) mapaPaises[pais].rawEdc = val;
+          }
         });
 
         resIsg.data?.forEach(row => {
-          const pais = extraerNombrePais(row);
-          if (!pais) return;
-          const key = pais.toLowerCase();
-          if (!mapaPaises[key]) mapaPaises[key] = { Paises: pais };
-          const val = Number(row.indicesostenibilidaglobal ?? row.isg ?? row.valor);
-          if (!isNaN(val)) mapaPaises[key].rawIsg = val;
+          const pais = (row.pais || row.nombre || row.country || "").trim().toLowerCase();
+          if (pais && mapaPaises[pais]) {
+            const val = Number(row.indicesostenibilidaglobal ?? row.isg ?? row.sostenibilidad ?? row.valor);
+            if (!isNaN(val)) mapaPaises[pais].rawIsg = val;
+          }
         });
 
         const allItems = Object.values(mapaPaises);
 
-        // 3. Normalización Min-Max (0 a 10) para las variables que lo requieran
+        // 3. Calcular Mínimos y Máximos globales para la Normalización Automática (Min-Max Scaling 0 a 10)
         const obtenerMinMax = (key) => {
           const vals = allItems.map(i => i[key]).filter(v => v !== null && !isNaN(v));
           return {
@@ -177,6 +159,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null;
         const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null;
 
+        // 4. Aplicar normalización automática a escala de 0 a 10
         allItems.forEach(item => {
           const normalizar = (val, mm) => {
             if (val === null || mm.max === mm.min) return null;
@@ -184,32 +167,24 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
             return Number(res.toFixed(2));
           };
 
-          // Si ya vienen normalizados de base, puedes usarlos directo; si son crudos, aplica Min-Max. 
-          // Aquí aplicamos escala general de 0 a 10 manteniendo compatibilidad:
           item["1. Cost (COST)"] = normalizar(item.rawCost, mmCost);
           item["2. Logistical (LOGI)"] = normalizar(item.rawLogi, mmLogi);
           item["3. Commercial (COMM)"] = normalizar(item.rawComm, mmComm);
-          item["4. Economic (ECON)"] = item.rawEcon !== null ? item.rawEcon : normalizar(item.rawEcon, mmEcon);
-          item["5. Political (POLI)"] = item.rawPoli !== null ? item.rawPoli : normalizar(item.rawPoli, mmPoli);
-          item["6. Cultura (CULT)"] = item.rawCult !== null ? item.rawCult : normalizar(item.rawCult, mmCult);
+          item["4. Economic (ECON)"] = normalizar(item.rawEcon, mmEcon);
+          item["5. Political (POLI)"] = normalizar(item.rawPoli, mmPoli);
+          item["6. Cultura (CULT)"] = normalizar(item.rawCult, mmCult);
 
-          // Sostenibilidad usando tu lógica de factores
+          // Sostenibilidad
           let sustVal = null;
           if (item.rawEdc !== null && item.rawIsg !== null && minEdc && maxIsg) {
-            const p1 = (10 * minEdc) / item.rawEdc;
-            const p3 = (10 * item.rawIsg) / maxIsg;
-            const p2 = 5; // Valor neutro o RPG por defecto si aplica
-            const PESO_EDC = 0.3;
-            const PESO_RPG = 0.0;
-            const PESO_ISG = 0.7;
-            const PESO_FACTOR_SOST = 1.0;
-            
-            sustVal = Number((((PESO_EDC * p1) + (PESO_RPG * p2) + (PESO_ISG * p3)) * PESO_FACTOR_SOST).toFixed(2));
+            const edcNorm = (10 * minEdc) / item.rawEdc;
+            const isgNorm = (10 * item.rawIsg) / maxIsg;
+            sustVal = Number(((edcNorm * 0.3) + (isgNorm * 0.7)).toFixed(2));
           }
           item["7. Sostenibilidad (SUST)"] = sustVal;
         });
 
-        // 4. Fallbacks de 5.0 y filtro por destinos
+        // 5. Asignar fallback de 5.0 si algún dato no existe, y filtrar por países destino
         let lista = allItems.map(item => ({
           ...item,
           "1. Cost (COST)": item["1. Cost (COST)"] !== null ? item["1. Cost (COST)"] : 5.0,
@@ -229,8 +204,8 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
         setDatosTotales(lista);
         setErrorNotif(null);
       } catch (err) {
-        console.error("Error al cargar las tablas:", err);
-        setErrorNotif("Hubo un problema al sincronizar los datos de Supabase.");
+        console.error("Error al calcular las métricas normalizadas:", err);
+        setErrorNotif("Hubo un problema al calcular automáticamente las métricas.");
       } finally {
         setCargando(false);
       }
@@ -337,7 +312,7 @@ export default function TabTablaTotal({ paisesDestino, paisOrigen }) {
 
         {cargando ? (
           <div className="py-12 text-center text-xs text-slate-400">
-            Cargando y calculando las métricas de Supabase...
+            Cargando y calculando las métricas normalizadas de cada pestaña...
           </div>
         ) : datosCalculados.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-400">
