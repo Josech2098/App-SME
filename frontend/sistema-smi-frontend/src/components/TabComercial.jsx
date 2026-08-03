@@ -10,19 +10,16 @@ export default function TabComercial({
   datosIndicePenetracion = [], 
   datosLibertadEconomica = []   
 }) {
-  // Estados para almacenar los datos obtenidos de Supabase si las props llegan vacías
   const [dbPenetracion, setDbPenetracion] = useState(datosIndicePenetracion);
   const [dbLibertad, setDbLibertad] = useState(datosLibertadEconomica);
   const [cargandoSupabase, setCargandoSupabase] = useState(false);
 
-  // Efecto para consultar directamente a Supabase si las props del padre están vacías
   useEffect(() => {
     async function fetchDataFromSupabase() {
       if ((!datosIndicePenetracion || datosIndicePenetracion.length === 0) || 
           (!datosLibertadEconomica || datosLibertadEconomica.length === 0)) {
         setCargandoSupabase(true);
         try {
-          // Nota: Asegúrate de importar o recibir el cliente de Supabase globalmente o inicializarlo mediante tus variables de entorno reales si es necesario.
           const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
           const supabaseKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
           
@@ -54,7 +51,6 @@ export default function TabComercial({
   const [datosCommNormalizados, setDatosCommNormalizados] = useState([]);
   const [errorProceso, setErrorProceso] = useState(null);
 
-  // Función auxiliar para normalizar texto (quitar tildes, espacios y minúsculas)
   const normalizarTexto = (texto) => {
     if (!texto || typeof texto !== 'string') return '';
     return texto
@@ -64,7 +60,6 @@ export default function TabComercial({
       .replace(/[\u0300-\u036f]/g, '');
   };
 
-  // Sincronización principal: Extracción de países desde 'productos' y fusión con Supabase
   useEffect(() => {
     try {
       const mapaPaisesUnicos = new Map();
@@ -80,7 +75,6 @@ export default function TabComercial({
         }
       };
 
-      // 1. Extraer nombres de países directamente desde la prop 'productos'
       if (Array.isArray(productos)) {
         productos.forEach(prod => {
           if (!prod) return;
@@ -102,7 +96,6 @@ export default function TabComercial({
         });
       }
 
-      // 2. Extraer desde paisesDestino si existen
       if (Array.isArray(paisesDestino)) {
         paisesDestino.forEach(p => {
           if (typeof p === 'string') registrarPais(p);
@@ -112,7 +105,6 @@ export default function TabComercial({
         });
       }
 
-      // 3. Extraer también desde los registros de Supabase si la lista de productos viniera vacía
       if (mapaPaisesUnicos.size === 0) {
         effectivePenetracion.forEach(item => {
           const pais = item.nombre || item.pais || item.Paises || item.Nombre;
@@ -133,7 +125,6 @@ export default function TabComercial({
         }
       });
 
-      // 4. Cruzar y conectar con los índices correspondientes
       const dfComm = listaPaisesFinal.map((paisOriginal, idx) => {
         const paisNorm = normalizarTexto(paisOriginal);
 
@@ -187,26 +178,30 @@ export default function TabComercial({
 
       setDatosCommConsolidados(dfComm);
 
-      // 5. Normalización matemática de los datos
+      // Normalización exacta basada en las fórmulas de Excel:
+      // ara: =($A$3*MIN($M$5:$M$14))/M5  (Criterio de costos: menor es mejor -> MIN / valor_actual)
+      // ibc: =($A$3*MIN($N$5:$N$14))/N5  (Criterio de penetración: menor es mejor o minimizado en este modelo específico de Excel)
+      // ibc/ioef: =($A$3*O6)/MAX($O$5:$O$14) (Criterio de beneficio: mayor es mejor -> valor_actual / MAX)
       const A3 = 10;
-      const getMinMax = (arr, key) => {
-        const values = arr.map(item => item[key]).filter(v => v !== null && !isNaN(v));
-        return values.length > 0 ? [Math.min(...values), Math.max(...values)] : [0, 1];
-      };
 
-      const [ctcoMin, ctcoMax] = getMinMax(dfComm, 'Aranceles aduaneros por país de origen (CTCO)');
-      const [iempMin, iempMax] = getMinMax(dfComm, 'Índice de penetración en el mercado de exportación (IEMP)');
-      const [ioefMin, ioefMax] = getMinMax(dfComm, 'Índice de Libertad Económica (IOEF)');
+      const ctcoValues = dfComm.map(item => item['Aranceles aduaneros por país de origen (CTCO)']).filter(v => v !== null && !isNaN(v) && v > 0);
+      const iempValues = dfComm.map(item => item['Índice de penetración en el mercado de exportación (IEMP)']).filter(v => v !== null && !isNaN(v) && v > 0);
+      const ioefValues = dfComm.map(item => item['Índice de Libertad Económica (IOEF)']).filter(v => v !== null && !isNaN(v));
+
+      const minCtco = ctcoValues.length > 0 ? Math.min(...ctcoValues) : 1;
+      const minIemp = iempValues.length > 0 ? Math.min(...iempValues) : 1;
+      const maxIoef = ioefValues.length > 0 ? Math.max(...ioefValues) : 1;
 
       const dfNorm = dfComm.map(item => {
         const ctcoVal = item['Aranceles aduaneros por país de origen (CTCO)'];
         const iempVal = item['Índice de penetración en el mercado de exportación (IEMP)'];
         const ioefVal = item['Índice de Libertad Económica (IOEF)'];
 
-        const ctcoNorm = (ctcoMax !== ctcoMin) ? Number((A3 * (ctcoMax - ctcoVal) / (ctcoMax - ctcoMin)).toFixed(2)) : 0;
-        const iempNorm = (iempMax !== iempMin) ? Number((A3 * (iempVal - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
-        const ioefNorm = (ioefMax !== ioefMin) ? Number((A3 * (ioefVal - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
+        const ctcoNorm = (ctcoVal > 0) ? Number(((A3 * minCtco) / ctcoVal).toFixed(2)) : 0;
+        const iempNorm = (iempVal > 0) ? Number(((A3 * minIemp) / iempVal).toFixed(2)) : 0;
+        const ioefNorm = (maxIoef > 0) ? Number(((A3 * ioefVal) / maxIoef).toFixed(2)) : 0;
 
+        // Ponderaciones exactas de la imagen: Aranceles (50%), Penetración (30%), Libertad Económica (20%)
         const commTotal = Number((ctcoNorm * 0.5 + iempNorm * 0.3 + ioefNorm * 0.2).toFixed(2));
 
         return {
@@ -236,7 +231,6 @@ export default function TabComercial({
         </p>
       </div>
 
-      {/* ESTADO DE CONEXIÓN */}
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs flex items-center justify-between">
         <div>
           <span className="text-slate-400">Productos analizados:</span> <strong className="text-white">{productos.length}</strong> | 
@@ -249,7 +243,6 @@ export default function TabComercial({
 
       {errorProceso && <div className="bg-red-950 p-3 rounded text-xs text-red-400">{errorProceso}</div>}
 
-      {/* TABLA CONSOLIDADA */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Consolidada (COMM)</h3>
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
@@ -258,9 +251,9 @@ export default function TabComercial({
               <tr>
                 <th className="p-3 w-12">#</th>
                 <th className="p-3">País (desde Productos)</th>
-                <th className="p-3">Aranceles (CTCO)</th>
-                <th className="p-3">Penetración (IEMP)</th>
-                <th className="p-3">Libertad Económica (IOEF)</th>
+                <th className="p-3">Aranceles aduaneros por país de origen (CTCO)</th>
+                <th className="p-3">Índice de penetración en el mercado de exportación (IEMP)</th>
+                <th className="p-3">Índice de Libertad Económica (IOEF)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
@@ -284,7 +277,6 @@ export default function TabComercial({
         </div>
       </div>
 
-      {/* TABLA NORMALIZADA */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Normalizada (COMM)</h3>
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
