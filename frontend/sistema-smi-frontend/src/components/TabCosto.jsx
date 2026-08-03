@@ -178,8 +178,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }
 
   // ----------------------------------------------------
-// CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
-// ----------------------------------------------------
+  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
+  // ----------------------------------------------------
   const PESO_FACTOR_COSTO = 0.215; // 21.50%
 
   const PESO_PPD = 0.44; // 44.00%
@@ -222,8 +222,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const p2 = ctiNorm ?? 0;
     const p3 = cicNorm ?? 0;
 
-    const costoSubtotalNorm = Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2));
-    const aporteFactorCosto = Number((costoSubtotalNorm * PESO_FACTOR_COSTO).toFixed(2));
+    // Se calcula directamente el aporte final del factor sin pasar por el subtotal intermedio
+    const aporteFactorCosto = Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
 
     const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
 
@@ -232,18 +232,17 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       ppdNorm,
       ctiNorm,
       cicNorm,
-      costoSubtotalNorm,
       aporteFactorCosto,
       __faltantes: faltantes
     };
   });
 
-  // Ordenamiento: primero los que tienen menos faltantes, y luego por costo subtotal de forma descendente
+  // Ordenamiento: primero los que tienen menos faltantes, y luego por el aporte del factor de forma descendente
   matrizCalculadaCompleta.sort((a, b) => {
     if (a.__faltantes !== b.__faltantes) {
       return a.__faltantes - b.__faltantes;
     }
-    return b.costoSubtotalNorm - a.costoSubtotalNorm; 
+    return b.aporteFactorCosto - a.aporteFactorCosto; 
   });
 
   const matrizFiltrada = matrizCalculadaCompleta;
@@ -610,14 +609,13 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                 <th className="p-3 text-right font-medium text-slate-300">PPD Norm (44.00%)</th>
                 <th className="p-3 text-right font-medium text-slate-300">CTI Norm (34.00%)</th>
                 <th className="p-3 text-right font-medium text-slate-300">CIC Norm (22.00%)</th>
-                <th className="p-3 text-right font-bold text-sky-400">Subtotal COSTO (0-10)</th>
                 <th className="p-3 text-right pr-6 font-bold text-emerald-400">Total Factor (21.50%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
                     Calculando...
                   </td>
                 </tr>
@@ -629,13 +627,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     <td className="p-3 text-right">{row.ppdNorm}</td>
                     <td className="p-3 text-right">{row.ctiNorm}</td>
                     <td className="p-3 text-right">{row.cicNorm}</td>
-                    <td className="p-3 text-right font-bold text-sky-400">{row.costoSubtotalNorm}</td>
                     <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
                     Sin registros para calcular.
                   </td>
                 </tr>
