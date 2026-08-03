@@ -41,7 +41,7 @@ export default function TabComercial({
             else if (libData) setDbLibertad(libData);
           }
         }
-      }  catch (e) {
+      } catch (e) {
         console.error("Excepción al conectar con Supabase:", e);
       } finally {
         setCargandoSupabase(false);
@@ -71,26 +71,14 @@ export default function TabComercial({
     try {
       const mapaPaisesUnicos = new Map();
 
-      // Tomamos el nombre exacto tal cual viene de la base de datos (con mayúsculas iniciales)
-      if (Array.isArray(dbPaises) && dbPaises.length > 0) {
-        dbPaises.forEach(item => {
-          const nombrePais = item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0];
+      // Fuente principal: Pases seleccionados (paisesDestino) o toda la tabla 'paises' de Supabase
+      const fuentePaises = (paisesDestino && paisesDestino.length > 0) ? paisesDestino : dbPaises;
+
+      if (Array.isArray(fuentePaises) && fuentePaises.length > 0) {
+        fuentePaises.forEach(item => {
+          const nombrePais = typeof item === 'string' ? item : (item.nombre || item.pais || item.Paises || item.Nombre || Object.values(item)[0]);
           if (typeof nombrePais === 'string' && nombrePais.trim().length > 1) {
             const limpio = nombrePais.trim();
-            const claveNorm = normalizarTexto(limpio);
-            if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
-              mapaPaisesUnicos.set(claveNorm, limpio); // Se guarda el texto original con mayúsculas
-            }
-          }
-        });
-      }
-
-      // Respaldo si dbPaises está vacío
-      if (mapaPaisesUnicos.size === 0 && Array.isArray(paisesDestino)) {
-        paisesDestino.forEach(p => {
-          const val = typeof p === 'string' ? p : (p?.nombre || p?.pais || Object.values(p)[0]);
-          if (typeof val === 'string' && val.trim().length > 1) {
-            const limpio = val.trim();
             const claveNorm = normalizarTexto(limpio);
             if (claveNorm && !mapaPaisesUnicos.has(claveNorm)) {
               mapaPaisesUnicos.set(claveNorm, limpio);
