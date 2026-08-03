@@ -160,11 +160,8 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       const dfPoli = listaPaisesBase.map((pais) => {
         const pLower = pais.toLowerCase().trim();
 
-        // Buscar coincidencia en estadosfragiles (columna 'pais', 'indice_de_estados_fragiles')
         const matchFSI = datosFSI.find(item => (item.pais || '').toLowerCase().trim() === pLower);
-        // Buscar coincidencia en informeriesgo (columna 'pais', 'riesgo')
         const matchINRI = datosINRI.find(item => (item.pais || '').toLowerCase().trim() === pLower);
-        // Buscar coincidencia en indicedemocracia (columna 'pais', 'indice_democracia')
         const matchDEIN = datosDEIN.find(item => (item.pais || '').toLowerCase().trim() === pLower);
 
         return {
@@ -201,7 +198,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       dfPoli.sort((a, b) => a._faltantes - b._faltantes);
       setDatosPoliConsolidados(dfPoli);
 
-      // ================= NORMALIZACIÓN (Porcentajes corregidos: 35.50% / 35.00% / 29.50%) =================
+      // ================= NORMALIZACIÓN Y APORTE GLOBAL (13.00%) =================
       const A3 = 10;
       const FSI_min = 19.6;  
       const INRI_min = 1.7;  
@@ -210,6 +207,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       const P_FSI = 0.355;
       const P_INRI = 0.350;
       const P_DEIN = 0.295;
+      const PESO_FACTOR_POLITICA = 0.13; // 13.00% peso global
 
       const dfNorm = dfPoli.map(item => {
         const fsiNorm = item.FSI !== null && item.FSI > 0 ? Number(((A3 * FSI_min) / item.FSI).toFixed(2)) : null;
@@ -222,6 +220,9 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
           (deinNorm !== null ? deinNorm : 0) * P_DEIN
         ).toFixed(2));
 
+        // Nuevo cálculo del aporte global (13.00%)
+        const aporteFactorPolitica = Number((puntajePoli * PESO_FACTOR_POLITICA).toFixed(2));
+
         const faltantesNorm = [fsiNorm, inriNorm, deinNorm].filter(v => v === null).length;
 
         return {
@@ -230,6 +231,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
           INRI_norm: inriNorm,
           DEIN_norm: deinNorm,
           Puntaje_POLI_Normalizado: puntajePoli,
+          aporteFactorPolitica,
           _faltantes: faltantesNorm
         };
       });
@@ -503,7 +505,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       {/* ================= TABLA DE NORMALIZACIÓN POLÍTICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Política Normalizada (POLI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: IEF = 35.50% | IDR = 35.00% | IDE = 29.50%</p>
+        <p className="text-xs text-slate-400">Ponderaciones: IEF = 35.50% | IDR = 35.00% | IDE = 29.50% — (Aporte Global: 13.00%)</p>
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-800 rounded-lg">
           <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
@@ -514,7 +516,8 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                 <th className="p-3 bg-[#181a20]">IEF Norm (35.50%)</th>
                 <th className="p-3 bg-[#181a20]">IDR Norm (35.00%)</th>
                 <th className="p-3 bg-[#181a20]">IDE Norm (29.50%)</th>
-                <th className="p-3 bg-[#181a20]">Puntaje POLI Normalizado</th>
+                <th className="p-3 bg-[#181a20]">Puntaje POLI Norm.</th>
+                <th className="p-3 bg-[#181a20]">Aporte Global (13.00%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
@@ -526,6 +529,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
                   <td className="p-3">{row.INRI_norm !== null ? row.INRI_norm : '-'}</td>
                   <td className="p-3">{row.DEIN_norm !== null ? row.DEIN_norm : '-'}</td>
                   <td className="p-3 font-bold text-emerald-400">{row.Puntaje_POLI_Normalizado}</td>
+                  <td className="p-3 font-bold text-red-400">{row.aporteFactorPolitica}</td>
                 </tr>
               ))}
             </tbody>
