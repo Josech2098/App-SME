@@ -43,28 +43,39 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     setErrorLog(null);
 
     try {
-      // 1. Obtener la lista base de países
-      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
+      // 1. Obtener la lista completa de países (con rango ampliado para evitar límite de 100)
+      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').range(0, 999).order('nombre');
       if (errPaises) throw errPaises;
 
-      // 2. Obtener datos de la tabla indice_sostenibilidad_global
-      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*');
+      // 2. Obtener datos de emisiones_carbono
+      const { data: dbEmisiones, error: errEmis } = await supabase.from('emisiones_carbono').select('*').range(0, 999);
+      if (errEmis) console.warn("Aviso en emisiones_carbono:", errEmis);
+
+      // 3. Obtener datos de indice_sostenibilidad_global
+      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 999);
       if (errIsg) console.warn("Aviso en indice_sostenibilidad_global:", errIsg);
 
       const datosConsolidados = dbPaises.map((p) => {
         const nombrePais = (p.nombre || '').trim().toLowerCase();
 
-        // Buscar Índice Global (ISG) haciendo match por nombre o identificador
+        // Match para Emisiones de Carbono (EDC)
+        const emisMatch = (dbEmisiones || []).find(c => {
+          const valPaisC = String(c.pais || c.nombre || '').trim().toLowerCase();
+          return valPaisC === nombrePais;
+        });
+        
+        let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
+        if (isNaN(edcVal)) edcVal = null;
+
+        // Match para Índice de Sostenibilidad Global (ISG)
         const isgMatch = (dbIsg || []).find(c => {
-          const valPaisI = String(c.pais || c.nombre || c.id_pais || '').trim().toLowerCase();
+          const valPaisI = String(c.pais || c.nombre || '').trim().toLowerCase();
           return valPaisI === nombrePais;
         });
 
         let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidaglobal ?? isgMatch.isg ?? 0) : null;
         if (isNaN(isgVal)) isgVal = null;
 
-        // EDC se deja explícitamente en null o 0 para que no cargue datos de emisiones
-        let edcVal = null; 
         let rpgVal = 0; 
 
         return {
@@ -86,13 +97,13 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   }
 
   // ----------------------------------------------------
-  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
+  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN
   // ----------------------------------------------------
   const PESO_FACTOR_SOST = 0.055; // 5.50%
 
-  const PESO_EDC = 0.30; // 30.00% (Inversa)
-  const PESO_RPG = 0.30; // 30.00% (Inversa)
-  const PESO_ISG = 0.40; // 40.00% (Directa)
+  const PESO_EDC = 0.30; 
+  const PESO_RPG = 0.30; 
+  const PESO_ISG = 0.40; 
   const PUNTAJE_MAXIMO = 10;
 
   const edcVals = datosProductos.map(d => d.edc).filter(v => v !== null && v !== undefined && v > 0);
@@ -129,7 +140,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     const p3 = isgNorm ?? 0;
 
     const aporteFactorSostenibilidad = Number((((PESO_EDC * p1) + (PESO_RPG * p2) + (PESO_ISG * p3)) * PESO_FACTOR_SOST).toFixed(2));
-
     const faltantes = [edcNorm, rpgNorm, isgNorm].filter(v => v === null).length;
 
     return {
@@ -143,9 +153,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   });
 
   matrizCalculadaCompleta.sort((a, b) => {
-    if (a.__faltantes !== b.__faltantes) {
-      return a.__faltantes - b.__faltantes;
-    }
+    if (a.__faltantes !== b.__faltantes) return a.__faltantes - b.__faltantes;
     return b.aporteFactorSostenibilidad - a.aporteFactorSostenibilidad; 
   });
 
@@ -184,7 +192,13 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         if (errP) throw errP;
       }
 
-      // Upsert solo en indice_sostenibilidad_global (dejando emisiones_carbono libre de inserciones automáticas)
+      // Upsert en Emisiones
+      const { error: errE } = await supabase
+        .from('emisiones_carbono')
+        .upsert({ pais: nombreFinalPais, emisionescarbono: parseFloat(nuevoEdc) || 0 }, { onConflict: 'pais' });
+      if (errE) throw errE;
+
+      // Upsert en ISG
       const { error: errI } = await supabase
         .from('indice_sostenibilidad_global')
         .upsert({ pais: nombreFinalPais, indicesostenibilidaglobal: parseFloat(nuevoIsg) || 0 }, { onConflict: 'pais' });
@@ -205,7 +219,11 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     if (!target) return;
 
     try {
-      // Actualizar solo ISG
+      const { error: errE } = await supabase
+        .from('emisiones_carbono')
+        .upsert({ pais: target.pais_nombre, emisionescarbono: parseFloat(editEdc) || 0 }, { onConflict: 'pais' });
+      if (errE) throw errE;
+
       const { error: errI } = await supabase
         .from('indice_sostenibilidad_global')
         .upsert({ pais: target.pais_nombre, indicesostenibilidaglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
@@ -227,7 +245,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
-      {/* TÍTULO PRINCIPAL */}
       <div className="flex justify-between items-start border-b border-slate-800 pb-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">
@@ -250,7 +267,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           
-          {/* Añadir */}
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('add')}
@@ -280,9 +296,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                       type="number"
                       value={nuevoEdc}
                       onChange={(e) => setNuevoEdc(e.target.value)}
-                      placeholder="N/A"
-                      disabled
-                      className="w-full bg-[#0e1117]/50 border border-slate-800 rounded p-2 text-slate-500 cursor-not-allowed"
+                      placeholder="12.5"
+                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
                     />
                   </div>
                   <div>
@@ -316,7 +331,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
             )}
           </div>
 
-          {/* Editar */}
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('edit')}
@@ -333,9 +347,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                 >
                   <option value="">-- Selecciona un país --</option>
                   {listaPaises.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
                   ))}
                 </select>
 
@@ -347,8 +359,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                         <input
                           type="number"
                           value={editEdc}
-                          disabled
-                          className="w-full bg-[#0e1117]/50 border border-slate-800 p-2 rounded text-slate-500 cursor-not-allowed"
+                          onChange={(e) => setEditEdc(e.target.value)}
+                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
                         />
                       </div>
                       <div>
@@ -420,9 +432,9 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right text-slate-500">-</td>
+                    <td className="p-3 text-right">{row.edc !== null ? row.edc : <span className="text-slate-500">-</span>}</td>
                     <td className="p-3 text-right">{row.rpg !== null ? row.rpg : <span className="text-slate-500">0</span>}</td>
-                    <td className="p-3 text-right pr-6">{row.isg !== null ? row.isg : <span className="text-slate-500">0</span>}</td>
+                    <td className="p-3 text-right pr-6">{row.isg !== null ? row.isg : <span className="text-slate-500">-</span>}</td>
                   </tr>
                 ))
               ) : (
@@ -467,7 +479,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">-</td>
+                    <td className="p-3 text-right">{row.edcNorm ?? '-'}</td>
                     <td className="p-3 text-right">{row.rpgNorm ?? '-'}</td>
                     <td className="p-3 text-right">{row.isgNorm ?? '-'}</td>
                     <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorSostenibilidad}</td>
