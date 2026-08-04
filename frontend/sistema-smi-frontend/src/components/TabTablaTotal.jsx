@@ -21,6 +21,16 @@ const [pesosCat, setPesosCat] = useState({
   SUST: 5.5
 });
 
+const [pesosAplicados, setPesosAplicados] = useState({
+  COST: 21.5,
+  LOGI: 18.5,
+  COMM: 20.5,
+  ECON: 16,
+  POLI: 13,
+  CULT: 5,
+  SUST: 5.5
+});
+
 const handlePesoChange = (cat, valor) => {
   setPesosCat(prev => ({
     ...prev,
@@ -179,13 +189,13 @@ const sumaPesos = Object.values(pesosCat)
 
         const total = Number(
           (
-            row.COST * (pesosCat.COST / 100) +
-            row.LOGI * (pesosCat.LOGI / 100) +
-            row.COMM * (pesosCat.COMM / 100) +
-            row.ECON * (pesosCat.ECON / 100) +
-            row.POLI * (pesosCat.POLI / 100) +
-            row.CULT * (pesosCat.CULT / 100) +
-            row.SUST * (pesosCat.SUST / 100)
+            row.COST * (pesosAplicados.COST / 100) +
+            row.LOGI * (pesosAplicados.LOGI / 100) +
+            row.COMM * (pesosAplicados.COMM / 100) +
+            row.ECON * (pesosAplicados.ECON / 100) +
+            row.POLI * (pesosAplicados.POLI / 100) +
+            row.CULT * (pesosAplicados.CULT / 100) +
+            row.SUST * (pesosAplicados.SUST / 100)
           ).toFixed(2)
         );
 
@@ -333,6 +343,28 @@ const sumaPesos = Object.values(pesosCat)
           </div>
 
         )}
+
+        <div className="flex justify-end">
+
+          <button
+            onClick={() => {
+
+              if (sumaPesos !== 100) {
+                alert(
+                  "Las ponderaciones deben sumar exactamente 100%"
+                );
+                return;
+              }
+
+              setPesosAplicados({ ...pesosCat });
+
+            }}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
+          >
+            Calcular
+          </button>
+
+        </div>
 
       </div>
 
