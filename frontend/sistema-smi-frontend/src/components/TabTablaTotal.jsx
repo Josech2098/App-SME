@@ -231,14 +231,15 @@ const sumaPesos = Object.values(pesosCat)
       .sort((a, b) => b.TOTAL - a.TOTAL);
 
   }, [
-    datosCosto,
-    datosLogi,
-    datosComm,
-    datosEcon,
-    datosPoli,
-    datosCult,
-    datosSust
-  ]);
+  datosCosto,
+  datosLogi,
+  datosComm,
+  datosEcon,
+  datosPoli,
+  datosCult,
+  datosSust,
+  pesosAplicados
+]);
 
   useEffect(() => {
 
