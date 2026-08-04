@@ -193,27 +193,34 @@ export default function TabTablaTotal({
 
     <div className="space-y-10 text-slate-100">
 
+      {/* TABLA GENERAL */}
+
       <div>
+
         <h2 className="text-2xl font-bold">
           Tabla General de Evaluación de Países
         </h2>
 
         <p className="text-xs text-slate-400 mt-2">
-          Consolidación automática de COST, LOGI,
-          COMM, ECON, POLI, CULT y SUST.
+          Consolidación automática de COST,
+          LOGI, COMM, ECON, POLI, CULT y SUST
         </p>
+
       </div>
 
-      <div className="overflow-auto border border-slate-800 rounded-xl">
+      <div className="overflow-y-auto h-[450px] border border-slate-800 rounded-xl">
 
         <table className="w-full text-xs">
 
-          <thead className="bg-[#181a20] sticky top-0">
+          <thead className="bg-[#181a20] sticky top-0 z-10">
 
             <tr>
 
               <th className="p-3">#</th>
-              <th className="p-3">PAÍS</th>
+
+              <th className="p-3">
+                País
+              </th>
 
               <th className="p-3">COST</th>
               <th className="p-3">LOGI</th>
@@ -237,7 +244,7 @@ export default function TabTablaTotal({
 
               <tr
                 key={row.pais}
-                className="border-t border-slate-800"
+                className="border-t border-slate-800 hover:bg-[#16181d]"
               >
 
                 <td className="p-3">
@@ -248,13 +255,33 @@ export default function TabTablaTotal({
                   {row.pais}
                 </td>
 
-                <td className="p-3">{row.COST.toFixed(2)}</td>
-                <td className="p-3">{row.LOGI.toFixed(2)}</td>
-                <td className="p-3">{row.COMM.toFixed(2)}</td>
-                <td className="p-3">{row.ECON.toFixed(2)}</td>
-                <td className="p-3">{row.POLI.toFixed(2)}</td>
-                <td className="p-3">{row.CULT.toFixed(2)}</td>
-                <td className="p-3">{row.SUST.toFixed(2)}</td>
+                <td className="p-3">
+                  {row.COST.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.LOGI.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.COMM.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.ECON.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.POLI.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.CULT.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.SUST.toFixed(2)}
+                </td>
 
                 <td className="p-3 font-bold text-emerald-400">
                   {row.TOTAL.toFixed(2)}
@@ -270,17 +297,19 @@ export default function TabTablaTotal({
 
       </div>
 
+      {/* RANKING */}
+
       <div>
 
         <h2 className="text-2xl font-bold mb-4">
           Tabla Resumen — Puntaje Total
         </h2>
 
-        <div className="overflow-auto border border-slate-800 rounded-xl">
+        <div className="overflow-y-auto h-[450px] border border-slate-800 rounded-xl">
 
           <table className="w-full text-xs">
 
-            <thead className="bg-[#181a20]">
+            <thead className="bg-[#181a20] sticky top-0 z-10">
 
               <tr>
 
@@ -306,7 +335,7 @@ export default function TabTablaTotal({
 
                 <tr
                   key={`ranking-${row.pais}`}
-                  className="border-t border-slate-800"
+                  className="border-t border-slate-800 hover:bg-[#16181d]"
                 >
 
                   <td className="p-3 font-bold">
@@ -335,4 +364,4 @@ export default function TabTablaTotal({
 
     </div>
   );
-} 
+}
