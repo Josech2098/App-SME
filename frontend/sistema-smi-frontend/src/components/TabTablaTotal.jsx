@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 
 export default function TabTablaTotal({
   datosCosto = [],
@@ -10,6 +10,26 @@ export default function TabTablaTotal({
   datosSust = [],
   onDatosActualizados
 }) {
+
+const [pesosCat, setPesosCat] = useState({
+  COST: 21.5,
+  LOGI: 18.5,
+  COMM: 20.5,
+  ECON: 16,
+  POLI: 13,
+  CULT: 5,
+  SUST: 5.5
+});
+
+const handlePesoChange = (cat, valor) => {
+  setPesosCat(prev => ({
+    ...prev,
+    [cat]: parseFloat || 0
+  }));
+};
+
+const sumaPesos = Object.values(pesosCat)
+  .reduce((acc, val) => acc + val, 0);
 
   const datosFinales = useMemo(() => {
 
@@ -159,13 +179,13 @@ export default function TabTablaTotal({
 
         const total = Number(
           (
-            row.COST +
-            row.LOGI +
-            row.COMM +
-            row.ECON +
-            row.POLI +
-            row.CULT +
-            row.SUST
+            row.COST * (pesosCat.COST / 100) +
+            row.LOGI * (pesosCat.LOGI / 100) +
+            row.COMM * (pesosCat.COMM / 100) +
+            row.ECON * (pesosCat.ECON / 100) +
+            row.POLI * (pesosCat.POLI / 100) +
+            row.CULT * (pesosCat.CULT / 100) +
+            row.SUST * (pesosCat.SUST / 100)
           ).toFixed(2)
         );
 
@@ -221,6 +241,100 @@ export default function TabTablaTotal({
   return (
 
     <div className="space-y-10 text-slate-100">
+      <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4">
+
+        <div>
+          <h3 className="text-xl font-bold text-white">
+            Ajuste manual de ponderaciones (IMSFE)
+          </h3>
+
+          <p className="text-xs text-slate-400 mt-1">
+            Puedes modificar los pesos de cada categoría.
+            El total debe sumar exactamente 100%.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+          {[
+            { label: "COST (%)", cat: "COST" },
+            { label: "LOGI (%)", cat: "LOGI" },
+            { label: "COMM (%)", cat: "COMM" },
+            { label: "ECON (%)", cat: "ECON" },
+            { label: "POLI (%)", cat: "POLI" },
+            { label: "CULT (%)", cat: "CULT" },
+            { label: "SUST (%)", cat: "SUST" }
+          ].map(({ label, cat }) => (
+
+            <div
+              key={cat}
+              className="bg-[#0d1117] border border-slate-800 rounded-lg p-3"
+            >
+
+              <label className="block text-xs font-semibold mb-2">
+                {label}
+              </label>
+
+              <div className="flex items-center gap-2">
+
+                <input
+                  type="number"
+                  step="0.5"
+                  value={pesosCat[cat]}
+                  onChange={(e) =>
+                    handlePesoChange(cat, e.target.value)
+                  }
+                  className="flex-1 bg-[#181a20] border border-slate-700 rounded px-2 py-1 text-sm"
+                />
+
+                <button
+                  onClick={() =>
+                    handlePesoChange(
+                      cat,
+                      pesosCat[cat] - 0.5
+                    )
+                  }
+                  className="px-2 py-1 bg-slate-700 rounded"
+                >
+                  −
+                </button>
+
+                <button
+                  onClick={() =>
+                    handlePesoChange(
+                      cat,
+                      pesosCat[cat] + 0.5
+                    )
+                  }
+                  className="px-2 py-1 bg-slate-700 rounded"
+                >
+                  +
+                </button>
+
+              </div>
+
+            </div>
+
+          ))}
+
+        </div>
+
+        {sumaPesos !== 100 ? (
+
+          <div className="bg-red-900/20 border border-red-800 rounded p-3 text-red-400 text-xs">
+            La suma actual es {sumaPesos.toFixed(1)}%.
+            Debe ser exactamente 100%.
+          </div>
+
+        ) : (
+
+          <div className="bg-emerald-900/20 border border-emerald-800 rounded p-3 text-emerald-400 text-xs">
+            Ponderaciones válidas (100%).
+          </div>
+
+        )}
+
+      </div>
 
       {/* TABLA GENERAL */}
 
