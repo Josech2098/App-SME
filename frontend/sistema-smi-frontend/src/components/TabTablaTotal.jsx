@@ -24,7 +24,7 @@ const [pesosCat, setPesosCat] = useState({
 const handlePesoChange = (cat, valor) => {
   setPesosCat(prev => ({
     ...prev,
-    [cat]: parseFloat || 0
+    [cat]: parseFloat(valor) || 0
   }));
 };
 
