@@ -155,9 +155,9 @@ export default function TabTablaTotal({
     });
 
     return Object.values(mapa)
-      .map(row => ({
-        ...row,
-        TOTAL: Number(
+      .map(row => {
+
+        const total = Number(
           (
             row.COST +
             row.LOGI +
@@ -167,8 +167,37 @@ export default function TabTablaTotal({
             row.CULT +
             row.SUST
           ).toFixed(2)
-        )
-      }))
+        );
+
+        return {
+
+          ...row,
+
+          TOTAL: total,
+
+          Paises: row.pais,
+
+          "1. Cost (COST)": row.COST,
+
+          "2. Logistical (LOGI)": row.LOGI,
+
+          "3. Commercial (COMM)": row.COMM,
+
+          "4. Economic (ECON)": row.ECON,
+
+          "5. Political (POLI)": row.POLI,
+
+          "6. Cultura (CULT)": row.CULT,
+
+          "7. Sostenibilidad (SUST)": row.SUST,
+
+          "Puntaje Total": total,
+
+          "Puntaje Global – TOTAL": total
+
+        };
+
+      })
       .sort((a, b) => b.TOTAL - a.TOTAL);
 
   }, [
