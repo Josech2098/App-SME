@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen }) {
+export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen, onDatosActualizados }) {
   const [poliOverrides, setPoliOverrides] = useState([]);
   
   const [openAdd, setOpenAdd] = useState(false);
@@ -241,6 +241,9 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen 
       });
 
       setDatosPoliNormalizados(dfNorm);
+      if (onDatosActualizados) {
+        onDatosActualizados(dfNorm);
+      }
     } catch (err) {
       console.error("Error al procesar datos políticos:", err);
       setErrorNotif(err.message);

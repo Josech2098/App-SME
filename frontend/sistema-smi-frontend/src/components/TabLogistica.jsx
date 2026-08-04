@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen }) {
+export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen, onDatosActualizados }) {
   const [tablaLogi, setTablaLogi] = useState([]);
   const [puertosData, setPuertosData] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -31,6 +31,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   // Almacenar los TTI calculados por país de llegada
   const [ttiCalculadosPorPais, setTtiCalculadosPorPais] = useState({});
+  const [datosLogisticaNormalizados, setDatosLogisticaNormalizados] = useState([]);
 
   // Función avanzada para normalizar cadenas (quita tildes, mayúsculas, caracteres raros y espacios múltiples)
   const normalizarTexto = (texto) => {
@@ -163,10 +164,95 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       setCargando(false);
     }
   };
-
+  
   useEffect(() => {
     cargarDatos();
   }, [paisesDestino]);
+
+  useEffect(() => {
+
+  if (tablaLogi.length === 0) return;
+
+  const idkVals = tablaLogi
+    .map(d => Number(d['Índice de Desempeño Logístico (IDL)']))
+    .filter(v => v > 0);
+
+  const ccpVals = tablaLogi
+    .map(d => Number(d['Calidad de las carreteras por país (CCP)']))
+    .filter(v => v > 0);
+
+  const ttiVals = tablaLogi
+    .map(d => {
+      const ttiStr = String(
+        d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0'
+      )
+        .replace(/días|dias/gi, '')
+        .replace(',', '.')
+        .trim();
+
+      return Number(ttiStr);
+    })
+    .filter(v => v > 0);
+
+  const MAX_IDL = Math.max(...idkVals);
+  const MAX_CCP = Math.max(...ccpVals);
+  const MIN_TTI = Math.min(...ttiVals);
+
+  const A3 = 10;
+
+  const tablaProcesada = tablaLogi.map(row => {
+
+    const idl =
+      Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
+
+    const ccp =
+      Number(row['Calidad de las carreteras por país (CCP)']) || 0;
+
+    const ttiStr = String(
+      row['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0'
+    )
+      .replace(/días|dias/gi, '')
+      .replace(',', '.')
+      .trim();
+
+    const tti = Number(ttiStr) || 1;
+
+    const idlNorm =
+      idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
+
+    const ccpNorm =
+      ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
+
+    const ttiNorm =
+      tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
+
+    const costoTotal = Number(
+      (
+        0.185 * idlNorm +
+        0.185 * ccpNorm +
+        0.63 * ttiNorm
+      ).toFixed(2)
+    );
+
+    return {
+      ...row,
+      idlNorm,
+      ccpNorm,
+      ttiNorm,
+      costoTotal
+    };
+
+  });
+
+  setDatosLogisticaNormalizados(tablaProcesada);
+
+  }, [tablaLogi]);
+
+  useEffect(() => {
+  if (onDatosActualizados) {
+    onDatosActualizados(datosLogisticaNormalizados);
+  }
+  }, [datosLogisticaNormalizados, onDatosActualizados]);
 
   // Actualizar puertos seleccionados por defecto al cambiar de país
   useEffect(() => {

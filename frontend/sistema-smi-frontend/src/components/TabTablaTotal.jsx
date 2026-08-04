@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 
 export default function TabTablaTotal({
   datosCosto = [],
@@ -11,152 +11,87 @@ export default function TabTablaTotal({
   onDatosActualizados
 }) {
 
-  const tablaGlobal = useMemo(() => {
+  const datosFinales = useMemo(() => {
 
-    const mapa = {};
+    const paises = {};
 
-    const crearSiNoExiste = (pais) => {
-      if (!mapa[pais]) {
-        mapa[pais] = {
-          Paises: pais,
+    const asegurarPais = (pais) => {
+      if (!pais) return null;
+
+      if (!paises[pais]) {
+        paises[pais] = {
+          pais,
           COST: 0,
           LOGI: 0,
           COMM: 0,
           ECON: 0,
           POLI: 0,
           CULT: 0,
-          SUST: 0,
-          TOTAL: 0
+          SUST: 0
         };
       }
+
+      return paises[pais];
     };
 
-    //------------------------------------------------
-    // COSTO
-    //------------------------------------------------
-
-    datosCosto.forEach(row => {
-
-      const pais =
-        row.pais_nombre ||
-        row.Paises;
-
-      crearSiNoExiste(pais);
-
-      mapa[pais].COST =
-        Number(row.aporteFactorCosto || 0);
+    datosCosto.forEach((item) => {
+      const fila = asegurarPais(item.pais_nombre);
+      if (fila) fila.COST = Number(item.aporteFactorCosto || 0);
     });
 
-    //------------------------------------------------
-    // LOGISTICA
-    //------------------------------------------------
-
-    datosLogi.forEach(row => {
-
-      const pais = row.Paises;
-
-      crearSiNoExiste(pais);
-
-      mapa[pais].LOGI =
-        Number(row.costoTotal || 0);
+    datosLogi.forEach((item) => {
+      const fila = asegurarPais(item.Paises);
+      if (fila) fila.LOGI = Number(item.costoTotal || 0);
     });
 
-    //------------------------------------------------
-    // COMERCIAL
-    //------------------------------------------------
-
-    datosComm.forEach(row => {
-
-      const pais = row.Paises;
-
-      crearSiNoExiste(pais);
-
-      mapa[pais].COMM =
-        Number(row.COMM_total || 0);
+    datosComm.forEach((item) => {
+      const fila = asegurarPais(item.Paises);
+      if (fila) fila.COMM = Number(item.COMM_total || 0);
     });
 
-    //------------------------------------------------
-    // ECONOMIA
-    //------------------------------------------------
-
-    datosEcon.forEach(row => {
-
-      const pais = row.Paises;
-
-      crearSiNoExiste(pais);
-
-      mapa[pais].ECON =
-        Number(row.Puntaje_ECON_Normalizado || 0);
+    datosEcon.forEach((item) => {
+      const fila = asegurarPais(item.Paises);
+      if (fila) fila.ECON = Number(item.Puntaje_ECON_Normalizado || 0);
     });
 
-    //------------------------------------------------
-    // POLITICA
-    //------------------------------------------------
-
-    datosPoli.forEach(row => {
-
-      const pais = row.Paises;
-
-      crearSiNoExiste(pais);
-
-      mapa[pais].POLI =
-        Number(row.Puntaje_POLI_Normalizado || 0);
+    datosPoli.forEach((item) => {
+      const fila = asegurarPais(item.Paises);
+      if (fila) fila.POLI = Number(item.Puntaje_POLI_Normalizado || 0);
     });
 
-    //------------------------------------------------
-    // CULTURA
-    //------------------------------------------------
-
-    datosCult.forEach(row => {
-
-      const pais = row.Paises;
-
-      crearSiNoExiste(pais);
-
-      mapa[pais].CULT =
-        Number(row.Puntaje_CULT_Normalizado || 0);
+    datosCult.forEach((item) => {
+      const fila = asegurarPais(item.Paises);
+      if (fila) fila.CULT = Number(item.Puntaje_CULT_Normalizado || 0);
     });
 
-    //------------------------------------------------
-    // SOSTENIBILIDAD
-    //------------------------------------------------
+    datosSust.forEach((item) => {
+      const fila = asegurarPais(
+        item.pais_nombre || item.Paises
+      );
 
-    datosSust.forEach(row => {
-
-      const pais =
-        row.pais_nombre ||
-        row.Paises;
-
-      crearSiNoExiste(pais);
-
-      mapa[pais].SUST =
-        Number(row.aporteFactorSostenibilidad || 0);
+      if (fila) {
+        fila.SUST = Number(
+          item.aporteFactorSostenibilidad || 0
+        );
+      }
     });
 
-    //------------------------------------------------
-    // TOTAL GLOBAL
-    //------------------------------------------------
-
-    const resultado = Object.values(mapa)
-      .map(item => {
-
-        const total =
-          item.COST +
-          item.LOGI +
-          item.COMM +
-          item.ECON +
-          item.POLI +
-          item.CULT +
-          item.SUST;
-
-        return {
-          ...item,
-          TOTAL: Number(total.toFixed(2))
-        };
-      })
+    return Object.values(paises)
+      .map((item) => ({
+        ...item,
+        TOTAL: Number(
+          (
+            item.COST +
+            item.LOGI +
+            item.COMM +
+            item.ECON +
+            item.POLI +
+            item.CULT +
+            item.SUST
+          ).toFixed(2)
+        )
+      }))
       .sort((a, b) => b.TOTAL - a.TOTAL);
-
-    return resultado;
 
   }, [
     datosCosto,
@@ -169,180 +104,109 @@ export default function TabTablaTotal({
   ]);
 
   useEffect(() => {
-
     if (onDatosActualizados) {
-      onDatosActualizados(tablaGlobal);
+      onDatosActualizados(datosFinales);
     }
-
-  }, [tablaGlobal, onDatosActualizados]);
+  }, [datosFinales, onDatosActualizados]);
 
   return (
+    <div className="space-y-6 text-slate-100">
 
-    <div className="space-y-10 text-slate-100 font-sans">
-
-      {/* ================================================= */}
-      {/* TABLA PRINCIPAL */}
-      {/* ================================================= */}
-
-      <div className="space-y-3">
-
-        <h2 className="text-3xl font-bold text-white">
-
-          Tabla General de Evaluación de Países
-          <span className="text-red-400 ml-2">
-            (Datos Normalizados de Todas las Tabs)
-          </span>
-
+      <div className="border-b border-slate-800 pb-4">
+        <h2 className="text-2xl font-bold">
+          Tabla Total Consolidada
         </h2>
 
-        <p className="text-xs text-slate-400">
-
-          Países incluidos:
-          {" "}
-          <span className="text-white font-bold">
-            {tablaGlobal.length}
-          </span>
-
+        <p className="text-xs text-slate-400 mt-1">
+          Resultados obtenidos directamente de las
+          pestañas COST, LOGI, COMM, ECON,
+          POLI, CULT y SUST.
         </p>
-
-        <div className="overflow-auto max-h-[700px] border border-slate-800 rounded-xl">
-
-          <table className="w-full text-xs">
-
-            <thead className="sticky top-0 bg-[#181a20] text-slate-300 z-10">
-
-              <tr>
-
-                <th className="p-3">#</th>
-                <th className="p-3 text-left">PAÍSES</th>
-
-                <th className="p-3">1. COST</th>
-                <th className="p-3">2. LOGI</th>
-                <th className="p-3">3. COMM</th>
-                <th className="p-3">4. ECON</th>
-                <th className="p-3">5. POLI</th>
-                <th className="p-3">6. CULT</th>
-                <th className="p-3">7. SUST</th>
-
-                <th className="p-3 text-red-400 font-bold">
-                  PUNTAJE GLOBAL
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              {tablaGlobal.map((row, index) => (
-
-                <tr
-                  key={row.Paises}
-                  className="border-b border-slate-800 hover:bg-[#16181d]"
-                >
-
-                  <td className="p-3 text-slate-500">
-                    {index + 1}
-                  </td>
-
-                  <td className="p-3 font-bold text-white">
-                    {row.Paises}
-                  </td>
-
-                  <td className="p-3">{row.COST}</td>
-                  <td className="p-3">{row.LOGI}</td>
-                  <td className="p-3">{row.COMM}</td>
-                  <td className="p-3">{row.ECON}</td>
-                  <td className="p-3">{row.POLI}</td>
-                  <td className="p-3">{row.CULT}</td>
-                  <td className="p-3">{row.SUST}</td>
-
-                  <td className="p-3 font-bold text-red-400 text-center">
-                    {row.TOTAL}
-                  </td>
-
-                </tr>
-
-              ))}
-
-            </tbody>
-
-          </table>
-
-        </div>
-
       </div>
 
-      {/* ================================================= */}
-      {/* RESUMEN */}
-      {/* ================================================= */}
+      <div className="overflow-x-auto border border-slate-800 rounded-lg">
 
-      <div className="space-y-3">
+        <table className="w-full text-xs">
 
-        <h2 className="text-2xl font-bold text-white">
+          <thead className="bg-[#181a20] sticky top-0">
 
-          Tabla Resumen — Puntaje Ponderado Total
+            <tr>
 
-        </h2>
+              <th className="p-3">#</th>
+              <th className="p-3">País</th>
 
-        <p className="text-xs text-slate-400">
+              <th className="p-3">COST</th>
+              <th className="p-3">LOGI</th>
+              <th className="p-3">COMM</th>
+              <th className="p-3">ECON</th>
+              <th className="p-3">POLI</th>
+              <th className="p-3">CULT</th>
+              <th className="p-3">SUST</th>
 
-          Ranking general ordenado por el puntaje ponderado global.
+              <th className="p-3 text-red-400">
+                TOTAL
+              </th>
 
-        </p>
+            </tr>
 
-        <div className="overflow-auto max-h-[500px] border border-slate-800 rounded-xl">
+          </thead>
 
-          <table className="w-full text-xs">
+          <tbody>
 
-            <thead className="sticky top-0 bg-[#181a20] text-slate-300 z-10">
+            {datosFinales.map((row, index) => (
 
-              <tr>
+              <tr
+                key={row.pais}
+                className="border-t border-slate-800 hover:bg-[#16181d]"
+              >
 
-                <th className="p-3">RANKING</th>
+                <td className="p-3">
+                  {index + 1}
+                </td>
 
-                <th className="p-3 text-left">
-                  PAÍS
-                </th>
+                <td className="p-3 font-medium">
+                  {row.pais}
+                </td>
 
-                <th className="p-3 text-right">
-                  PONDERADO TOTAL
-                </th>
+                <td className="p-3">
+                  {row.COST.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.LOGI.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.COMM.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.ECON.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.POLI.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.CULT.toFixed(2)}
+                </td>
+
+                <td className="p-3">
+                  {row.SUST.toFixed(2)}
+                </td>
+
+                <td className="p-3 font-bold text-emerald-400">
+                  {row.TOTAL.toFixed(2)}
+                </td>
 
               </tr>
 
-            </thead>
+            ))}
 
-            <tbody>
+          </tbody>
 
-              {tablaGlobal.map((row, index) => (
-
-                <tr
-                  key={`rank-${row.Paises}`}
-                  className="border-b border-slate-800 hover:bg-[#16181d]"
-                >
-
-                  <td className="p-3 font-bold text-sky-400">
-                    {index + 1}
-                  </td>
-
-                  <td className="p-3 font-semibold text-white">
-                    {row.Paises}
-                  </td>
-
-                  <td className="p-3 text-right font-bold text-red-400">
-                    {row.TOTAL}
-                  </td>
-
-                </tr>
-
-              ))}
-
-            </tbody>
-
-          </table>
-
-        </div>
+        </table>
 
       </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [] }) {
+export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [], onDatosActualizados}) {
   const [econOverrides, setEconOverrides] = useState([]);
   
   const [openAdd, setOpenAdd] = useState(false);
@@ -299,6 +299,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       });
 
       setDatosEconNormalizados(dfNorm);
+      if (onDatosActualizados) {
+        onDatosActualizados(dfNorm);
+      }
       setErrorEco(null);
     } catch (err) {
       console.error("Error al procesar datos económicos:", err);

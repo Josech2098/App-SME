@@ -42,7 +42,7 @@ function limpiarPrecio(val) {
   return isNaN(numero) || numero <= 0 ? 0 : numero;
 }
 
-export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen }) {
+export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen,onDatosActualizados }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'Costa Rica');
   const [datosProductos, setDatosProductos] = useState([]);
   const [listaPaises, setListaPaises] = useState([]);
@@ -246,6 +246,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   });
 
   const matrizFiltrada = matrizCalculadaCompleta;
+  useEffect(() => {
+  if (onDatosActualizados) {
+    onDatosActualizados(matrizCalculadaCompleta);
+  }
+}, [matrizCalculadaCompleta, onDatosActualizados]);
 
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);

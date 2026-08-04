@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-export default function TabComercial({ 
-  productoActivo, 
-  paisesDestino = [], 
-  productos = [], 
-  paisOrigen, 
-  archivoExcelBytes,
-  datosIndicePenetracion = [], 
-  datosLibertadEconomica = []   
+export default function TabComercial({productoActivo,paisesDestino = [],productos = [],paisOrigen,archivoExcelBytes,datosIndicePenetracion = [],datosLibertadEconomica = [],onDatosActualizados
 }) {
   const [dbPaises, setDbPaises] = useState([]);
   const [dbPenetracion, setDbPenetracion] = useState(datosIndicePenetracion);
@@ -183,6 +176,9 @@ export default function TabComercial({
 
       dfNorm.sort((a, b) => b.COMM_total - a.COMM_total);
       setDatosCommNormalizados(dfNorm);
+      if (onDatosActualizados) {
+        onDatosActualizados(dfNorm);
+      }
       setErrorProceso(null);
     } catch (err) {
       console.error("Error al procesar la sincronización:", err);

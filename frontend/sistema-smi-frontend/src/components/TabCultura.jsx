@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }) {
+export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, onDatosActualizados}) {
   const [listaPaises, setListaPaises] = useState([]);
   const [datosGLIN, setDatosGLIN] = useState([]);
   const [datosCPCI, setDatosCPCI] = useState([]);
@@ -241,6 +241,9 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen }
       });
 
       setDatosCulturaNormalizados(dfNorm);
+      if (onDatosActualizados) {
+        onDatosActualizados(dfNorm);
+      }
     } catch (err) {
       console.error("Error al procesar datos culturales:", err);
       setErrorNotif(err.message);

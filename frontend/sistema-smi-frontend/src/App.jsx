@@ -23,6 +23,13 @@ export default function App() {
 
   // Estado global compartido para almacenar la información total procesada y pasársela a gráficos si es necesario
   const [datosTablaTotal, setDatosTablaTotal] = useState([]);
+  const [datosCosto, setDatosCosto] = useState([]);
+  const [datosLogi, setDatosLogi] = useState([]);
+  const [datosComm, setDatosComm] = useState([]);
+  const [datosEcon, setDatosEcon] = useState([]);
+  const [datosPoli, setDatosPoli] = useState([]);
+  const [datosCult, setDatosCult] = useState([]);
+  const [datosSust, setDatosSust] = useState([]);
 
   // Filtros de la barra lateral
   const [categoria, setCategoria] = useState('Todos');
@@ -275,74 +282,86 @@ export default function App() {
           )}
 
           {activeTab === 1 && (
-            <TabCosto 
+            <TabCosto
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               categoria={categoria}
               subcategoria={subcategoria}
               busqueda={searchNombre || searchCodigo || searchSubcodigo}
               paisOrigen={paisOrigen}
+              onDatosActualizados={setDatosCosto}
             />
           )}
 
           {activeTab === 2 && (
-            <TabLogistica 
+            <TabLogistica
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
+              onDatosActualizados={setDatosLogi}
             />
           )}
 
           {activeTab === 3 && (
-            <TabComercial 
+            <TabComercial
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               productos={paisesDestino}
               paisOrigen={paisOrigen}
               datosIndicePenetracion={datosIndicePenetracion}
               datosLibertadEconomica={datosLibertadEconomica}
+              onDatosActualizados={setDatosComm}
             />
           )}
 
           {activeTab === 4 && (
-            <TabEconomia 
+            <TabEconomia
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
               datosCostoDeVida={datosCostoDeVida}
+              onDatosActualizados={setDatosEcon}
             />
           )}
 
           {activeTab === 5 && (
-            <TabPolitica 
+            <TabPolitica
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
+              onDatosActualizados={setDatosPoli}
             />
           )}
 
           {activeTab === 6 && (
-            <TabCultura 
+            <TabCultura
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
+              onDatosActualizados={setDatosCult}
             />
           )}
 
           {activeTab === 7 && (
-            <TabSostenibilidad 
+            <TabSostenibilidad
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
               datosSostenibilidad={datosSostenibilidad}
+              onDatosActualizados={setDatosSust}
             />
           )}
 
           {activeTab === 8 && (
-            <TabTablaTotal 
-              paisesDestino={paisesDestino}
-              paisOrigen={paisOrigen}
-              onDatosActualizados={(datos) => setDatosTablaTotal(datos)}
+            <TabTablaTotal
+              datosCosto={datosCosto}
+              datosLogi={datosLogi}
+              datosComm={datosComm}
+              datosEcon={datosEcon}
+              datosPoli={datosPoli}
+              datosCult={datosCult}
+              datosSust={datosSust}
+              onDatosActualizados={setDatosTablaTotal}
             />
           )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-export default function TabSostenibilidad({ productoActivo, categoria, subcategoria, busqueda, paisOrigen }) {
+export default function TabSostenibilidad({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados}) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'Costa Rica');
   const [datosProductos, setDatosProductos] = useState([]);
   const [listaPaises, setListaPaises] = useState([]);
@@ -112,8 +112,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
   const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null; 
   const minRpg = rpgVals.length > 0 ? Math.min(...rpgVals) : null; 
-  const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null; 
-
+  const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null;
+  
   const calcularNormalizadoInverso = (val, minVal) => {
     if (val === null || val === undefined || val <= 0 || minVal === null || minVal <= 0) return null;
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
@@ -125,6 +125,35 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
     return Number(resultado.toFixed(2));
   };
+
+  const datosSustNormalizados = datosProductos.map(row => {
+
+    const edcNorm = calcularNormalizadoInverso(row.edc, minEdc);
+    const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
+    const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
+
+    const aporteFactorSostenibilidad = Number(
+      (
+        (
+          (PESO_EDC * (edcNorm || 0)) +
+          (PESO_RPG * (rpgNorm || 0)) +
+          (PESO_ISG * (isgNorm || 0))
+        )
+        * PESO_FACTOR_SOST
+      ).toFixed(2)
+    );
+
+    return {
+      Paises: row.pais_nombre,
+      aporteFactorSostenibilidad
+    };
+  });
+
+  useEffect(() => {
+    if (onDatosActualizados) {
+      onDatosActualizados(datosSustNormalizados);
+    }
+  }, [datosSustNormalizados, onDatosActualizados]);
 
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
