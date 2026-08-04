@@ -129,6 +129,7 @@ export default function TabGraficos({ datosTotales = [] }) {
     "4. Economic (ECON)",
     "5. Political (POLI)",
     "6. Cultura (CULT)",
+    "7. Sostenibilidad (SUST)",
     "Puntaje Total"
   ];
   const coloresG1 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494'];
@@ -187,7 +188,8 @@ export default function TabGraficos({ datosTotales = [] }) {
     "3. Commercial (COMM)",
     "4. Economic (ECON)",
     "5. Political (POLI)",
-    "6. Cultura (CULT)"
+    "6. Cultura (CULT)",
+    "7. Sostenibilidad (SUST)"
   ];
 
   const estilosLineas = [
@@ -196,7 +198,8 @@ export default function TabGraficos({ datosTotales = [] }) {
     { color: '#6A9EFF', borderDash: [4, 4] },
     { color: '#00D4FF', borderDash: [2, 2] },
     { color: '#E6A84F', borderDash: [5, 5] },
-    { color: '#CFCFCF', borderDash: [4, 4] }
+    { color: '#CFCFCF', borderDash: [4, 4] },
+    { color: '#FF6EC7', borderDash: [3, 3] }
   ];
 
   const dataGrafico3 = {
