@@ -66,7 +66,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         }
 
         // 4. Consultar inflación (si aplica tabla independiente)
-        const { data: infData, error: infError } = await supabase.from('inflacion').select('*').range(0, 999);
+        const { data: infData, error: infError } = await supabase.from('inflacionanual').select('*').range(0, 999);
         if (!infError && infData) {
           setListaInflacionDB(infData);
         }
@@ -194,7 +194,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       const mapaInflacion = {};
       listaInflacionDB.forEach(item => {
         const nombre = item.pais || item.País || item.PAIS || item.paises || item.Paises || item.nombre;
-        const val = item.inflacion_anual ?? item.Inflacion_Anual ?? item.inflacion ?? item.inan ?? item.INAN;
+        const val = item.inflacionanual ?? item.inflacion_anual ?? item.Inflacion_Anual ?? item.inflacion ??item.inan ?? item.INAN;
         if (nombre) mapaInflacion[limpiarTexto(nombre)] = val !== null && !isNaN(Number(val)) ? Number(val) : null;
       });
 
@@ -208,7 +208,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         const paisKey = limpiarTexto(nombrePais);
 
         const valorICV = mapaCostoVida[paisKey] !== undefined ? mapaCostoVida[paisKey] : (item.costo_de_vida ?? item.icv ?? item.ICV ?? null);
-        const valorIAN = mapaInflacion[paisKey] !== undefined ? mapaInflacion[paisKey] : (item.inflacion_anual ?? item.inan ?? item.INAN ?? item.inflacion ?? null);
+        const valorIAN = mapaInflacion[paisKey] !== undefined ? mapaInflacion[paisKey] : (item.inflacionanual ?? item.inflacion_anual?? item.ina ?? item.INAN ?? item.inflacion ?? null);
         const valorTAD = mapaDesempleo[paisKey] !== undefined ? mapaDesempleo[paisKey] : (item.tasadesempleo ?? item.tasa_desempleo ?? item.tad ?? null);
 
         return {
