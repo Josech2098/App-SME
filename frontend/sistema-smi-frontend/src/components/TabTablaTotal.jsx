@@ -365,31 +365,29 @@ const sumaPesos = Object.values(pesosCat)
             Calcular
           </button>
 
+          <button
+            onClick={() => {
+
+              const pesosOriginales = {
+                COST: 21.5,
+                LOGI: 18.5,
+                COMM: 20.5,
+                ECON: 16,
+                POLI: 13,
+                CULT: 5,
+                SUST: 5.5
+              };
+
+              setPesosCat(pesosOriginales);
+              setPesosAplicados(pesosOriginales);
+
+            }}
+            className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
+          >
+            Reiniciar
+          </button>
+        </div>    
         </div>
-
-      </div>
-
-      <button
-        onClick={() => {
-
-          const pesosOriginales = {
-            COST: 21.5,
-            LOGI: 18.5,
-            COMM: 20.5,
-            ECON: 16,
-            POLI: 13,
-            CULT: 5,
-            SUST: 5.5
-          };
-
-          setPesosCat(pesosOriginales);
-          setPesosAplicados(pesosOriginales);
-
-        }}
-        className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
-      >
-        Reiniciar
-      </button>
 
       {/* TABLA GENERAL */}
 
