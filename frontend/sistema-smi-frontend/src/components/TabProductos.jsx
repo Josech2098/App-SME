@@ -12,6 +12,7 @@ export default function TablaProductos({
 }) {
   // Estados para datos de Supabase
   const [productos, setProductos] = useState([]);
+  const [keywordsCategoria, setKeywordsCategoria] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Estados para Acordeones CRUD
@@ -49,6 +50,16 @@ export default function TablaProductos({
       setProductos(dataProductos);
     }
 
+    const { data: dataKeywords, error: errorKeywords } = await supabase
+      .from('productos_categoria')
+      .select('*');
+
+    if (errorKeywords) {
+      console.error('Error cargando keywords:', errorKeywords);
+    } else if (dataKeywords) {
+      setKeywordsCategoria(dataKeywords);
+    }
+
     setLoading(false);
   }
 
@@ -57,15 +68,27 @@ export default function TablaProductos({
 
   // 🔍 Lógica de Filtrado Dinámico para la Tabla (CON CORRECCIÓN DE TIPOS Y NOMBRES)
   const productosFiltrados = productos.filter((p) => {
-    // 1. Filtro Categoría
+    // 1. Filtro Categoría usando productos_categoria
+
     if (categoria && categoria !== 'Todos') {
-      const catProducto = String(p.categoria_codigo || p.categoria || p.codigo_hs || '').trim();
-      const catFiltro = String(categoria).trim();
 
-      const coincideExacto = catProducto === catFiltro;
-      const coincideEmpieza = catFiltro.startsWith(catProducto) || catProducto.startsWith(catFiltro);
+      const palabrasCategoriaActual = keywordsCategoria
+        .filter(
+          k => String(k.categoria_codigo) === String(categoria)
+        )
+        .map(
+          k => k.palabra_clave.toLowerCase()
+        );
 
-      if (!coincideExacto && !coincideEmpieza) return false;
+      const nombreProducto = String(
+        p.nombre || p.producto || ''
+      ).toLowerCase();
+
+      const coincideCategoria = palabrasCategoriaActual.some(
+        palabra => nombreProducto.includes(palabra)
+      );
+
+      if (!coincideCategoria) return false;
     }
     
     // 2. Filtro Subcategoría
