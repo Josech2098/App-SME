@@ -7,12 +7,14 @@ import TabComercial from './components/TabComercial';
 import TabEconomia from './components/TabEconomia';
 import TabPolitica from './components/TabPolitica';
 import TabCultura from './components/TabCultura';
-import TabSostenibilidad from './components/TabSostenibilidad'; // <- NUEVA IMPORTACIÓN
+import TabSostenibilidad from './components/TabSostenibilidad';
 import TabTablaTotal from './components/TabTablaTotal';
 import TabGraficosComparativos from './components/TabGraficos';
+import SplashScreen from "./components/SplashScreen";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
+  const [mostrarSplash, setMostrarSplash] = useState(true);
 
   // ----------------------------------------------------
   // ESTADOS GLOBALES DE PRODUCTO, PAÍSES Y ORIGEN
@@ -133,6 +135,13 @@ export default function App() {
     "Visualización de Tablas Totales",
     "Gráficos"
   ];
+  if (mostrarSplash) {
+    return (
+      <SplashScreen
+        onFinish={() => setMostrarSplash(false)}
+      />
+    );
+  }
   
   return (
     <div className="flex min-h-screen bg-[#0e1117] text-slate-100 font-sans antialiased">
