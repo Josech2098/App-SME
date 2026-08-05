@@ -120,6 +120,13 @@ export default function App() {
   const handleCategoriaChange = (codigo) => {
 
     setCategoria(codigo);
+
+    if (codigo === 'Todos') {
+      setSearchCodigo('');
+      return;
+    }
+
+    setSearchCodigo(codigo);
   };
   ``
   const tabList = [
@@ -134,14 +141,26 @@ export default function App() {
     "Visualización de Tablas Totales",
     "Gráficos"
   ];
-    <input
-      type="text"
-      value={searchCodigo}
-      onChange={(e) => setSearchCodigo(e.target.value)}
-      placeholder="Ej. 2204"
-      className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500"
-    />
-      return (
+  const handleCodigoChange = async (e) => {
+
+    const codigo = e.target.value;
+
+    setSearchCodigo(codigo);
+
+    if (!codigo) {
+      setCategoria('Todos');
+      return;
+    }
+
+    const categoriaEncontrada = listaCategorias.find(
+      cat => String(cat.codigo).startsWith(codigo)
+    );
+
+    if (categoriaEncontrada) {
+      setCategoria(categoriaEncontrada.codigo);
+    }
+  };
+  return (
     <div className="flex min-h-screen bg-[#0e1117] text-slate-100 font-sans antialiased">
       
       {/* ---------------- BARRA LATERAL (SIDEBAR) ---------------- */}
