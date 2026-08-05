@@ -49,7 +49,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
 
         supabase.from("indiceCorrupcion").select("*"),
 
-        supabase.from("hofstede").select("*")
+        supabase.from("cultura").select("*")
 
       ]);
 
