@@ -107,8 +107,27 @@ export default function TablaProductos({
     if (searchNombre && !nombreVal.toLowerCase().includes(searchNombre.toLowerCase())) return false;
     
     // 4. Búsqueda por Código
-    const codigoVal = p.codigo_hs || p.codigo || p.categoria_codigo;
-    if (searchCodigo && (!codigoVal || !codigoVal.toString().startsWith(searchCodigo))) return false;
+
+    if (searchCodigo) {
+
+      const palabrasCodigo = keywordsCategoria
+        .filter(
+          k => String(k.categoria_codigo).startsWith(searchCodigo)
+        )
+        .map(
+          k => k.palabra_clave.toLowerCase()
+        );
+
+      const nombreProducto = String(
+        p.nombre || p.producto || ''
+      ).toLowerCase();
+
+      const coincideCodigo = palabrasCodigo.some(
+        palabra => nombreProducto.includes(palabra)
+      );
+
+      if (!coincideCodigo) return false;
+    }
     
     // 5. Búsqueda por Subcódigo
     const subcodigoVal = p.subcodigo || p.subcategoria_codigo;
