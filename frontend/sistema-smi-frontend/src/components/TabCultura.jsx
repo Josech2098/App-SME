@@ -5,6 +5,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
   const [listaPaises, setListaPaises] = useState([]);
   const [datosGLIN, setDatosGLIN] = useState([]);
   const [datosCPCI, setDatosCPCI] = useState([]);
+  const [datosHofstede, setDatosHofstede] = useState([]);
   
   const [cultOverrides, setCultOverrides] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -40,19 +41,27 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
     async function cargarTablasCultura() {
       setCargando(true);
       try {
-        const [resPaises, resGLIN, resCPCI] = await Promise.all([
-          supabase.from("paises").select("*").order("nombre"),
-          supabase.from("indiceglobalizacion").select("*"),
-          supabase.from("indiceCorrupcion").select("*")
-        ]);
+       const [resPaises, resGLIN, resCPCI, resHofstede] = await Promise.all([
+
+        supabase.from("paises").select("*").order("nombre"),
+
+        supabase.from("indiceglobalizacion").select("*"),
+
+        supabase.from("indiceCorrupcion").select("*"),
+
+        supabase.from("hofstede").select("*")
+
+      ]);
 
         if (resPaises.error) throw resPaises.error;
         if (resGLIN.error) throw resGLIN.error;
         if (resCPCI.error) throw resCPCI.error;
+        if (resHofstede.error) throw resHofstede.error;
 
         setListaPaises(resPaises.data || []);
         setDatosGLIN(resGLIN.data || []);
         setDatosCPCI(resCPCI.data || []);
+        setDatosHofstede(resHofstede.data || []);
         setErrorNotif(null);
       } catch (err) {
         console.error("Error al cargar datos de Supabase:", err);
@@ -166,7 +175,26 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
           Paises: pais,
           GLIN: matchGLIN ? Number(matchGLIN.indice_globalizacion) : null,
           CPCI: matchCPCI ? Number(matchCPCI.indice_percepcion_corrupcion) : null,
-          CUDI: null // Campo base si aplica o personalizado por override
+          CUDI: (() => {
+            const hof = datosHofstede.find(
+              h =>
+                (h.pais || '')
+                  .toLowerCase()
+                  .trim() === pLower
+            );
+
+            if (!hof) return null;
+
+            return (
+              Number(hof.pdi || 0) +
+              Number(hof.idv || 0) +
+              Number(hof.mas || 0) +
+              Number(hof.uai || 0) +
+              Number(hof.lto || 0) +
+              Number(hof.ivr || 0)
+            );
+
+          })()
         };
       });
 
@@ -250,7 +278,14 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
     } finally {
       setCargando(false);
     }
-  }, [cultOverrides, paisesDestino, listaPaises, datosGLIN, datosCPCI]);
+  }, [
+    cultOverrides,
+    paisesDestino,
+    listaPaises,
+    datosGLIN,
+    datosCPCI,
+    datosHofstede
+  ]);
 
   const descargarCSV = () => {
     const headers = ["Paises", "GLIN_norm", "CPCI_norm", "CUDI_norm", "Puntaje_CULT_Normalizado"];
