@@ -459,7 +459,9 @@ export default function TablaProductos({
                     <tr
                       key={idVal}
                       onClick={() => {
-                        console.log("CLICK PRODUCTO:", item);
+                        console.log("CLICK", item);
+                        console.log("FUNCION", setProductoSeleccionado);
+
                         setProductoSeleccionado(item);
                       }}
                       className="hover:bg-[#1f222d]/50 transition-colors cursor-pointer"
