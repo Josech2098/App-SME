@@ -108,8 +108,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       if (!nombreProductoBuscado) {
         nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)';
       }
-      console.log("productoActivo:", productoActivo);
-      console.log("busqueda:", busqueda); 
+      console.log("nombreProductoBuscado:", nombreProductoBuscado);
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       let mapaPreciosPorPais = {};
@@ -118,10 +117,17 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         dbProds.forEach(item => {
           const nombreProd = item.nombre || item.producto || item.titulo || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
+          console.log("mapaPreciosPorPais", mapaPreciosPorPais);
+          console.log(
+            "Comparando:",
+            prodTabla,
+            "vs",
+            queryLimpia
+          );
 
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
             const paisItem = item.pais || item.Pais;
-
+            console.log("COINCIDENCIA:", nombreProd);
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
               const precioRaw = item.precio;
