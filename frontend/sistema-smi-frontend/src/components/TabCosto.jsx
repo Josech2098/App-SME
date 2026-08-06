@@ -114,33 +114,54 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       let mapaPreciosPorPais = {};
 
       if (dbProds) {
-        dbProds.forEach(item => {
-          const nombreProd = item.nombre || item.producto || item.titulo || '';
-          const prodTabla = String(nombreProd).trim().toLowerCase();
-          console.log("mapaPreciosPorPais", mapaPreciosPorPais);
-          console.log(
-            "Comparando:",
-            prodTabla,
-            "vs",
-            queryLimpia
-          );
 
-          if (prodTabla === queryLimpia) {
-            const paisItem = item.pais || item.Pais;
+        dbProds.forEach(item => {
+
+          const nombreProd =
+            item.nombre ||
+            item.producto ||
+            item.titulo ||
+            '';
+
+          const prodTabla = String(nombreProd)
+            .trim()
+            .toLowerCase();
+
+          if (
+            prodTabla.includes(queryLimpia) ||
+            queryLimpia.includes(prodTabla)
+          ) {
+
             console.log("COINCIDENCIA:", nombreProd);
+
+            const paisItem = item.pais || item.Pais;
+
             if (paisItem) {
-              const nombrePaisKey = String(paisItem).trim().toLowerCase();
-              const precioRaw = item.precio;
-              const precioLim = limpiarPrecio(precioRaw);
-              
-              // Solo guardamos si el precio es estrictamente mayor a 0
+
+              const nombrePaisKey = String(paisItem)
+                .trim()
+                .toLowerCase();
+
+              const precioLim =
+                limpiarPrecio(item.precio);
+
               if (precioLim > 0) {
-                mapaPreciosPorPais[nombrePaisKey] = precioLim;
+                mapaPreciosPorPais[nombrePaisKey] =
+                  precioLim;
               }
+
             }
+
           }
+
         });
+
       }
+
+      console.log(
+        "mapaPreciosPorPais FINAL:",
+        mapaPreciosPorPais
+      );
       
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
