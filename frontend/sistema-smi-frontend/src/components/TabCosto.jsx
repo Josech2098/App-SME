@@ -127,10 +127,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             .trim()
             .toLowerCase();
 
-          if (
-            prodTabla.includes(queryLimpia) ||
-            queryLimpia.includes(prodTabla)
-          ) {
+          if (prodTabla === queryLimpia) {
 
             console.log("COINCIDENCIA:", nombreProd);
 
@@ -157,11 +154,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         });
 
       }
-
-      console.log(
-        "mapaPreciosPorPais FINAL:",
-        mapaPreciosPorPais
-      );
       
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
