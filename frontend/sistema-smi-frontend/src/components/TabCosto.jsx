@@ -109,7 +109,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)';
       }
       console.log("nombreProductoBuscado:", nombreProductoBuscado);
-
+      console.log("productoActivo completo =", productoActivo);
+      console.log("nombreProductoBuscado =", nombreProductoBuscado);
+      
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       let mapaPreciosPorPais = {};
 
