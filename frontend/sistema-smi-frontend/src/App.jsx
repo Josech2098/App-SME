@@ -151,9 +151,7 @@ export default function App() {
         
         {/* Banner de Usuario y Selector de Origen */}
         <div className="space-y-2">
-          <div className="bg-[#2e4d3a] border border-[#3e6b4f] text-[#a1e8bc] px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm">
-          </div>
-
+          
           {/* SELECTOR DINÁMICO DE PAÍS DE ORIGEN */}
           <div className="bg-[#1e2028] border border-red-500/30 p-2.5 rounded-lg text-xs space-y-1">
             <label className="text-red-400 font-semibold block">
