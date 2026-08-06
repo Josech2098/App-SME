@@ -119,6 +119,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const prodTabla = String(nombreProd).trim().toLowerCase();
           console.log("mapaPreciosPorPais", mapaPreciosPorPais);
           console.log(
+            "PRODUCTO SELECCIONADO:",
+            nombreProductoBuscado
+          );
+                    console.log(
             "Comparando:",
             prodTabla,
             "vs",
