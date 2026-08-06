@@ -142,7 +142,7 @@ export default function App() {
       />
     );
   }
-  console.log("APP:", productoSeleccionado);
+  
   return (
     <div className="flex min-h-screen bg-[#0e1117] text-slate-100 font-sans antialiased">
       
