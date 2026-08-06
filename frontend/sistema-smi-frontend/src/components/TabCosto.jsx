@@ -99,30 +99,18 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       if (errProds) throw errProds;
 
-      let nombreProductoBuscado = '';
-      if (typeof productoActivo === 'string') {
-        nombreProductoBuscado = productoActivo;
-      } else if (productoActivo && typeof productoActivo === 'object') {
-        nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
-      }
-      if (!nombreProductoBuscado) {
-        nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)';
-      }
-      console.log("nombreProductoBuscado:", nombreProductoBuscado);
-      console.log("productoActivo completo =", productoActivo);
-      console.log("nombreProductoBuscado =", nombreProductoBuscado);
-
       const queryLimpia = String(
         productoActivo?.producto ??
         productoActivo?.nombre ??
         productoActivo?.titulo ??
-        nombreProductoBuscado ??
+        busqueda ??
         ''
       )
       .trim()
       .toLowerCase();
 
       console.log("QUERY FINAL =", queryLimpia);
+      
       let mapaPreciosPorPais = {};
 
       if (dbProds) {
