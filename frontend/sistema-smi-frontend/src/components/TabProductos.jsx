@@ -459,7 +459,7 @@ export default function TablaProductos({
                     <tr
                       key={idVal}
                       onClick={() => {
-                        console.log("CLICK", item);
+                        console.log("CLICK PRODUCTO", item);
                         console.log("FUNCION", setProductoSeleccionado);
 
                         setProductoSeleccionado(item);
