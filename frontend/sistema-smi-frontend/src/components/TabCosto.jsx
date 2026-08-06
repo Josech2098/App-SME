@@ -339,7 +339,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
     busqueda || 
     'Botella de vino (Calidad media)';
-
+  
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
