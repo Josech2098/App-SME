@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function TablaProductos({
-  productoSeleccionado,
-  setProductoSeleccionado,
   paisDestino,
   setPaisDestino,
   categoria,
@@ -11,7 +9,7 @@ export default function TablaProductos({
   searchNombre,
   searchCodigo,
   searchSubcodigo
-}){
+}) {
   // Estados para datos de Supabase
   const [productos, setProductos] = useState([]);
   const [keywordsCategoria, setKeywordsCategoria] = useState([]);
@@ -456,16 +454,7 @@ export default function TablaProductos({
                   }
 
                   return (
-                    <tr
-                      key={idVal}
-                      onClick={() => {
-                        console.log("ITEM", item);
-                        console.log("SETTER", setProductoSeleccionado);
-
-                        setProductoSeleccionado(item);
-                      }}
-                      className="hover:bg-[#1f222d]/50 transition-colors cursor-pointer"
-                    >
+                    <tr key={idVal} className="hover:bg-[#1f222d]/50 transition-colors">
                       <td className="p-3 font-mono text-slate-400">{idVal}</td>
                       <td className="p-3 font-medium text-slate-300">{paisVal}</td>
                       <td className="p-3 text-right font-mono text-emerald-400 font-semibold">

@@ -99,62 +99,41 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       if (errProds) throw errProds;
 
-      const queryLimpia = String(
-        productoActivo?.producto ??
-        productoActivo?.nombre ??
-        productoActivo?.titulo ??
-        busqueda ??
-        ''
-      )
-      .trim()
-      .toLowerCase();
+      let nombreProductoBuscado = '';
+      if (typeof productoActivo === 'string') {
+        nombreProductoBuscado = productoActivo;
+      } else if (productoActivo && typeof productoActivo === 'object') {
+        nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
+      }
+      if (!nombreProductoBuscado) {
+        nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)';
+      }
 
-      console.log("QUERY FINAL =", queryLimpia);
-      
+      const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       let mapaPreciosPorPais = {};
 
       if (dbProds) {
-
         dbProds.forEach(item => {
+          const nombreProd = item.nombre || item.producto || item.titulo || '';
+          const prodTabla = String(nombreProd).trim().toLowerCase();
 
-          const nombreProd =
-            item.nombre ||
-            item.producto ||
-            item.titulo ||
-            '';
-
-          const prodTabla = String(nombreProd)
-            .trim()
-            .toLowerCase();
-
-          if (prodTabla === queryLimpia) {
-
-            console.log("COINCIDENCIA:", nombreProd);
-
+          if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
             const paisItem = item.pais || item.Pais;
 
             if (paisItem) {
-
-              const nombrePaisKey = String(paisItem)
-                .trim()
-                .toLowerCase();
-
-              const precioLim =
-                limpiarPrecio(item.precio);
-
+              const nombrePaisKey = String(paisItem).trim().toLowerCase();
+              const precioRaw = item.precio;
+              const precioLim = limpiarPrecio(precioRaw);
+              
+              // Solo guardamos si el precio es estrictamente mayor a 0
               if (precioLim > 0) {
-                mapaPreciosPorPais[nombrePaisKey] =
-                  precioLim;
+                mapaPreciosPorPais[nombrePaisKey] = precioLim;
               }
-
             }
-
           }
-
         });
-
       }
-      
+
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
       ) || dbPaises[0];
@@ -358,7 +337,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
     busqueda || 
     'Botella de vino (Calidad media)';
-  
+
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       

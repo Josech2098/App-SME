@@ -20,9 +20,6 @@ export default function App() {
   // ESTADOS GLOBALES DE PRODUCTO, PAÍSES Y ORIGEN
   // ----------------------------------------------------
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-  useEffect(() => {
-  console.log("APP productoSeleccionado:", productoSeleccionado);
-  }, [productoSeleccionado]);
   const [paisesDestino, setPaisesDestino] = useState([]);
   const [paisOrigen, setPaisOrigen] = useState('España'); // Por defecto
 
