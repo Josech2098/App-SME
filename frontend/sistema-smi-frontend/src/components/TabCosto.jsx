@@ -129,7 +129,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             queryLimpia
           );
 
-          if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
+          if (prodTabla === queryLimpia) {
             const paisItem = item.pais || item.Pais;
             console.log("COINCIDENCIA:", nombreProd);
             if (paisItem) {
