@@ -111,8 +111,18 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       console.log("nombreProductoBuscado:", nombreProductoBuscado);
       console.log("productoActivo completo =", productoActivo);
       console.log("nombreProductoBuscado =", nombreProductoBuscado);
-      
-      const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
+
+      const queryLimpia = String(
+        productoActivo?.producto ??
+        productoActivo?.nombre ??
+        productoActivo?.titulo ??
+        nombreProductoBuscado ??
+        ''
+      )
+      .trim()
+      .toLowerCase();
+
+      console.log("QUERY FINAL =", queryLimpia);
       let mapaPreciosPorPais = {};
 
       if (dbProds) {
