@@ -136,6 +136,7 @@ export default function App() {
     "Gráficos"
   ];
   if (mostrarSplash) {
+  console.log("Producto seleccionado:", productoSeleccionado);
     return (
       <SplashScreen
         onFinish={() => setMostrarSplash(false)}
