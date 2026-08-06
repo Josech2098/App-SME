@@ -108,6 +108,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       if (!nombreProductoBuscado) {
         nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)';
       }
+      console.log("productoActivo:", productoActivo);
+      console.log("busqueda:", busqueda);
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       let mapaPreciosPorPais = {};
@@ -133,9 +135,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           }
         });
       }
-      console.log("Producto seleccionado:", productoActivo);
-      console.log("Producto buscado:", nombreProductoBuscado);
-      console.log("Query:", queryLimpia);
+      
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
       ) || dbPaises[0];
