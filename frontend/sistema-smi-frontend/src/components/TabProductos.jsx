@@ -137,20 +137,6 @@ export default function TablaProductos({
 
     return true;
   });
-  useEffect(() => {
-
-    if (
-      productosFiltrados.length > 0 &&
-      setProductoSeleccionado
-    ) {
-
-      setProductoSeleccionado(
-        productosFiltrados[0]
-      );
-
-    }
-
-  }, [productosFiltrados, setProductoSeleccionado]);
 
   // 📝 HANDLERS PARA OPERACIONES CRUD
 
@@ -470,7 +456,11 @@ export default function TablaProductos({
                   }
 
                   return (
-                    <tr key={idVal} className="hover:bg-[#1f222d]/50 transition-colors">
+                    <tr
+                      key={idVal}
+                      onClick={() => setProductoSeleccionado(item)}
+                      className="hover:bg-[#1f222d]/50 transition-colors cursor-pointer"
+                    >
                       <td className="p-3 font-mono text-slate-400">{idVal}</td>
                       <td className="p-3 font-medium text-slate-300">{paisVal}</td>
                       <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
