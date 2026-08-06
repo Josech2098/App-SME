@@ -247,6 +247,19 @@ export default function App() {
               className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500"
             />
           </div>
+          <div className="mt-6 pt-4 border-t border-slate-700/50 text-slate-400">
+            <p className="text-sm">
+              Creador: Jose Jaime Baena Rojas
+            </p>
+
+            <p className="text-sm mt-1">
+              Programador: Jose Wanner Chavarria Villagra
+            </p>
+
+            <p className="text-xs mt-4 text-slate-500">
+              Copyright © 2026
+            </p>
+          </div>
         </div>
       </aside>
 
