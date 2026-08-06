@@ -133,7 +133,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           }
         });
       }
-
+      console.log("Producto seleccionado:", productoActivo);
+      console.log("Producto buscado:", nombreProductoBuscado);
+      console.log("Query:", queryLimpia);
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
       ) || dbPaises[0];
