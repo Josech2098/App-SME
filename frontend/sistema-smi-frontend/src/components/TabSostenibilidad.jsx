@@ -39,62 +39,119 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
 
   async function cargarYCalcularMatriz() {
-    setLoading(true);
-    setErrorLog(null);
+  setLoading(true);
+  setErrorLog(null);
 
-    try {
-      // 1. Obtener lista de países
-      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').range(0, 999).order('nombre');
-      if (errPaises) throw errPaises;
+  try {
+    // 1. Países
+    const { data: dbPaises, error: errPaises } = await supabase
+      .from('paises')
+      .select('*')
+      .range(0, 999)
+      .order('nombre');
 
-      // 2. Obtener datos de emisiones_carbono
-      const { data: dbEmisiones, error: errEmis } = await supabase.from('emisiones_carbono').select('*').range(0, 999);
-      if (errEmis) console.warn("Aviso en emisiones_carbono:", errEmis);
+    if (errPaises) throw errPaises;
 
-      // 3. Obtener datos de indice_sostenibilidad_global
-      const { data: dbIsg, error: errIsg } = await supabase.from('indice_sostenibilidad_global').select('*').range(0, 999);
-      if (errIsg) throw errIsg;
+    // 2. Emisiones de carbono
+    const { data: dbEmisiones, error: errEmis } = await supabase
+      .from('emisiones_carbono')
+      .select('*')
+      .range(0, 999);
 
-      const datosConsolidados = (dbPaises || []).map((p) => {
-        const nombrePais = (p.nombre || '').trim().toLowerCase();
+    if (errEmis) {
+      console.warn('Aviso emisiones_carbono:', errEmis);
+    }
 
-        // Búsqueda exacta para Emisiones
-        const emisMatch = (dbEmisiones || []).find(c => {
-          const valPais = String(c.pais || '').trim().toLowerCase();
-          return valPais === nombrePais;
-        });
-        
-        let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
-        if (isNaN(edcVal)) edcVal = null;
+    // 3. Riesgo País Global
+    const { data: dbRpg, error: errRpg } = await supabase
+      .from('riesgo_pais_global')
+      .select('*')
+      .range(0, 999);
 
-        // Búsqueda exacta para el Índice de Sostenibilidad Global usando la columna exacta 'indicesostenibilidaglobal'
-        const isgMatch = (dbIsg || []).find(c => {
-          const valPais = String(c.pais || '').trim().toLowerCase();
-          return valPais === nombrePais;
-        });
+    if (errRpg) throw errRpg;
 
-        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidadglobal ?? 0) : null;
-        if (isNaN(isgVal)) isgVal = null;
+    // 4. Índice de sostenibilidad global
+    const { data: dbIsg, error: errIsg } = await supabase
+      .from('indice_sostenibilidad_global')
+      .select('*')
+      .range(0, 999);
 
-        let rpgVal = null; 
+    if (errIsg) throw errIsg;
 
-        return {
-          id: p.id,
-          pais_nombre: p.nombre,
-          edc: edcVal,
-          rpg: rpgVal,
-          isg: isgVal
-        };
+    const datosConsolidados = (dbPaises || []).map((p) => {
+      const nombrePais = String(p.nombre || '')
+        .trim()
+        .toLowerCase();
+
+      // =========================
+      // EDC
+      // =========================
+      const emisMatch = (dbEmisiones || []).find((c) => {
+        const valPais = String(c.pais || '')
+          .trim()
+          .toLowerCase();
+
+        return valPais === nombrePais;
       });
 
-      setDatosProductos(datosConsolidados);
-    } catch (err) {
-      console.error("Error al consolidar sostenibilidad:", err);
-      setErrorLog(err.message || "Error al conectar con Supabase");
-    } finally {
-      setLoading(false);
-    }
+      let edcVal = emisMatch
+        ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0)
+        : null;
+
+      if (isNaN(edcVal)) edcVal = null;
+
+      // =========================
+      // RPG
+      // =========================
+      const rpgMatch = (dbRpg || []).find((c) => {
+        const valPais = String(c.pais || '')
+          .trim()
+          .toLowerCase();
+
+        return valPais === nombrePais;
+      });
+
+      let rpgVal = rpgMatch
+        ? Number(rpgMatch.riesgo_pais_global ?? 0)
+        : null;
+
+      if (isNaN(rpgVal)) rpgVal = null;
+
+      // =========================
+      // ISG
+      // =========================
+      const isgMatch = (dbIsg || []).find((c) => {
+        const valPais = String(c.pais || '')
+          .trim()
+          .toLowerCase();
+
+        return valPais === nombrePais;
+      });
+
+      let isgVal = isgMatch
+        ? Number(isgMatch.indicesostenibilidadglobal ?? 0)
+        : null;
+
+      if (isNaN(isgVal)) isgVal = null;
+
+      return {
+        id: p.id,
+        pais_nombre: p.nombre,
+        edc: edcVal,
+        rpg: rpgVal,
+        isg: isgVal
+      };
+    });
+
+    setDatosProductos(datosConsolidados);
+
+  } catch (err) {
+    console.error('Error al consolidar sostenibilidad:', err);
+    setErrorLog(err.message || 'Error al conectar con Supabase');
+  } finally {
+    setLoading(false);
   }
+}
 
   // ----------------------------------------------------
   // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN
@@ -412,7 +469,9 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
                     <td className="p-3 text-right">{row.edc !== null ? row.edc : <span className="text-slate-500">-</span>}</td>
-                    <td className="p-3 text-right text-slate-500">-</td>
+                    <td className="p-3 text-right">
+                      {row.rpg !== null ? row.rpg : <span className="text-slate-500">-</span>}
+                    </td>
                     <td className="p-3 text-right pr-6">{row.isg !== null ? row.isg : <span className="text-slate-500">-</span>}</td>
                   </tr>
                 ))
@@ -470,7 +529,9 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                       <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                       <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
                       <td className="p-3 text-right">{edcNorm ?? '-'}</td>
-                      <td className="p-3 text-right">-</td>
+                      <td className="p-3 text-right">
+                        {rpgNorm ?? '-'}
+                      </td>
                       <td className="p-3 text-right">{isgNorm ?? '-'}</td>
                       <td className="p-3 text-right pr-6 font-bold text-emerald-400">{aporteFactorSostenibilidad}</td>
                     </tr>
