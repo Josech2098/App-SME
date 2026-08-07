@@ -92,7 +92,11 @@ export default function TablaProductos({
 
       if (!coincideCategoria) return false;
     }
-    
+
+    console.log(
+      "Primer producto filtrado:",
+      productosFiltrados[0]
+    );
     // 2. Filtro Subcategoría
     if (subcategoria && subcategoria !== 'Todos') {
       const subcatProducto = String(p.subcategoria_codigo || p.subcategoria || p.subcodigo || '').trim();
