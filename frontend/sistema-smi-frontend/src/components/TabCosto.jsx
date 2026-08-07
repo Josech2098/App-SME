@@ -57,7 +57,6 @@ function normalizarTexto(texto) {
 function isMatch(textoProducto, filtro) {
   if (!filtro) return true;
   
-  // Extraer texto plano si el filtro viene como objeto (ej: {id, nombre})
   let filtroStr = '';
   if (typeof filtro === 'string') {
     filtroStr = filtro;
@@ -71,7 +70,7 @@ function isMatch(textoProducto, filtro) {
   if (!fNorm || fNorm === 'todos' || fNorm === 'todas') return true;
   if (pNorm.includes(fNorm) || fNorm.includes(pNorm)) return true;
 
-  // Manejo de plurales básicos (quitar 's' o 'es' al final)
+  // Manejo de plurales básicos
   const fSingular = fNorm.endsWith('es') ? fNorm.slice(0, -2) : fNorm.endsWith('s') ? fNorm.slice(0, -1) : fNorm;
   const pSingular = pNorm.endsWith('es') ? pNorm.slice(0, -2) : pNorm.endsWith('s') ? pNorm.slice(0, -1) : pNorm;
 
@@ -92,7 +91,6 @@ function isMatch(textoProducto, filtro) {
     }
   }
 
-  // Coincidencia por palabras clave individuales (si tienen más de 3 letras)
   const palabrasFiltro = fNorm.split(/\s+/).filter(w => w.length > 3);
   if (palabrasFiltro.length > 0) {
     return palabrasFiltro.some(palabra => pNorm.includes(palabra));
@@ -122,7 +120,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const [editLongitud, setEditLongitud] = useState('');
   const [editCic, setEditCic] = useState('');
 
-  // Referencia para evitar llamadas circulares con onDatosActualizados
+  // Referencia para evitar bucles infinitos con onDatosActualizados
   const prevDatosRef = useRef('');
 
   useEffect(() => {
@@ -137,6 +135,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     fetchPaises();
   }, []);
 
+  // DISPARADOR PRINCIPAL: Se ejecuta cada vez que cambia cualquier filtro o el país base
   useEffect(() => {
     cargarYCalcularMatriz();
   }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
@@ -146,6 +145,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     setErrorLog(null);
 
     try {
+      console.log("🔍 [TabCosto] Filtros recibidos:", { productoActivo, categoria, subcategoria, busqueda, paisBase });
+
       // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
@@ -161,7 +162,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       if (errProds) throw errProds;
 
-      // Extraer nombre del producto activo si viene como objeto o cadena
+      console.log(`📦 [TabCosto] Registros totales devueltos por Supabase en 'productos':`, dbProds?.length || 0);
+
+      // Extraer nombre del producto activo
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
@@ -172,7 +175,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = busqueda ?? '';
       }
 
-      let mapaPreciosTemp = {}; // Objeto temporal para guardar arreglos de precios por país
+      let mapaPreciosTemp = {}; 
 
       if (dbProds) {
         dbProds.forEach(item => {
@@ -180,7 +183,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const categoriaProd = item.categoria || item.category || '';
           const subcategoriaProd = item.subcategoria || item.subcategory || '';
 
-          // Evaluaciones inteligentes y flexibles
           const coincideQuery = isMatch(nombreProd, nombreProductoBuscado);
           const coincideCat = !categoria || isMatch(nombreProd, categoria) || isMatch(categoriaProd, categoria);
           const coincideSubCat = !subcategoria || isMatch(nombreProd, subcategoria) || isMatch(subcategoriaProd, subcategoria);
@@ -204,7 +206,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         });
       }
 
-      // Promediar precios por país cuando hay múltiples productos coincidentes
+      console.log("📊 [TabCosto] Mapa de precios agrupados por país tras filtros:", mapaPreciosTemp);
+
       let mapaPreciosPorPais = {};
       Object.keys(mapaPreciosTemp).forEach(pais => {
         const precios = mapaPreciosTemp[pais];
@@ -248,7 +251,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       setDatosProductos(datosConsolidados);
     } catch (err) {
-      console.error("Error al consolidar costos:", err);
+      console.error("❌ Error al consolidar costos:", err);
       setErrorLog(err.message || "Error al conectar con Supabase");
     } finally {
       setLoading(false);
@@ -321,7 +324,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   const matrizFiltrada = matrizCalculadaCompleta;
 
-  // Sincronización segura con el componente padre evitando bucles infinitos
+  // Sincronización segura con el componente padre
   useEffect(() => {
     if (onDatosActualizados) {
       const datosString = JSON.stringify(matrizCalculadaCompleta);
@@ -413,7 +416,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     }
   }
 
-  // Extraer nombre legible para la cabecera
   const extraerNombreLegible = (val) => {
     if (!val) return '';
     if (typeof val === 'string') return val;
