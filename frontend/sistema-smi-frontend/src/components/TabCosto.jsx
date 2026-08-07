@@ -102,6 +102,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       if (errProds) throw errProds;
 
+      // --- DETERMINAR BÚSQUEDA Y FILTROS ---
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
@@ -113,17 +114,36 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       }
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
-      let mapaPreciosPorPais = {};
+      
+      // Normalizar filtros de categoría para evitar errores por formato (ej. "0406 - 0406 Queso...")
+      const catFiltro = categoria ? String(categoria).trim().toLowerCase() : '';
+      const subcatFiltro = subcategoria ? String(subcategoria).trim().toLowerCase() : '';
+      const catSeleccionadaLimpia = catFiltro.split('-')[0].trim();
+
+      let mapaPreciosTemp = {}; // Objeto temporal para guardar arreglos de precios por país
 
       if (dbProds) {
         dbProds.forEach(item => {
           const nombreProd = item.nombre || item.producto || item.titulo || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
 
-          // Si hay una búsqueda activa, evaluamos coincidencia. Si no hay búsqueda, se toman todos o se evalúa categoría/subcategoría si aplica
+          // Normalizar categorías del ítem de la BD
+          const itemCat1 = String(item.categoria_codigo || '').trim().toLowerCase();
+          const itemCat2 = String(item.categoria || '').trim().toLowerCase();
+          const itemSub1 = String(item.subcategoria_codigo || '').trim().toLowerCase();
+          const itemSub2 = String(item.subcategoria || '').trim().toLowerCase();
+
+          // Evaluaciones
           const coincideQuery = !queryLimpia || prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla);
-          const coincideCategoria = categoria === 'Todos' || item.categoria_codigo === categoria || item.categoria === categoria;
-          const coincideSubcategoria = subcategoria === 'Todos' || item.subcategoria_codigo === subcategoria || item.subcategoria === subcategoria;
+          
+          const coincideCategoria = !catFiltro || catFiltro === 'todos' || 
+            itemCat1.includes(catSeleccionadaLimpia) || 
+            itemCat2.includes(catSeleccionadaLimpia) || 
+            catSeleccionadaLimpia.includes(itemCat1);
+
+          const coincideSubcategoria = !subcatFiltro || subcatFiltro === 'todos' || 
+            itemSub1.includes(subcatFiltro) || 
+            itemSub2.includes(subcatFiltro);
 
           if (coincideQuery && coincideCategoria && coincideSubcategoria) {
             const paisItem = item.pais || item.Pais;
@@ -134,12 +154,23 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               const precioLim = limpiarPrecio(precioRaw);
               
               if (precioLim > 0) {
-                mapaPreciosPorPais[nombrePaisKey] = precioLim;
+                if (!mapaPreciosTemp[nombrePaisKey]) {
+                  mapaPreciosTemp[nombrePaisKey] = [];
+                }
+                mapaPreciosTemp[nombrePaisKey].push(precioLim);
               }
             }
           }
         });
       }
+
+      // Promediar precios por país cuando hay múltiples productos en una categoría
+      let mapaPreciosPorPais = {};
+      Object.keys(mapaPreciosTemp).forEach(pais => {
+        const precios = mapaPreciosTemp[pais];
+        const promedio = precios.reduce((acc, curr) => acc + curr, 0) / precios.length;
+        mapaPreciosPorPais[pais] = promedio;
+      });
 
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
@@ -148,7 +179,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // 4. Consolidar datos por país (Solo incluimos países que tengan PPD > 0)
+      // 4. Consolidar datos por país
       const datosConsolidados = dbPaises
         .map((p) => {
           const nombreKey = p.nombre.trim().toLowerCase();
@@ -345,7 +376,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const nombreProductoMostrado = 
     (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
     busqueda || 
-    'Todos los productos de la categoría';
+    (categoria && categoria !== 'Todos' ? `Categoría: ${categoria}` : 'Todos los productos');
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -359,7 +390,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <p className="text-sm text-slate-400 mt-1">
             Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">21.50%</span>
             <span className="ml-3 text-slate-300">
-              • Producto / Filtro: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
+              • Filtro Activo: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
             </span>
           </p>
         </div>
@@ -599,7 +630,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               ) : (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
-                    No hay registros con datos de precios válidos para este producto.
+                    No hay registros con datos de precios válidos para este filtro.
                   </td>
                 </tr>
               )}
