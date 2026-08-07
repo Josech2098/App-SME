@@ -53,12 +53,10 @@ function normalizarTexto(texto) {
     .trim();
 }
 
-// --- Helper de Clasificación Compartida con TabProductos ---
-// Extrae palabras clave y evalúa pertenencia según los criterios de la tabla de categorías/subcategorías
+// --- Helper de Clasificación Compartida con TabProductos (Optimizado y Corregido) ---
 function productoPerteneceACategoriaSubcategoria(producto, categoriaFiltro, subcategoriaFiltro) {
   const nombreProd = normalizarTexto(producto.producto || producto.nombre || producto.titulo || producto.descripcion || '');
 
-  // Función interna para validar contra palabras clave de un objeto categoría/subcategoría o texto directo
   const cumpleFiltro = (filtro) => {
     if (!filtro) return true;
     
@@ -67,10 +65,8 @@ function productoPerteneceACategoriaSubcategoria(producto, categoriaFiltro, subc
 
     if (typeof filtro === 'string') {
       textoFiltro = filtro;
-      palabrasClave = [normalizarTexto(filtro)];
     } else if (typeof filtro === 'object' && filtro !== null) {
       textoFiltro = filtro.nombre ?? filtro.label ?? filtro.categoria ?? filtro.subcategoria ?? filtro.codigo ?? '';
-      // Si la tabla de categorías provee palabras clave asociadas, las integramas
       if (filtro.palabras_clave) {
         if (Array.isArray(filtro.palabras_clave)) {
           palabrasClave = filtro.palabras_clave.map(pc => normalizarTexto(pc));
@@ -78,16 +74,26 @@ function productoPerteneceACategoriaSubcategoria(producto, categoriaFiltro, subc
           palabrasClave = filtro.palabras_clave.split(',').map(pc => normalizarTexto(pc));
         }
       }
-      if (textoFiltro) {
-        palabrasClave.push(normalizarTexto(textoFiltro));
-      }
     }
 
-    if (!textoFiltro || normalizarTexto(textoFiltro) === 'todos' || normalizarTexto(textoFiltro) === 'todas') {
+    const filtroNorm = normalizarTexto(textoFiltro);
+    if (!filtroNorm || filtroNorm === 'todos' || filtroNorm === 'todas') {
       return true;
     }
 
-    // Comprobar si alguna palabra clave o el texto normalizado coincide con el nombre del producto
+    // Extraer palabras significativas del filtro (eliminando códigos arancelarios como "2204")
+    const palabrasFiltro = filtroNorm
+      .replace(/^\d+[\s-]*/, '') 
+      .split(/[\s,.-]+/)
+      .filter(w => w.length > 3); 
+
+    palabrasClave.push(filtroNorm.replace(/^\d+[\s-]*/, '').trim());
+
+    if (palabrasFiltro.length > 0) {
+      palabrasClave.push(...palabrasFiltro);
+    }
+
+    // Comprobar si alguna palabra clave o el texto limpio coincide con el producto
     return palabrasClave.some(pc => {
       if (!pc) return false;
       const pcSingular = pc.endsWith('es') ? pc.slice(0, -2) : pc.endsWith('s') ? pc.slice(0, -1) : pc;
