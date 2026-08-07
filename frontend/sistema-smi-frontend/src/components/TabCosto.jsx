@@ -42,7 +42,7 @@ function limpiarPrecio(val) {
   return isNaN(numero) || numero <= 0 ? 0 : numero;
 }
 
-export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen,onDatosActualizados }) {
+export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen,onDatosActualizados, refreshTabs }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'Costa Rica');
   const [datosProductos, setDatosProductos] = useState([]);
   const [listaPaises, setListaPaises] = useState([]);
@@ -77,7 +77,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   useEffect(() => {
     cargarYCalcularMatriz();
-  }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
+  }, [productoActivo, categoria, subcategoria, busqueda, paisBase, refreshTabs]);
 
   async function cargarYCalcularMatriz() {
     setLoading(true);

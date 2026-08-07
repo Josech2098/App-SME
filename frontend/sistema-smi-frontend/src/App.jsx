@@ -39,6 +39,7 @@ export default function App() {
   const [searchNombre, setSearchNombre] = useState('');
   const [searchCodigo, setSearchCodigo] = useState('');
   const [searchSubcodigo, setSearchSubcodigo] = useState('');
+  const [refreshTabs, setRefreshTabs] = useState(0);
 
   // Listas desde Supabase
   const [listaCategorias, setListaCategorias] = useState([]);
@@ -95,6 +96,15 @@ export default function App() {
     }
     fetchIniciales();
   }, []);
+  useEffect(() => {
+    setRefreshTabs(prev => prev + 1);
+  }, [
+    categoria,
+    subcategoria,
+    searchNombre,
+    searchCodigo,
+    searchSubcodigo
+  ]);
 
   // 2. Cargar Subcategorías
   useEffect(() => {
@@ -313,6 +323,7 @@ export default function App() {
               busqueda={searchNombre || searchCodigo || searchSubcodigo}
               paisOrigen={paisOrigen}
               onDatosActualizados={setDatosCosto}
+              refreshTabs={refreshTabs}
             />
           )}
 
