@@ -112,7 +112,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       console.log("productoActivo:", productoActivo);
       console.log("busqueda:", busqueda);
       console.log("nombreProductoBuscado:", nombreProductoBuscado);
-      
+
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       let mapaPreciosPorPais = {};
 
@@ -123,6 +123,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
             const paisItem = item.pais || item.Pais;
+            
+            console.log("COINCIDE:", {
+              producto: nombreProd,
+              pais: paisItem,
+              precio: precioRaw
+            });
 
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
@@ -137,6 +143,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           }
         });
       }
+      console.log("queryLimpia:", queryLimpia);
 
       const objetoPaisBase = dbPaises.find(
         (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
