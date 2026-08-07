@@ -176,19 +176,21 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       if (dbProds) {
         dbProds.forEach(item => {
-          const nombreProd = item.producto || item.nombre || item.titulo || '';
+          const nombreProd = item.producto || item.nombre || item.titulo || item.descripcion || '';
+          const categoriaProd = item.categoria || item.category || '';
+          const subcategoriaProd = item.subcategoria || item.subcategory || '';
 
-          // Evaluaciones inteligentes utilizando la función isMatch
+          // Evaluaciones inteligentes y flexibles
           const coincideQuery = isMatch(nombreProd, nombreProductoBuscado);
-          const coincideCategoria = isMatch(nombreProd, categoria);
-          const coincideSubcategoria = isMatch(nombreProd, subcategoria);
+          const coincideCat = !categoria || isMatch(nombreProd, categoria) || isMatch(categoriaProd, categoria);
+          const coincideSubCat = !subcategoria || isMatch(nombreProd, subcategoria) || isMatch(subcategoriaProd, subcategoria);
 
-          if (coincideQuery && coincideCategoria && coincideSubcategoria) {
-            const paisItem = item.pais || item.Pais;
+          if (coincideQuery && coincideCat && coincideSubCat) {
+            const paisItem = item.pais || item.Pais || item.country;
 
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
-              const precioRaw = item.precio;
+              const precioRaw = item.precio ?? item.price ?? item.costo;
               const precioLim = limpiarPrecio(precioRaw);
               
               if (precioLim > 0) {
