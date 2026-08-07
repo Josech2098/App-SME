@@ -53,62 +53,7 @@ function normalizarTexto(texto) {
     .trim();
 }
 
-// --- Helper de Clasificación Compartida con TabProductos (Optimizado y Corregido) ---
-function productoPerteneceACategoriaSubcategoria(producto, categoriaFiltro, subcategoriaFiltro) {
-  const nombreProd = normalizarTexto(producto.producto || producto.nombre || producto.titulo || producto.descripcion || '');
-
-  const cumpleFiltro = (filtro) => {
-    if (!filtro) return true;
-    
-    let textoFiltro = '';
-    let palabrasClave = [];
-
-    if (typeof filtro === 'string') {
-      textoFiltro = filtro;
-    } else if (typeof filtro === 'object' && filtro !== null) {
-      textoFiltro = filtro.nombre ?? filtro.label ?? filtro.categoria ?? filtro.subcategoria ?? filtro.codigo ?? '';
-      if (filtro.palabras_clave) {
-        if (Array.isArray(filtro.palabras_clave)) {
-          palabrasClave = filtro.palabras_clave.map(pc => normalizarTexto(pc));
-        } else if (typeof filtro.palabras_clave === 'string') {
-          palabrasClave = filtro.palabras_clave.split(',').map(pc => normalizarTexto(pc));
-        }
-      }
-    }
-
-    const filtroNorm = normalizarTexto(textoFiltro);
-    if (!filtroNorm || filtroNorm === 'todos' || filtroNorm === 'todas') {
-      return true;
-    }
-
-    // Extraer palabras significativas del filtro (eliminando códigos arancelarios como "2204")
-    const palabrasFiltro = filtroNorm
-      .replace(/^\d+[\s-]*/, '') 
-      .split(/[\s,.-]+/)
-      .filter(w => w.length > 3); 
-
-    palabrasClave.push(filtroNorm.replace(/^\d+[\s-]*/, '').trim());
-
-    if (palabrasFiltro.length > 0) {
-      palabrasClave.push(...palabrasFiltro);
-    }
-
-    // Comprobar si alguna palabra clave o el texto limpio coincide con el producto
-    return palabrasClave.some(pc => {
-      if (!pc) return false;
-      const pcSingular = pc.endsWith('es') ? pc.slice(0, -2) : pc.endsWith('s') ? pc.slice(0, -1) : pc;
-      const pSingular = nombreProd.endsWith('es') ? nombreProd.slice(0, -2) : nombreProd.endsWith('s') ? nombreProd.slice(0, -1) : nombreProd;
-      
-      return nombreProd.includes(pc) || pc.includes(nombreProd) || 
-             nombreProd.includes(pcSingular) || pcSingular.includes(pSingular);
-    });
-  };
-
-  const pasaCat = cumpleFiltro(categoriaFiltro);
-  const pasaSubCat = cumpleFiltro(subcategoriaFiltro);
-
-  return pasaCat && pasaSubCat;
-}
+// --- Componente Principal ---
 
 export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
@@ -169,6 +114,29 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const { data: dbProds, error: errProds } = await supabase.from('productos').select('*');
       if (errProds) throw errProds;
 
+      // 4. Cargar palabras clave de categorías
+      const { data: categoriasKeywords, error: errCategorias } = await supabase
+        .from('productos_categoria')
+        .select('*');
+
+      if (errCategorias) throw errCategorias;
+
+      // 5. Crear las palabras clave de la categoría seleccionada
+      const palabrasCategoria =
+        categoria && categoria !== 'Todos'
+          ? (categoriasKeywords || [])
+              .filter(k => String(k.categoria_codigo) === String(categoria))
+              .map(k => String(k.palabra_clave || '').toLowerCase())
+          : [];
+
+      // 6. Crear las palabras clave de la subcategoría seleccionada
+      const palabrasSubcategoria =
+        subcategoria && subcategoria !== 'Todos'
+          ? (categoriasKeywords || [])
+              .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
+              .map(k => String(k.palabra_clave || '').toLowerCase())
+          : [];
+
       // Extraer nombre del producto activo o búsqueda manual
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
@@ -184,13 +152,32 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       if (dbProds) {
         dbProds.forEach(item => {
-          const nombreProd = item.producto || item.nombre || item.titulo || item.descripcion || '';
+          const nombreProd = (
+            item.producto ||
+            item.nombre ||
+            item.titulo ||
+            item.descripcion ||
+            ''
+          ).toLowerCase();
 
-          // Aplicar la misma lógica de clasificación centralizada que usa TabProductos
-          const cumpleFiltrosCategoria = productoPerteneceACategoriaSubcategoria(item, categoria, subcategoria);
+          // Validación de filtros por categoría, subcategoría y búsqueda
+          const coincideCategoria =
+            categoria === 'Todos' ||
+            palabrasCategoria.length === 0 ||
+            palabrasCategoria.some(p => nombreProd.includes(p));
+
+          const coincideSubcategoria =
+            subcategoria === 'Todos' ||
+            palabrasSubcategoria.length === 0 ||
+            palabrasSubcategoria.some(p => nombreProd.includes(p));
+
           const cumpleFiltroBusqueda = !nombreProductoBuscado || normalizarTexto(nombreProd).includes(normalizarTexto(nombreProductoBuscado));
 
-          if (cumpleFiltrosCategoria && cumpleFiltroBusqueda) {
+          if (
+            coincideCategoria &&
+            coincideSubcategoria &&
+            cumpleFiltroBusqueda
+          ) {
             const paisItem = item.pais || item.Pais || item.country;
 
             if (paisItem) {
@@ -223,7 +210,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // 4. Consolidar datos por país
+      // 7. Consolidar datos por país
       const datosConsolidados = dbPaises
         .map((p) => {
           const nombreKey = p.nombre.trim().toLowerCase();
