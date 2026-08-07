@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function TablaProductos({
-  productoSeleccionado,
-  setProductoSeleccionado,
   paisDestino,
   setPaisDestino,
   categoria,
@@ -137,19 +135,7 @@ export default function TablaProductos({
 
     return true;
   });
-  useEffect(() => {
-    if (
-      productosFiltrados.length > 0 &&
-      setProductoSeleccionado
-    ) {
-      setProductoSeleccionado(productosFiltrados[0]);
-    }
-  }, [productosFiltrados, setProductoSeleccionado]);
 
-  console.log(
-    "Primer producto filtrado:",
-    productosFiltrados[0]
-  );
   // 📝 HANDLERS PARA OPERACIONES CRUD
 
   const handleGuardarProducto = async (e) => {
