@@ -60,7 +60,7 @@ function isMatch(textoProducto, filtro) {
   let filtroStr = '';
   if (typeof filtro === 'string') {
     filtroStr = filtro;
-  } else if (typeof filtro === 'object') {
+  } else if (typeof filtro === 'object' && filtro !== null) {
     filtroStr = filtro.nombre ?? filtro.label ?? filtro.categoria ?? filtro.subcategoria ?? filtro.codigo ?? '';
   }
 
@@ -74,7 +74,7 @@ function isMatch(textoProducto, filtro) {
   const fSingular = fNorm.endsWith('es') ? fNorm.slice(0, -2) : fNorm.endsWith('s') ? fNorm.slice(0, -1) : fNorm;
   const pSingular = pNorm.endsWith('es') ? pNorm.slice(0, -2) : pNorm.endsWith('s') ? pNorm.slice(0, -1) : pNorm;
 
-  if (pNorm.includes(fSingular) || fNorm.includes(pSingular)) return true;
+  if (pNorm.includes(fSingular) || fSingular.includes(pSingular)) return true;
 
   // Agrupaciones semánticas comunes
   const semántica = {
@@ -135,34 +135,28 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     fetchPaises();
   }, []);
 
-  // DISPARADOR PRINCIPAL: Se ejecuta cada vez que cambia cualquier filtro o el país base
-  useEffect(() => {
-    cargarYCalcularMatriz();
-  }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
-
+  // Función principal para cargar datos y calcular la matriz
   async function cargarYCalcularMatriz() {
     setLoading(true);
     setErrorLog(null);
 
     try {
-      console.log("🔍 [TabCosto] Filtros recibidos:", { productoActivo, categoria, subcategoria, busqueda, paisBase });
-
       // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
+      if (!dbPaises || dbPaises.length === 0) {
+        setDatosProductos([]);
+        setLoading(false);
+        return;
+      }
 
       // 2. Obtener costos de importación (CIC)
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) console.warn("Aviso en CIC:", errCIC);
 
       // 3. Obtener registros de la tabla 'productos'
-      const { data: dbProds, error: errProds } = await supabase
-        .from('productos')
-        .select('*');
-
+      const { data: dbProds, error: errProds } = await supabase.from('productos').select('*');
       if (errProds) throw errProds;
-
-      console.log(`📦 [TabCosto] Registros totales devueltos por Supabase en 'productos':`, dbProds?.length || 0);
 
       // Extraer nombre del producto activo
       let nombreProductoBuscado = '';
@@ -178,32 +172,24 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       let mapaPreciosTemp = {}; 
 
       if (dbProds) {
-        if (dbProds.length > 0) {
-          console.log("🛠️ [TabCosto] Ejemplo de estructura de un producto en Supabase:", dbProds[0]);
-        }
-
         dbProds.forEach(item => {
           const nombreProd = item.producto || item.nombre || item.titulo || item.descripcion || '';
           
-          // Ampliamos las posibles columnas de categoría y código que usa tu base de datos
           const categoriaProd = item.categoria || item.category || item.codigo_arancelario || item.codigo || item.cat_id || item.id_categoria || '';
           const subcategoriaProd = item.subcategoria || item.subcategory || item.sub_id || '';
 
-          // Extraer texto o código limpio de categoría que llega por props
-          const catFiltroStr = typeof categoria === 'object' ? (categoria?.id || categoria?.codigo || categoria?.categoria || '') : String(categoria || '');
-          const subCatFiltroStr = typeof subcategoria === 'object' ? (subcategoria?.id || subcategoria?.codigo || subcategoria?.subcategoria || '') : String(subcategoria || '');
+          const catFiltroStr = typeof categoria === 'object' && categoria !== null ? (categoria?.id || categoria?.codigo || categoria?.categoria || '') : String(categoria || '');
+          const subCatFiltroStr = typeof subcategoria === 'object' && subcategoria !== null ? (subcategoria?.id || subcategoria?.codigo || subcategoria?.subcategoria || '') : String(subcategoria || '');
 
           const catFiltroNorm = normalizarTexto(catFiltroStr);
           const subCatFiltroNorm = normalizarTexto(subCatFiltroStr);
 
-          // Evaluar coincidencia estricta por código o texto de categoría
           const esCatTodos = !catFiltroNorm || catFiltroNorm === 'todos' || catFiltroNorm === 'todas';
           const coincideCat = esCatTodos || 
             normalizarTexto(categoriaProd).includes(catFiltroNorm) || 
             catFiltroNorm === normalizarTexto(categoriaProd) ||
             isMatch(nombreProd, categoria);
 
-          // Evaluar subcategoría
           const esSubTodos = !subCatFiltroNorm || subCatFiltroNorm === 'todos' || subCatFiltroNorm === 'todas';
           const coincideSubCat = esSubTodos || 
             normalizarTexto(subcategoriaProd).includes(subCatFiltroNorm) || 
@@ -229,8 +215,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           }
         });
       }
-
-      console.log("📊 [TabCosto] Mapa de precios agrupados por país tras filtros:", mapaPreciosTemp);
 
       let mapaPreciosPorPais = {};
       Object.keys(mapaPreciosTemp).forEach(pais => {
@@ -281,6 +265,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       setLoading(false);
     }
   }
+
+  // DISPARADOR PRINCIPAL: Se ejecuta cada vez que cambia cualquier filtro o el país base
+  useEffect(() => {
+    cargarYCalcularMatriz();
+  }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
 
   // ----------------------------------------------------
   // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
@@ -348,16 +337,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   const matrizFiltrada = matrizCalculadaCompleta;
 
-  // Sincronización segura con el componente padre
+  // Sincronización segura con el componente padre usando dependencias estables
   useEffect(() => {
-    if (onDatosActualizados) {
+    if (onDatosActualizados && matrizCalculadaCompleta.length > 0) {
       const datosString = JSON.stringify(matrizCalculadaCompleta);
       if (datosString !== prevDatosRef.current) {
         prevDatosRef.current = datosString;
         onDatosActualizados(matrizCalculadaCompleta);
       }
     }
-  }, [matrizCalculadaCompleta, onDatosActualizados]);
+  }, [matrizCalculadaCompleta]);
 
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
