@@ -123,18 +123,18 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
           if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
             const paisItem = item.pais || item.Pais;
-            
-            console.log("COINCIDE:", {
-              producto: nombreProd,
-              pais: paisItem,
-              precio: precioRaw
-            });
-
+          
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
               const precioRaw = item.precio;
               const precioLim = limpiarPrecio(precioRaw);
-              
+
+              console.log("COINCIDE:", {
+                producto: nombreProd,
+                pais: paisItem,
+                precio: precioRaw
+              }); 
+                
               // Solo guardamos si el precio es estrictamente mayor a 0
               if (precioLim > 0) {
                 mapaPreciosPorPais[nombrePaisKey] = precioLim;
