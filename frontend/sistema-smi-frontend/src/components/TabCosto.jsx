@@ -61,7 +61,7 @@ function isMatch(textoProducto, filtro) {
   if (typeof filtro === 'string') {
     filtroStr = filtro;
   } else if (typeof filtro === 'object') {
-    filtroStr = filtro.nombre ?? filtro.label ?? filtro.categoria ?? filtro.subcategoria ?? '';
+    filtroStr = filtro.nombre ?? filtro.label ?? filtro.categoria ?? filtro.subcategoria ?? filtro.codigo ?? '';
   }
 
   const fNorm = normalizarTexto(filtroStr);
@@ -183,9 +183,27 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const categoriaProd = item.categoria || item.category || '';
           const subcategoriaProd = item.subcategoria || item.subcategory || '';
 
-          const coincideQuery = isMatch(nombreProd, nombreProductoBuscado);
-          const coincideCat = !categoria || isMatch(nombreProd, categoria) || isMatch(categoriaProd, categoria);
-          const coincideSubCat = !subcategoria || isMatch(nombreProd, subcategoria) || isMatch(subcategoriaProd, subcategoria);
+          // Extraer texto o código limpio de categoría y subcategoría que llegan por props
+          const catFiltroStr = typeof categoria === 'object' ? (categoria?.id || categoria?.codigo || categoria?.categoria || '') : String(categoria || '');
+          const subCatFiltroStr = typeof subcategoria === 'object' ? (subcategoria?.id || subcategoria?.codigo || subcategoria?.subcategoria || '') : String(subcategoria || '');
+
+          const catFiltroNorm = normalizarTexto(catFiltroStr);
+          const subCatFiltroNorm = normalizarTexto(subCatFiltroStr);
+
+          // Evaluar si coincide con la categoría (por texto o si el código viene en la columna)
+          const esCatTodos = !catFiltroNorm || catFiltroNorm === 'todos' || catFiltroNorm === 'todas';
+          const coincideCat = esCatTodos || 
+            normalizarTexto(categoriaProd).includes(catFiltroNorm) || 
+            normalizarTexto(item.codigo_arancelario || item.codigo || item.cat_id || '').includes(catFiltroNorm) ||
+            isMatch(nombreProd, categoria);
+
+          // Evaluar subcategoría
+          const esSubTodos = !subCatFiltroNorm || subCatFiltroNorm === 'todos' || subCatFiltroNorm === 'todas';
+          const coincideSubCat = esSubTodos || 
+            normalizarTexto(subcategoriaProd).includes(subCatFiltroNorm) || 
+            isMatch(nombreProd, subcategoria);
+
+          const coincideQuery = !nombreProductoBuscado || isMatch(nombreProd, nombreProductoBuscado);
 
           if (coincideQuery && coincideCat && coincideSubCat) {
             const paisItem = item.pais || item.Pais || item.country;
@@ -419,7 +437,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const extraerNombreLegible = (val) => {
     if (!val) return '';
     if (typeof val === 'string') return val;
-    if (typeof val === 'object') return val.nombre ?? val.label ?? val.categoria ?? val.subcategoria ?? '';
+    if (typeof val === 'object') return val.nombre ?? val.label ?? val.categoria ?? val.subcategoria ?? val.codigo ?? '';
     return String(val);
   };
 
