@@ -123,16 +123,6 @@ export default function App() {
 
     setCategoria(codigo);
   };
-  useEffect(() => {
-    setDatosCosto([]);
-    setDatosLogi([]);
-    setDatosComm([]);
-    setDatosEcon([]);
-    setDatosPoli([]);
-    setDatosCult([]);
-    setDatosSust([]);
-    setDatosTablaTotal([]);
-  }, [productoSeleccionado]);
   const tabList = [
     "Productos",
     "Costo (COST)",
