@@ -42,6 +42,65 @@ function limpiarPrecio(val) {
   return isNaN(numero) || numero <= 0 ? 0 : numero;
 }
 
+// --- Helper: Normalizar texto (quitar tildes, minúsculas, códigos numéricos) ---
+function normalizarTexto(texto) {
+  if (!texto) return '';
+  return String(texto)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Quitar tildes
+    .replace(/^\d+[\s-]*/, '')        // Quitar códigos iniciales (ej: "0406 - ")
+    .trim();
+}
+
+// --- Helper Inteligente: Coincidencia Semántica y de Plurales ---
+function isMatch(textoProducto, filtro) {
+  if (!filtro) return true;
+  
+  // Extraer texto plano si el filtro viene como objeto (ej: {id, nombre})
+  let filtroStr = '';
+  if (typeof filtro === 'string') {
+    filtroStr = filtro;
+  } else if (typeof filtro === 'object') {
+    filtroStr = filtro.nombre ?? filtro.label ?? filtro.categoria ?? filtro.subcategoria ?? '';
+  }
+
+  const fNorm = normalizarTexto(filtroStr);
+  const pNorm = normalizarTexto(textoProducto);
+
+  if (!fNorm || fNorm === 'todos' || fNorm === 'todas') return true;
+  if (pNorm.includes(fNorm) || fNorm.includes(pNorm)) return true;
+
+  // Manejo de plurales básicos (quitar 's' o 'es' al final)
+  const fSingular = fNorm.endsWith('es') ? fNorm.slice(0, -2) : fNorm.endsWith('s') ? fNorm.slice(0, -1) : fNorm;
+  const pSingular = pNorm.endsWith('es') ? pNorm.slice(0, -2) : pNorm.endsWith('s') ? pNorm.slice(0, -1) : pNorm;
+
+  if (pNorm.includes(fSingular) || fNorm.includes(pSingular)) return true;
+
+  // Agrupaciones semánticas comunes
+  const semántica = {
+    'lacteos': ['leche', 'queso', 'mantequilla', 'yogur', 'crema', 'suero'],
+    'bebidas': ['vino', 'cerveza', 'jugo', 'agua', 'refresco', 'ron', 'licor', 'whisky'],
+    'alcohol': ['vino', 'cerveza', 'ron', 'licor', 'whisky', 'vodka', 'tequila'],
+    'carnes': ['carne', 'pollo', 'res', 'cerdo', 'jamon', 'salchicha', 'embutido'],
+    'granos': ['arroz', 'frijol', 'lenteja', 'maiz', 'garbanzo']
+  };
+
+  for (const [clave, sinonimos] of Object.entries(semántica)) {
+    if (fNorm.includes(clave)) {
+      if (sinonimos.some(s => pNorm.includes(s))) return true;
+    }
+  }
+
+  // Coincidencia por palabras clave individuales (si tienen más de 3 letras)
+  const palabrasFiltro = fNorm.split(/\s+/).filter(w => w.length > 3);
+  if (palabrasFiltro.length > 0) {
+    return palabrasFiltro.some(palabra => pNorm.includes(palabra));
+  }
+
+  return false;
+}
+
 export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
   const [datosProductos, setDatosProductos] = useState([]);
@@ -102,7 +161,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       if (errProds) throw errProds;
 
-      // --- DETERMINAR BÚSQUEDA Y FILTROS ---
+      // Extraer nombre del producto activo si viene como objeto o cadena
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
@@ -113,31 +172,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = busqueda ?? '';
       }
 
-      const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
-      
-      // Limpiar textos de categoría y subcategoría para usarlos como palabras clave de búsqueda
-      const catFiltroStr = categoria ? String(categoria).trim().toLowerCase() : '';
-      const subcatFiltroStr = subcategoria ? String(subcategoria).trim().toLowerCase() : '';
-
-      // Remover códigos numéricos iniciales (ej: "0406 - Queso" -> "queso") para buscar por texto real en el producto
-      const palabrasClaveCat = catFiltroStr.replace(/^\d+[\s-]*/, '').trim();
-      const palabrasClaveSubcat = subcatFiltroStr.replace(/^\d+[\s-]*/, '').trim();
-
       let mapaPreciosTemp = {}; // Objeto temporal para guardar arreglos de precios por país
 
       if (dbProds) {
         dbProds.forEach(item => {
           const nombreProd = item.producto || item.nombre || item.titulo || '';
-          const prodTabla = String(nombreProd).trim().toLowerCase();
 
-          // Evaluaciones
-          const coincideQuery = !queryLimpia || prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla);
-          
-          const coincideCategoria = !catFiltroStr || catFiltroStr === 'todos' || !palabrasClaveCat || 
-            prodTabla.includes(palabrasClaveCat) || palabrasClaveCat.split(' ').some(palabra => palabra.length > 3 && prodTabla.includes(palabra));
-
-          const coincideSubcategoria = !subcatFiltroStr || subcatFiltroStr === 'todos' || !palabrasClaveSubcat || 
-            prodTabla.includes(palabrasClaveSubcat) || palabrasClaveSubcat.split(' ').some(palabra => palabra.length > 3 && prodTabla.includes(palabra));
+          // Evaluaciones inteligentes utilizando la función isMatch
+          const coincideQuery = isMatch(nombreProd, nombreProductoBuscado);
+          const coincideCategoria = isMatch(nombreProd, categoria);
+          const coincideSubcategoria = isMatch(nombreProd, subcategoria);
 
           if (coincideQuery && coincideCategoria && coincideSubcategoria) {
             const paisItem = item.pais || item.Pais;
@@ -367,10 +411,18 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     }
   }
 
+  // Extraer nombre legible para la cabecera
+  const extraerNombreLegible = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object') return val.nombre ?? val.label ?? val.categoria ?? val.subcategoria ?? '';
+    return String(val);
+  };
+
   const nombreProductoMostrado = 
-    (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
+    extraerNombreLegible(productoActivo) || 
     busqueda || 
-    (categoria && categoria !== 'Todos' ? `Categoría: ${categoria}` : 'Todos los productos');
+    (categoria && extraerNombreLegible(categoria) !== 'Todos' ? `Categoría: ${extraerNombreLegible(categoria)}` : 'Todos los productos');
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -425,7 +477,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('add')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
             >
               <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Añadir país y coordenadas
             </button>
@@ -487,7 +539,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('edit')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
             >
               <span>{activeAccordion === 'edit' ? '˅' : '❯'}</span> Editar país existente
             </button>
@@ -496,7 +548,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                 <select
                   onChange={(e) => handleSelectEdit(e.target.value)}
                   value={selectedPaisId}
-                  className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+                  className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white cursor-pointer"
                 >
                   <option value="">-- Selecciona un país --</option>
                   {listaPaises.map(p => (
@@ -553,7 +605,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('delete')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
             >
               <span>{activeAccordion === 'delete' ? '˅' : '❯'}</span> Eliminar país
             </button>
