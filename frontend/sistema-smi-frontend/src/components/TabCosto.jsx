@@ -178,23 +178,29 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       let mapaPreciosTemp = {}; 
 
       if (dbProds) {
+        if (dbProds.length > 0) {
+          console.log("🛠️ [TabCosto] Ejemplo de estructura de un producto en Supabase:", dbProds[0]);
+        }
+
         dbProds.forEach(item => {
           const nombreProd = item.producto || item.nombre || item.titulo || item.descripcion || '';
-          const categoriaProd = item.categoria || item.category || '';
-          const subcategoriaProd = item.subcategoria || item.subcategory || '';
+          
+          // Ampliamos las posibles columnas de categoría y código que usa tu base de datos
+          const categoriaProd = item.categoria || item.category || item.codigo_arancelario || item.codigo || item.cat_id || item.id_categoria || '';
+          const subcategoriaProd = item.subcategoria || item.subcategory || item.sub_id || '';
 
-          // Extraer texto o código limpio de categoría y subcategoría que llegan por props
+          // Extraer texto o código limpio de categoría que llega por props
           const catFiltroStr = typeof categoria === 'object' ? (categoria?.id || categoria?.codigo || categoria?.categoria || '') : String(categoria || '');
           const subCatFiltroStr = typeof subcategoria === 'object' ? (subcategoria?.id || subcategoria?.codigo || subcategoria?.subcategoria || '') : String(subcategoria || '');
 
           const catFiltroNorm = normalizarTexto(catFiltroStr);
           const subCatFiltroNorm = normalizarTexto(subCatFiltroStr);
 
-          // Evaluar si coincide con la categoría (por texto o si el código viene en la columna)
+          // Evaluar coincidencia estricta por código o texto de categoría
           const esCatTodos = !catFiltroNorm || catFiltroNorm === 'todos' || catFiltroNorm === 'todas';
           const coincideCat = esCatTodos || 
             normalizarTexto(categoriaProd).includes(catFiltroNorm) || 
-            normalizarTexto(item.codigo_arancelario || item.codigo || item.cat_id || '').includes(catFiltroNorm) ||
+            catFiltroNorm === normalizarTexto(categoriaProd) ||
             isMatch(nombreProd, categoria);
 
           // Evaluar subcategoría
