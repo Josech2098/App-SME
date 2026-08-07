@@ -45,28 +45,30 @@ export default function App() {
   const [listaSubcategorias, setListaSubcategorias] = useState([]);
   const [listaPaisesOrigen, setListaPaisesOrigen] = useState([]);
 
-  // NUEVOS ESTADOS GLOBALES PARA TABS (Supabase)
+  // ESTADOS GLOBALES ADICIONALES PARA TABS (Supabase)
   const [datosIndicePenetracion, setDatosIndicePenetracion] = useState([]);
   const [datosLibertadEconomica, setDatosLibertadEconomica] = useState([]);
   const [datosCostoDeVida, setDatosCostoDeVida] = useState([]);
-  const [datosSostenibilidad, setDatosSostenibilidad] = useState([]); // <- NUEVO ESTADO
+  const [datosSostenibilidad, setDatosSostenibilidad] = useState([]);
 
   // 1. Cargar Categorías, Países de Origen y Datos Iniciales de Supabase
   useEffect(() => {
     async function fetchIniciales() {
       // Categorías
-      const { data: catData } = await supabase
+      const { data: catData, error: catError } = await supabase
         .from('categorias')
         .select('*')
         .order('codigo');
       if (catData) setListaCategorias(catData);
+      if (catError) console.error('Error cargando categorías:', catError);
 
       // Países para el origen
-      const { data: paisesData } = await supabase
+      const { data: paisesData, error: paisesError } = await supabase
         .from('paises')
         .select('*')
         .order('nombre');
       if (paisesData) setListaPaisesOrigen(paisesData);
+      if (paisesError) console.error('Error cargando países:', paisesError);
 
       // Índice de Penetración
       const { data: penData } = await supabase
@@ -96,7 +98,7 @@ export default function App() {
     fetchIniciales();
   }, []);
 
-  // 2. Cargar Subcategorías
+  // 2. Cargar Subcategorías basadas en la categoría seleccionada
   useEffect(() => {
     async function fetchSubcategorias() {
       if (categoria === 'Todos') {
@@ -105,24 +107,28 @@ export default function App() {
         return;
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('subcategorias')
         .select('*')
         .eq('categoria_codigo', categoria)
         .order('codigo');
 
       if (data) setListaSubcategorias(data);
-      else setListaSubcategorias([]);
+      else {
+        setListaSubcategorias([]);
+        if (error) console.error('Error cargando subcategorías:', error);
+      }
       
       setSubcategoria('Todos');
     }
 
     fetchSubcategorias();
   }, [categoria]);
-  const handleCategoriaChange = (codigo) => {
 
+  const handleCategoriaChange = (codigo) => {
     setCategoria(codigo);
   };
+
   const tabList = [
     "Productos",
     "Costo (COST)",
@@ -131,10 +137,11 @@ export default function App() {
     "Economía (ECON)",
     "Política (POLI)",
     "Cultura (CULT)",
-    "Sostenibilidad (SUST)", // <- NUEVA PESTAÑA AÑADIDA AQUÍ
+    "Sostenibilidad (SUST)",
     "Visualización de Tablas Totales",
     "Gráficos"
   ];
+
   if (mostrarSplash) {
     return (
       <SplashScreen
@@ -147,11 +154,10 @@ export default function App() {
     <div className="flex min-h-screen bg-[#0e1117] text-slate-100 font-sans antialiased">
       
       {/* ---------------- BARRA LATERAL (SIDEBAR) ---------------- */}
-      <aside className="w-80 bg-[#262730]/40 border-r border-[#262730] p-6 flex flex-col gap-6 shrink-0">
+      <aside className="w-80 bg-[#262730]/40 border-r border-[#262730] p-6 flex flex-col gap-6 shrink-0 overflow-y-auto max-h-screen">
         
         {/* Banner de Usuario y Selector de Origen */}
         <div className="space-y-2">
-          
           {/* SELECTOR DINÁMICO DE PAÍS DE ORIGEN */}
           <div className="bg-[#1e2028] border border-red-500/30 p-2.5 rounded-lg text-xs space-y-1">
             <label className="text-red-400 font-semibold block">
@@ -186,7 +192,7 @@ export default function App() {
               <option value="Todos">Todos</option>
               {listaCategorias.map((cat) => (
                 <option key={cat.id || cat.codigo} value={cat.codigo}>
-                  {cat.codigo} - {cat.nombre.length > 35 ? `${cat.nombre.substring(0, 35)}...` : cat.nombre}
+                  {cat.codigo} - {cat.nombre && cat.nombre.length > 35 ? `${cat.nombre.substring(0, 35)}...` : cat.nombre}
                 </option>
               ))}
             </select>
@@ -203,7 +209,7 @@ export default function App() {
               <option value="Todos">Todos</option>
               {listaSubcategorias.map((sub) => (
                 <option key={sub.id || sub.codigo} value={sub.codigo}>
-                  {sub.codigo} - {sub.nombre.length > 35 ? `${sub.nombre.substring(0, 35)}...` : sub.nombre}
+                  {sub.codigo} - {sub.nombre && sub.nombre.length > 35 ? `${sub.nombre.substring(0, 35)}...` : sub.nombre}
                 </option>
               ))}
             </select>
@@ -245,15 +251,14 @@ export default function App() {
               className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500"
             />
           </div>
+
           <div className="mt-6 pt-4 border-t border-slate-700/50 text-slate-400">
             <p className="text-sm">
               Creador: Jose Jaime Baena Rojas
             </p>
-
             <p className="text-sm mt-1">
               Programador: Jose Wanner Chavarria Villagra
             </p>
-
             <p className="text-xs mt-4 text-slate-500">
               Copyright © 2026
             </p>
@@ -269,7 +274,7 @@ export default function App() {
         </h1>
 
         {/* Pestañas (Tabs) */}
-        <div className="border-b border-slate-800 flex gap-6 overflow-x-auto mb-8 no-scrollbar">
+        <div className="border-b border-slate-800 flex gap-6 overflow-x-auto mb-8 pb-2 no-scrollbar">
           {tabList.map((tabName, index) => (
             <button
               key={index}
@@ -288,7 +293,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* Contenido Dinámico */}
+        {/* Contenido Dinámico según la pestaña activa */}
         <div>
           {activeTab === 0 && (
             <TablaProductos 
@@ -392,23 +397,6 @@ export default function App() {
             <TabGraficosComparativos 
               datosTotales={datosTablaTotal} 
             />
-          )}
-
-          {activeTab > 9 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-white">
-                {tabList[activeTab]}
-              </h2>
-              <div className="bg-[#1c2c3d] border border-[#2b4259] text-[#71b1ea] px-4 py-3 rounded flex items-center gap-2 text-sm">
-                <span>ℹ️</span>
-                <span>
-                  Sección en desarrollo. Evaluando datos exportables desde {paisOrigen} para{' '}
-                  <strong className="text-white">
-                    {productoSeleccionado ? productoSeleccionado.nombre : 'Producto sin seleccionar'}
-                  </strong>.
-                </span>
-              </div>
-            </div>
           )}
         </div>
       </main>

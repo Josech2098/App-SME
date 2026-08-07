@@ -8,7 +8,9 @@ export default function TablaProductos({
   subcategoria,
   searchNombre,
   searchCodigo,
-  searchSubcodigo
+  searchSubcodigo,
+  onSeleccionarProducto, // <--- Prop para enviar el producto activo a App y TabCosto
+  productoSeleccionadoId // <--- Prop para resaltar visualmente el producto seleccionado
 }) {
   // Estados para datos de Supabase
   const [productos, setProductos] = useState([]);
@@ -66,27 +68,16 @@ export default function TablaProductos({
   // Helper para obtener la clave primaria en Supabase
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
-  // 🔍 Lógica de Filtrado Dinámico para la Tabla (CON CORRECCIÓN DE TIPOS Y NOMBRES)
+  // 🔍 Lógica de Filtrado Dinámico para la Tabla
   const productosFiltrados = productos.filter((p) => {
     // 1. Filtro Categoría usando productos_categoria
-
     if (categoria && categoria !== 'Todos') {
-
       const palabrasCategoriaActual = keywordsCategoria
-        .filter(
-          k => String(k.categoria_codigo) === String(categoria)
-        )
-        .map(
-          k => k.palabra_clave.toLowerCase()
-        );
+        .filter(k => String(k.categoria_codigo) === String(categoria))
+        .map(k => k.palabra_clave.toLowerCase());
 
-      const nombreProducto = String(
-        p.nombre || p.producto || ''
-      ).toLowerCase();
-
-      const coincideCategoria = palabrasCategoriaActual.some(
-        palabra => nombreProducto.includes(palabra)
-      );
+      const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
+      const coincideCategoria = palabrasCategoriaActual.some(palabra => nombreProducto.includes(palabra));
 
       if (!coincideCategoria) return false;
     }
@@ -107,24 +98,13 @@ export default function TablaProductos({
     if (searchNombre && !nombreVal.toLowerCase().includes(searchNombre.toLowerCase())) return false;
     
     // 4. Búsqueda por Código
-
     if (searchCodigo) {
-
       const palabrasCodigo = keywordsCategoria
-        .filter(
-          k => String(k.categoria_codigo).startsWith(searchCodigo)
-        )
-        .map(
-          k => k.palabra_clave.toLowerCase()
-        );
+        .filter(k => String(k.categoria_codigo).startsWith(searchCodigo))
+        .map(k => k.palabra_clave.toLowerCase());
 
-      const nombreProducto = String(
-        p.nombre || p.producto || ''
-      ).toLowerCase();
-
-      const coincideCodigo = palabrasCodigo.some(
-        palabra => nombreProducto.includes(palabra)
-      );
+      const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
+      const coincideCodigo = palabrasCodigo.some(palabra => nombreProducto.includes(palabra));
 
       if (!coincideCodigo) return false;
     }
@@ -181,6 +161,18 @@ export default function TablaProductos({
       alert('Error al actualizar: ' + error.message);
     } else {
       setActiveAccordion(null);
+      
+      // Notificar inmediatamente el cambio al estado global de la app si es el producto activo
+      const productoActualizado = {
+        id: editId,
+        pais: editPais,
+        nombre: editNombre,
+        precio: editPrecio
+      };
+      if (onSeleccionarProducto) {
+        onSeleccionarProducto(productoActualizado);
+      }
+
       setEditId('');
       setEditPais('');
       setEditNombre('');
@@ -407,7 +399,7 @@ export default function TablaProductos({
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-white">
-            Listado de Productos
+            Listado de Productos <span className="text-xs font-normal text-slate-400">(Haz clic en una fila para seleccionarla)</span>
           </h3>
           <span className="text-xs text-slate-400 bg-[#181a20] px-3 py-1 rounded-full border border-slate-800">
             Mostrando <strong className="text-white">{productosFiltrados.length}</strong> de {productos.length} registros
@@ -437,6 +429,7 @@ export default function TablaProductos({
                   const paisVal = item.pais || item.Pais || '—';
                   const nombre = item.nombre || item.producto || '—';
                   const precioRaw = item.precio ?? item.Precio;
+                  const isSelected = String(productoSeleccionadoId) === String(idVal);
                   
                   let precioFmt = '—';
                   if (precioRaw !== undefined && precioRaw !== null && precioRaw !== '') {
@@ -454,7 +447,19 @@ export default function TablaProductos({
                   }
 
                   return (
-                    <tr key={idVal} className="hover:bg-[#1f222d]/50 transition-colors">
+                    <tr 
+                      key={idVal} 
+                      onClick={() => {
+                        if (onSeleccionarProducto) {
+                          onSeleccionarProducto(item);
+                        }
+                      }}
+                      className={`transition-colors cursor-pointer ${
+                        isSelected 
+                          ? 'bg-red-900/30 border-l-4 border-red-500' 
+                          : 'hover:bg-[#1f222d]/50'
+                      }`}
+                    >
                       <td className="p-3 font-mono text-slate-400">{idVal}</td>
                       <td className="p-3 font-medium text-slate-300">{paisVal}</td>
                       <td className="p-3 text-right font-mono text-emerald-400 font-semibold">

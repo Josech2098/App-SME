@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 // --- Helper: Cálculo de distancia geográfica mediante Haversine ---
@@ -21,9 +21,9 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(l1 * (Math.PI / 180)) *
-      Math.cos(l2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(l2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -42,8 +42,8 @@ function limpiarPrecio(val) {
   return isNaN(numero) || numero <= 0 ? 0 : numero;
 }
 
-export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen,onDatosActualizados }) {
-  const [paisBase, setPaisBase] = useState(paisOrigen || 'Costa Rica');
+export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
+  const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
   const [datosProductos, setDatosProductos] = useState([]);
   const [listaPaises, setListaPaises] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +62,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const [editLatitud, setEditLatitud] = useState('');
   const [editLongitud, setEditLongitud] = useState('');
   const [editCic, setEditCic] = useState('');
+
+  // Referencia para evitar llamadas circulares con onDatosActualizados
+  const prevDatosRef = useRef('');
 
   useEffect(() => {
     if (paisOrigen) setPaisBase(paisOrigen);
@@ -106,7 +109,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
       }
       if (!nombreProductoBuscado) {
-        nombreProductoBuscado = busqueda ?? 'Botella de vino (Calidad media)';
+        nombreProductoBuscado = busqueda ?? '';
       }
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
@@ -117,7 +120,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const nombreProd = item.nombre || item.producto || item.titulo || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
 
-          if (prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla)) {
+          // Si hay una búsqueda activa, evaluamos coincidencia. Si no hay búsqueda, se toman todos o se evalúa categoría/subcategoría si aplica
+          const coincideQuery = !queryLimpia || prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla);
+          const coincideCategoria = categoria === 'Todos' || item.categoria_codigo === categoria || item.categoria === categoria;
+          const coincideSubcategoria = subcategoria === 'Todos' || item.subcategoria_codigo === subcategoria || item.subcategoria === subcategoria;
+
+          if (coincideQuery && coincideCategoria && coincideSubcategoria) {
             const paisItem = item.pais || item.Pais;
 
             if (paisItem) {
@@ -125,7 +133,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               const precioRaw = item.precio;
               const precioLim = limpiarPrecio(precioRaw);
               
-              // Solo guardamos si el precio es estrictamente mayor a 0
               if (precioLim > 0) {
                 mapaPreciosPorPais[nombrePaisKey] = precioLim;
               }
@@ -166,7 +173,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             cic: cicVal
           };
         })
-        .filter(item => item.ppd > 0); // <--- FILTRO ESTRICTO: Fuera los que tengan 0 o nulos
+        .filter(item => item.ppd > 0);
 
       setDatosProductos(datosConsolidados);
     } catch (err) {
@@ -187,7 +194,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const PESO_CIC = 0.22; // 22.00%
   const PUNTAJE_MAXIMO = 10;
 
-  // Filtrar valores válidos mayores a 0 para evitar errores en mínimos y máximos
   const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && v > 0);
   const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && v > 0);
   const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && v > 0);
@@ -209,7 +215,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   };
 
   const matrizCalculadaCompleta = datosProductos.map(row => {
-    // Aseguramos capturar la propiedad sin importar variaciones de mayúsculas/minúsculas
     const valPpd = row.ppd ?? row.PPD ?? 0;
     const valCti = row.cti ?? row.CTI ?? row.transport_cost ?? 0; 
     const valCic = row.cic ?? row.CIC ?? row.cumplimiento ?? 0;
@@ -222,7 +227,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const p2 = ctiNorm ?? 0;
     const p3 = cicNorm ?? 0;
 
-    // Se calcula directamente el aporte final del factor sin pasar por el subtotal intermedio
     const aporteFactorCosto = Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
 
     const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
@@ -237,7 +241,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     };
   });
 
-  // Ordenamiento: primero los que tienen menos faltantes, y luego por el aporte del factor de forma descendente
   matrizCalculadaCompleta.sort((a, b) => {
     if (a.__faltantes !== b.__faltantes) {
       return a.__faltantes - b.__faltantes;
@@ -246,11 +249,17 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   });
 
   const matrizFiltrada = matrizCalculadaCompleta;
+
+  // Sincronización segura con el componente padre evitando bucles infinitos
   useEffect(() => {
-  if (onDatosActualizados) {
-    onDatosActualizados(matrizCalculadaCompleta);
-  }
-}, [matrizCalculadaCompleta, onDatosActualizados]);
+    if (onDatosActualizados) {
+      const datosString = JSON.stringify(matrizCalculadaCompleta);
+      if (datosString !== prevDatosRef.current) {
+        prevDatosRef.current = datosString;
+        onDatosActualizados(matrizCalculadaCompleta);
+      }
+    }
+  }, [matrizCalculadaCompleta, onDatosActualizados]);
 
   const toggleAccordion = (tab) => {
     setActiveAccordion(activeAccordion === tab ? null : tab);
@@ -336,7 +345,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const nombreProductoMostrado = 
     (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
     busqueda || 
-    'Botella de vino (Calidad media)';
+    'Todos los productos de la categoría';
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
@@ -350,7 +359,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <p className="text-sm text-slate-400 mt-1">
             Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">21.50%</span>
             <span className="ml-3 text-slate-300">
-              • Producto: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
+              • Producto / Filtro: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
             </span>
           </p>
         </div>
