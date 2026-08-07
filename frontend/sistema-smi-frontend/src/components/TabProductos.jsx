@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 export default function TablaProductos({
-  productoSeleccionado,
-  setProductoSeleccionado,
   paisDestino,
   setPaisDestino,
   categoria,
@@ -67,14 +65,6 @@ export default function TablaProductos({
 
   // Helper para obtener la clave primaria en Supabase
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
-  useEffect(() => {
-    if (
-      productosFiltrados.length > 0 &&
-      setProductoSeleccionado
-    ) {
-      setProductoSeleccionado(productosFiltrados[0]);
-    }
-  }, [productosFiltrados]);
 
   // 🔍 Lógica de Filtrado Dinámico para la Tabla (CON CORRECCIÓN DE TIPOS Y NOMBRES)
   const productosFiltrados = productos.filter((p) => {
