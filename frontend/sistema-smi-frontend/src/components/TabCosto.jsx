@@ -750,16 +750,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.ppdNorm}</td>
-                    <td className="p-3 text-right">{row.ctiNorm}</td>
-                    <td className="p-3 text-right">{row.cicNorm}</td>
+                    <td className="p-3 text-right">{row.ppdNorm !== null ? row.ppdNorm : '-'}</td>
+                    <td className="p-3 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
+                    <td className="p-3 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
                     <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
-                    Sin registros para calcular.
+                    No hay datos normalizados para este filtro.
                   </td>
                 </tr>
               )}
