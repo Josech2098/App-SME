@@ -178,23 +178,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const categoriaProd = item.categoria || item.category || item.codigo_arancelario || item.codigo || item.cat_id || item.id_categoria || '';
           const subcategoriaProd = item.subcategoria || item.subcategory || item.sub_id || '';
 
-          const catFiltroStr = typeof categoria === 'object' && categoria !== null ? (categoria?.id || categoria?.codigo || categoria?.categoria || '') : String(categoria || '');
-          const subCatFiltroStr = typeof subcategoria === 'object' && subcategoria !== null ? (subcategoria?.id || subcategoria?.codigo || subcategoria?.subcategoria || '') : String(subcategoria || '');
-
-          const catFiltroNorm = normalizarTexto(catFiltroStr);
-          const subCatFiltroNorm = normalizarTexto(subCatFiltroStr);
-
-          const esCatTodos = !catFiltroNorm || catFiltroNorm === 'todos' || catFiltroNorm === 'todas';
-          const coincideCat = esCatTodos || 
-            normalizarTexto(categoriaProd).includes(catFiltroNorm) || 
-            catFiltroNorm === normalizarTexto(categoriaProd) ||
-            isMatch(nombreProd, categoria);
-
-          const esSubTodos = !subCatFiltroNorm || subCatFiltroNorm === 'todos' || subCatFiltroNorm === 'todas';
-          const coincideSubCat = esSubTodos || 
-            normalizarTexto(subcategoriaProd).includes(subCatFiltroNorm) || 
-            isMatch(nombreProd, subcategoria);
-
+          // Usamos isMatch en lugar de comparaciones estrictas o includes simples para categoría y subcategoría
+          const coincideCat = isMatch(categoriaProd, categoria);
+          const coincideSubCat = isMatch(subcategoriaProd, subcategoria);
           const coincideQuery = !nombreProductoBuscado || isMatch(nombreProd, nombreProductoBuscado);
 
           if (coincideQuery && coincideCat && coincideSubCat) {
