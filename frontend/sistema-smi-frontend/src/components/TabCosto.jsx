@@ -158,7 +158,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const { data: dbProds, error: errProds } = await supabase.from('productos').select('*');
       if (errProds) throw errProds;
 
-      // Extraer nombre del producto activo
+      // Extraer nombre del producto activo o búsqueda manual
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
@@ -169,21 +169,53 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         nombreProductoBuscado = busqueda ?? '';
       }
 
+      // Extraer textos limpios de categoría y subcategoría para detección automática por nombre/texto
+      let catTexto = '';
+      if (typeof categoria === 'string') catTexto = categoria;
+      else if (categoria && typeof categoria === 'object') catTexto = categoria.nombre ?? categoria.label ?? categoria.categoria ?? categoria.codigo ?? '';
+
+      let subCatTexto = '';
+      if (typeof subcategoria === 'string') subCatTexto = subcategoria;
+      else if (subcategoria && typeof subcategoria === 'object') subCatTexto = subcategoria.nombre ?? subcategoria.label ?? subcategoria.subcategoria ?? subcategoria.codigo ?? '';
+
       let mapaPreciosTemp = {}; 
 
       if (dbProds) {
         dbProds.forEach(item => {
           const nombreProd = item.producto || item.nombre || item.titulo || item.descripcion || '';
-          
           const categoriaProd = item.categoria || item.category || item.codigo_arancelario || item.codigo || item.cat_id || item.id_categoria || '';
           const subcategoriaProd = item.subcategoria || item.subcategory || item.sub_id || '';
 
-          // Usamos isMatch en lugar de comparaciones estrictas o includes simples para categoría y subcategoría
+          // 1. Coincidencia estricta / semántica con los props directos de categoría y subcategoría
           const coincideCat = isMatch(categoriaProd, categoria);
           const coincideSubCat = isMatch(subcategoriaProd, subcategoria);
           const coincideQuery = !nombreProductoBuscado || isMatch(nombreProd, nombreProductoBuscado);
 
-          if (coincideQuery && coincideCat && coincideSubCat) {
+          // 2. Extracción inteligente: Si el filtro de categoría o subcategoría contiene palabras clave (ej: "2204 Vinos"),
+          // evaluamos si esas palabras aplican también sobre el nombre del producto para capturar registros asociados.
+          let matchPorTextoCategoria = false;
+          if (catTexto && catTexto.toLowerCase() !== 'todos') {
+            // Quitamos códigos numéricos iniciales para buscar por el texto descriptivo (ej. "2204 Vinos" -> "vinos")
+            const textoLimpioCat = normalizarTexto(catTexto);
+            const textoLimpioProd = normalizarTexto(nombreProd);
+            if (textoLimpioCat && (textoLimpioProd.includes(textoLimpioCat) || isMatch(nombreProd, catTexto))) {
+              matchPorTextoCategoria = true;
+            }
+          }
+
+          let matchPorTextoSubCategoria = false;
+          if (subCatTexto && subCatTexto.toLowerCase() !== 'todos') {
+            const textoLimpioSub = normalizarTexto(subCatTexto);
+            const textoLimpioProd = normalizarTexto(nombreProd);
+            if (textoLimpioSub && (textoLimpioProd.includes(textoLimpioSub) || isMatch(nombreProd, subCatTexto))) {
+              matchPorTextoSubCategoria = true;
+            }
+          }
+
+          // Condición integradora: El producto entra si cumple los filtros habituales O si su nombre se alinea con el texto descriptivo de categoría/subcategoría
+          const pasaFiltroGeneral = (coincideQuery && coincideCat && coincideSubCat) || matchPorTextoCategoria || matchPorTextoSubCategoria;
+
+          if (pasaFiltroGeneral) {
             const paisItem = item.pais || item.Pais || item.country;
 
             if (paisItem) {
