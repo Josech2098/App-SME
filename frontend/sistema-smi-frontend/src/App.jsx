@@ -123,6 +123,16 @@ export default function App() {
 
     setCategoria(codigo);
   };
+  useEffect(() => {
+    setDatosCosto([]);
+    setDatosLogi([]);
+    setDatosComm([]);
+    setDatosEcon([]);
+    setDatosPoli([]);
+    setDatosCult([]);
+    setDatosSust([]);
+    setDatosTablaTotal([]);
+  }, [productoSeleccionado]);
   const tabList = [
     "Productos",
     "Costo (COST)",
@@ -304,7 +314,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 1 && (
+          <div style={{ display: activeTab === 1 ? 'block' : 'none' }}>
             <TabCosto
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
@@ -314,7 +324,7 @@ export default function App() {
               paisOrigen={paisOrigen}
               onDatosActualizados={setDatosCosto}
             />
-          )}
+          </div>
 
           {activeTab === 2 && (
             <TabLogistica
