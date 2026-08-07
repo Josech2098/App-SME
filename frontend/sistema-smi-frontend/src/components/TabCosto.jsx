@@ -115,10 +115,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       const queryLimpia = String(nombreProductoBuscado).trim().toLowerCase();
       
-      // Normalizar filtros de categoría para evitar errores por formato (ej. "0406 - 0406 Queso...")
-      const catFiltro = categoria ? String(categoria).trim().toLowerCase() : '';
-      const subcatFiltro = subcategoria ? String(subcategoria).trim().toLowerCase() : '';
-      const catSeleccionadaLimpia = catFiltro.split('-')[0].trim();
+      // Extracción limpia del código de categoría y subcategoría (ej: "0406" y "040610")
+      const catFiltroStr = categoria ? String(categoria).trim() : '';
+      const subcatFiltroStr = subcategoria ? String(subcategoria).trim() : '';
+
+      const catCodigoBuscado = catFiltroStr.split(/[\s-]+/)[0].toLowerCase();
+      const subcatCodigoBuscado = subcatFiltroStr.split(/[\s-]+/)[0].toLowerCase();
 
       let mapaPreciosTemp = {}; // Objeto temporal para guardar arreglos de precios por país
 
@@ -127,23 +129,20 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const nombreProd = item.nombre || item.producto || item.titulo || '';
           const prodTabla = String(nombreProd).trim().toLowerCase();
 
-          // Normalizar categorías del ítem de la BD
-          const itemCat1 = String(item.categoria_codigo || '').trim().toLowerCase();
-          const itemCat2 = String(item.categoria || '').trim().toLowerCase();
-          const itemSub1 = String(item.subcategoria_codigo || '').trim().toLowerCase();
-          const itemSub2 = String(item.subcategoria || '').trim().toLowerCase();
+          // Valores guardados en la tabla productos
+          const itemCat = String(item.categoria_codigo || item.categoria || '').trim().toLowerCase();
+          const itemSubcat = String(item.subcategoria_codigo || item.subcategoria || '').trim().toLowerCase();
 
           // Evaluaciones
           const coincideQuery = !queryLimpia || prodTabla.includes(queryLimpia) || queryLimpia.includes(prodTabla);
           
-          const coincideCategoria = !catFiltro || catFiltro === 'todos' || 
-            itemCat1.includes(catSeleccionadaLimpia) || 
-            itemCat2.includes(catSeleccionadaLimpia) || 
-            catSeleccionadaLimpia.includes(itemCat1);
+          const coincideCategoria = !catFiltroStr || catFiltroStr.toLowerCase() === 'todos' || 
+            itemCat === catCodigoBuscado || 
+            itemCat.startsWith(catCodigoBuscado);
 
-          const coincideSubcategoria = !subcatFiltro || subcatFiltro === 'todos' || 
-            itemSub1.includes(subcatFiltro) || 
-            itemSub2.includes(subcatFiltro);
+          const coincideSubcategoria = !subcatFiltroStr || subcatFiltroStr.toLowerCase() === 'todos' || 
+            itemSubcat === subcatCodigoBuscado || 
+            itemSubcat.startsWith(subcatCodigoBuscado);
 
           if (coincideQuery && coincideCategoria && coincideSubcategoria) {
             const paisItem = item.pais || item.Pais;
@@ -164,7 +163,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         });
       }
 
-      // Promediar precios por país cuando hay múltiples productos en una categoría
+      // Promediar precios por país cuando hay múltiples productos en una categoría/subcategoría
       let mapaPreciosPorPais = {};
       Object.keys(mapaPreciosTemp).forEach(pais => {
         const precios = mapaPreciosTemp[pais];
