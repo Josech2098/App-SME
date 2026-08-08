@@ -497,7 +497,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <span>✏️</span> Editar producto
+                <span>✏️</span> Editar país
               </span>
               <span className="text-slate-400 text-xs">{activeAccordion === 'edit' ? '▴' : '▾'}</span>
             </button>
@@ -566,7 +566,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <span>🗑️</span> Eliminar producto
+                <span>🗑️</span> Eliminar país
               </span>
               <span className="text-slate-400 text-xs">{activeAccordion === 'delete' ? '▴' : '▾'}</span>
             </button>
