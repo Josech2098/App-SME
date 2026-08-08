@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { THEME } from '../path/to/theme.js'; // Ajusta la ruta según donde tengas tu theme.js
+import { THEME } from '../theme';
 
 export default function TablaProductos({
   paisDestino,
@@ -419,12 +419,14 @@ export default function TablaProductos({
 
         <div className="overflow-x-auto rounded-lg border shadow-sm" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
           <table className="w-full text-left text-xs" style={{ color: THEME.textSecondary }}>
-            <tr style={{ backgroundColor: THEME.panel, borderBottom: `1px solid ${THEME.border}`, color: THEME.textSecondary }}>
-              <th className="p-3 font-semibold">ID</th>
-              <th className="p-3 font-semibold">País</th>
-              <th className="p-3 font-semibold text-right">Precio (€)</th>
-              <th className="p-3 font-semibold">Producto</th>
-            </tr>
+            <thead>
+              <tr style={{ backgroundColor: THEME.panel, borderBottom: `1px solid ${THEME.border}`, color: THEME.textSecondary }}>
+                <th className="p-3 font-semibold">ID</th>
+                <th className="p-3 font-semibold">País</th>
+                <th className="p-3 font-semibold text-right">Precio (€)</th>
+                <th className="p-3 font-semibold">Producto</th>
+              </tr>
+            </thead>
             <tbody style={{ borderTop: `1px solid ${THEME.border}` }}>
               {loading ? (
                 <tr>
