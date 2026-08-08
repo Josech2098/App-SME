@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { THEME } from '../theme';
+import { THEME } from '../theme.js'; // Ajusta la ruta según la ubicación real de tu theme.js
 
 export default function TablaProductos({
   paisDestino,
@@ -210,12 +210,14 @@ export default function TablaProductos({
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
-            className="p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
             style={{
               backgroundColor: activeAccordion === 'add' ? THEME.panel : THEME.card,
               borderColor: activeAccordion === 'add' ? THEME.danger : THEME.border,
-              color: THEME.text
+              color: THEME.text,
+              borderWidth: '1px',
+              borderStyle: 'solid'
             }}
+            className="p-3 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
           >
             <span>{activeAccordion === 'add' ? '▼' : '❯'}</span> Añadir producto
           </button>
@@ -224,12 +226,14 @@ export default function TablaProductos({
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
-            className="p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
             style={{
               backgroundColor: activeAccordion === 'edit' ? THEME.panel : THEME.card,
               borderColor: activeAccordion === 'edit' ? THEME.warning : THEME.border,
-              color: THEME.text
+              color: THEME.text,
+              borderWidth: '1px',
+              borderStyle: 'solid'
             }}
+            className="p-3 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
           >
             <span>{activeAccordion === 'edit' ? '▼' : '❯'}</span> Editar producto existente
           </button>
@@ -238,12 +242,14 @@ export default function TablaProductos({
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
-            className="p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
             style={{
               backgroundColor: activeAccordion === 'delete' ? THEME.panel : THEME.card,
               borderColor: activeAccordion === 'delete' ? THEME.danger : THEME.border,
-              color: THEME.text
+              color: THEME.text,
+              borderWidth: '1px',
+              borderStyle: 'solid'
             }}
+            className="p-3 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
           >
             <span>{activeAccordion === 'delete' ? '▼' : '❯'}</span> Eliminar producto existente
           </button>
