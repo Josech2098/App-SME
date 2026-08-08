@@ -210,36 +210,39 @@ export default function TablaProductos({
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Botón Añadir */}
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
             className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
               activeAccordion === 'add'
-                ? 'bg-slate-800 border-red-500 text-white'
+                ? '!bg-slate-800 !border-red-500 text-white shadow-md shadow-red-500/10'
                 : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
             }`}
           >
             <span>{activeAccordion === 'add' ? '▼' : '❯'}</span> Añadir producto
           </button>
 
+          {/* Botón Editar */}
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
             className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
               activeAccordion === 'edit'
-                ? 'bg-slate-800 border-amber-500 text-white'
+                ? '!bg-slate-800 !border-amber-500 text-white shadow-md shadow-amber-500/10'
                 : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
             }`}
           >
             <span>{activeAccordion === 'edit' ? '▼' : '❯'}</span> Editar producto existente
           </button>
 
+          {/* Botón Eliminar */}
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
             className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
               activeAccordion === 'delete'
-                ? 'bg-slate-800 border-red-500 text-white'
+                ? '!bg-slate-800 !border-red-500 text-white shadow-md shadow-red-500/10'
                 : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
             }`}
           >
