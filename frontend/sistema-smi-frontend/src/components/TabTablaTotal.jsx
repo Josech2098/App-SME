@@ -251,11 +251,12 @@ const sumaPesos = Object.values(pesosCat)
 
   return (
 
-    <div className="space-y-10 text-slate-100">
-      <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4">
+    <div className="space-y-10 text-slate-100 font-sans">
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
 
         <div>
-          <h3 className="text-xl font-bold text-white">
+          <span className="text-xs uppercase tracking-wider text-sky-400 font-semibold">Módulo de Ponderación</span>
+          <h3 className="text-xl font-bold text-white mt-1">
             Ajuste manual de ponderaciones (IMSFE)
           </h3>
 
@@ -279,10 +280,10 @@ const sumaPesos = Object.values(pesosCat)
 
             <div
               key={cat}
-              className="bg-[#0d1117] border border-slate-800 rounded-lg p-3"
+              className="bg-[#0d1017] border border-[#1b2230] rounded-lg p-3"
             >
 
-              <label className="block text-xs font-semibold mb-2">
+              <label className="block text-xs font-semibold mb-2 text-slate-300">
                 {label}
               </label>
 
@@ -295,7 +296,7 @@ const sumaPesos = Object.values(pesosCat)
                   onChange={(e) =>
                     handlePesoChange(cat, e.target.value)
                   }
-                  className="flex-1 bg-[#181a20] border border-slate-700 rounded px-2 py-1 text-sm"
+                  className="flex-1 bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                 />
 
                 <button
@@ -305,7 +306,7 @@ const sumaPesos = Object.values(pesosCat)
                       pesosCat[cat] - 0.5
                     )
                   }
-                  className="px-2 py-1 bg-slate-700 rounded"
+                  className="px-2.5 py-1.5 bg-[#1b2230] hover:bg-[#252f44] text-slate-200 rounded text-xs transition-colors cursor-pointer"
                 >
                   −
                 </button>
@@ -317,7 +318,7 @@ const sumaPesos = Object.values(pesosCat)
                       pesosCat[cat] + 0.5
                     )
                   }
-                  className="px-2 py-1 bg-slate-700 rounded"
+                  className="px-2.5 py-1.5 bg-[#1b2230] hover:bg-[#252f44] text-slate-200 rounded text-xs transition-colors cursor-pointer"
                 >
                   +
                 </button>
@@ -332,14 +333,14 @@ const sumaPesos = Object.values(pesosCat)
 
         {sumaPesos !== 100 ? (
 
-          <div className="bg-red-900/20 border border-red-800 rounded p-3 text-red-400 text-xs">
+          <div className="bg-red-950/40 border border-red-900/50 rounded p-3 text-red-400 text-xs">
             La suma actual es {sumaPesos.toFixed(1)}%.
             Debe ser exactamente 100%.
           </div>
 
         ) : (
 
-          <div className="bg-emerald-900/20 border border-emerald-800 rounded p-3 text-emerald-400 text-xs">
+          <div className="bg-emerald-950/40 border border-emerald-900/50 rounded p-3 text-emerald-400 text-xs">
             Ponderaciones válidas (100%).
           </div>
 
@@ -360,7 +361,7 @@ const sumaPesos = Object.values(pesosCat)
               setPesosAplicados({ ...pesosCat });
 
             }}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
+            className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer shadow"
           >
             Calcular
           </button>
@@ -382,7 +383,7 @@ const sumaPesos = Object.values(pesosCat)
               setPesosAplicados(pesosOriginales);
 
             }}
-            className="bg-red-600 hover:bg-red-500 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
+            className="bg-[#1b2230] hover:bg-[#252f44] text-slate-200 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#2d3748]"
           >
             Reiniciar
           </button>
@@ -391,24 +392,24 @@ const sumaPesos = Object.values(pesosCat)
 
       {/* TABLA GENERAL */}
 
-      <div>
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
 
-        <h2 className="text-2xl font-bold">
-          Tabla General de Evaluación de Países
-        </h2>
+        <div>
+          <h2 className="text-lg font-bold text-white">
+            Tabla General de Evaluación de Países
+          </h2>
 
-        <p className="text-xs text-slate-400 mt-2">
-          Consolidación automática de COST,
-          LOGI, COMM, ECON, POLI, CULT y SUST
-        </p>
+          <p className="text-xs text-slate-400 mt-1">
+            Consolidación automática de COST,
+            LOGI, COMM, ECON, POLI, CULT y SUST
+          </p>
+        </div>
 
-      </div>
+      <div className="overflow-y-auto h-[450px] border border-[#1b2230] rounded-xl">
 
-      <div className="overflow-y-auto h-[450px] border border-slate-800 rounded-xl">
+        <table className="w-full text-xs text-slate-300 border-collapse">
 
-        <table className="w-full text-xs">
-
-          <thead className="bg-[#181a20] sticky top-0 z-10">
+          <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
 
             <tr>
 
@@ -426,7 +427,7 @@ const sumaPesos = Object.values(pesosCat)
               <th className="p-3">CULT</th>
               <th className="p-3">SUST</th>
 
-              <th className="p-3 text-emerald-400">
+              <th className="p-3 text-sky-400">
                 TOTAL
               </th>
 
@@ -434,20 +435,20 @@ const sumaPesos = Object.values(pesosCat)
 
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-[#1b2230]">
 
             {datosFinales.map((row, index) => (
 
               <tr
                 key={row.pais}
-                className="border-t border-slate-800 hover:bg-[#16181d]"
+                className="hover:bg-[#181f2d] transition-colors"
               >
 
-                <td className="p-3">
+                <td className="p-3 text-slate-500">
                   {index + 1}
                 </td>
 
-                <td className="p-3 font-semibold">
+                <td className="p-3 font-semibold text-white">
                   {row.pais}
                 </td>
 
@@ -479,7 +480,7 @@ const sumaPesos = Object.values(pesosCat)
                   {row.SUST.toFixed(2)}
                 </td>
 
-                <td className="p-3 font-bold text-emerald-400">
+                <td className="p-3 font-bold text-sky-400">
                   {row.TOTAL.toFixed(2)}
                 </td>
 
@@ -492,20 +493,24 @@ const sumaPesos = Object.values(pesosCat)
         </table>
 
       </div>
+      </div>
 
       {/* RANKING */}
 
-      <div>
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
 
-        <h2 className="text-2xl font-bold mb-4">
-          Tabla Resumen — Puntaje Total
-        </h2>
+        <div>
+          <h2 className="text-lg font-bold text-white">
+            Tabla Resumen — Puntaje Total
+          </h2>
+          <p className="text-xs text-slate-400 mt-1">Ranking consolidado final por país</p>
+        </div>
 
-        <div className="overflow-y-auto h-[450px] border border-slate-800 rounded-xl">
+        <div className="overflow-y-auto h-[450px] border border-[#1b2230] rounded-xl">
 
-          <table className="w-full text-xs">
+          <table className="w-full text-xs text-slate-300 border-collapse">
 
-            <thead className="bg-[#181a20] sticky top-0 z-10">
+            <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
 
               <tr>
 
@@ -517,7 +522,7 @@ const sumaPesos = Object.values(pesosCat)
                   País
                 </th>
 
-                <th className="p-3 text-emerald-400">
+                <th className="p-3 text-sky-400">
                   Puntaje Total
                 </th>
 
@@ -525,24 +530,24 @@ const sumaPesos = Object.values(pesosCat)
 
             </thead>
 
-            <tbody>
+            <tbody className="divide-y divide-[#1b2230]">
 
               {datosFinales.map((row, index) => (
 
                 <tr
                   key={`ranking-${row.pais}`}
-                  className="border-t border-slate-800 hover:bg-[#16181d]"
+                  className="hover:bg-[#181f2d] transition-colors"
                 >
 
-                  <td className="p-3 font-bold">
+                  <td className="p-3 font-bold text-slate-400">
                     {index + 1}
                   </td>
 
-                  <td className="p-3">
+                  <td className="p-3 font-medium text-white">
                     {row.pais}
                   </td>
 
-                  <td className="p-3 font-bold text-emerald-400">
+                  <td className="p-3 font-bold text-sky-400">
                     {row.TOTAL.toFixed(2)}
                   </td>
 
