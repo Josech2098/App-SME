@@ -73,18 +73,18 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return R * c;
   };
 
-  // Cálculo automático del TTI evaluando de manera robusta el diccionario y los puertos
+  // Cálculo automático del TTI evaluando de manera robusta el diccionario y los puertos (Corregido sin límite forzoso de 1 día)
   const calcularTtiAutomaticoTabla = (nombrePaisLlegada, diccionarioTti) => {
     const normLlegada = normalizarTexto(nombrePaisLlegada);
 
-    // 1. Revisar si existe un cálculo manual para este país en el diccionario actual (ignorando tildes/mayúsculas)
+    // 1. Revisar si existe un cálculo manual para este país en el diccionario actual
     for (const [key, value] of Object.entries(diccionarioTti)) {
       if (normalizarTexto(key) === normLlegada) {
         return value;
       }
     }
 
-    if (!nombrePaisLlegada || puertosData.length === 0) return '11.2 días';
+    if (!nombrePaisLlegada || puertosData.length === 0) return '0.0 días';
 
     // Puerto de origen (busca el principal o toma el primero)
     const puertoO = puertosData.find(p => p.principal === 'Y') || puertosData[0];
@@ -93,13 +93,15 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const puertoD = puertosData.find(p => normalizarTexto(p.pais) === normLlegada && p.principal === 'Y')
                  || puertosData.find(p => normalizarTexto(p.pais) === normLlegada);
 
-    if (!puertoO || !puertoD) return '11.2 días';
+    if (!puertoO || !puertoD) return '0.0 días';
 
     const distNm = calcularDistanciaNautica(puertoO.latitud, puertoO.longitud, puertoD.latitud, puertoD.longitud);
+    if (distNm === 0) return '0.0 días';
+
     const horasNavegacion = distNm / 18.50; 
     const diasNavegacion = horasNavegacion / 24;
     const manejoDias = (Number(puertoD.manejo_dias) || 0) + (Number(puertoO.manejo_dias) || 0);
-    const totalDias = Math.max(1, diasNavegacion + manejoDias);
+    const totalDias = diasNavegacion + manejoDias;
 
     return `${totalDias.toFixed(1)} días`;
   };
@@ -195,7 +197,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
     const MAX_IDL = Math.max(...idkVals);
     const MAX_CCP = Math.max(...ccpVals);
-    const MIN_TTI = Math.min(...ttiVals);
+    const MIN_TTI = ttiVals.length > 0 ? Math.min(...ttiVals) : 1;
 
     const A3 = 10;
 
@@ -373,7 +375,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const horasNavegacion = distNm / vel;
     const diasNavegacion = horasNavegacion / 24;
     const manejoDias = (Number(pD.manejo_dias) || 0) + (Number(pO.manejo_dias) || 0);
-    const totalDias = Math.max(1, diasNavegacion + manejoDias);
+    const totalDias = diasNavegacion + manejoDias;
 
     const formatoDias = `${totalDias.toFixed(1)} días`;
 
@@ -693,7 +695,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
                   const MAX_IDL = idkVals.length > 0 ? Math.max(...idkVals) : 5.0;          
                   const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : 300000000;  
-                  const MIN_TTI = ttiVals.length > 0 ? Math.min(...ttiVals) : 5.0; 
+                  const MIN_TTI = ttiVals.length > 0 ? Math.min(...ttiVals) : 1.0; 
                   const A3 = 10;
 
                   const tablaOrdenadaBD = tablaLogi.map((row) => {
@@ -739,39 +741,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             </table>
           </div>
         )}
-      </div>
-
-      {/* ================= TABLA LOGÍSTICA NORMALIZADA ================= */}
-      <div className="space-y-2 pt-2">
-        <h3 className="text-base font-bold text-white">Tabla Logística Normalizada (LOGI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones actualizadas: IDL=18.50% | CCP=18.50% | TTI=63.00%</p>
-
-        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
-          <table className="w-full text-left text-xs text-slate-300 relative">
-            <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
-              <tr>
-                <th className="p-3 w-12 bg-[#151824]">#</th>
-                <th className="p-3 bg-[#151824]">País</th>
-                <th className="p-3 bg-[#151824]">IDL Norm</th>
-                <th className="p-3 bg-[#151824]">CCP Norm</th>
-                <th className="p-3 bg-[#151824]">TTI Norm</th>
-                <th className="p-3 bg-[#151824]">Costo Total Logístico Norm</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
-              {datosLogisticaNormalizados.map((row, index) => (
-                <tr key={index} className="hover:bg-[#151824] transition-colors">
-                  <td className="p-3 text-slate-500">{index + 1}</td>
-                  <td className="p-3 font-medium text-white">{row.Paises}</td>
-                  <td className="p-3">{row.idlNorm}</td>
-                  <td className="p-3">{row.ccpNorm}</td>
-                  <td className="p-3">{row.ttiNorm}</td>
-                  <td className="p-3 text-emerald-400 font-bold">${row.costoTotal}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
 
     </div>
