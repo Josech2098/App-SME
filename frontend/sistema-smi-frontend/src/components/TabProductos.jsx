@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
+import { THEME } from '../theme';
 
 export default function TablaProductos({
   paisDestino,
