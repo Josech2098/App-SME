@@ -449,7 +449,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <select
             value={paisBase}
             onChange={(e) => setPaisBase(e.target.value)}
-            className="w-full bg-[#1e2028] border border-slate-700/80 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
+            className="w-full bg-[#0e1117] border border-slate-800 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-700 appearance-none cursor-pointer"
           >
             {listaPaises.map((p) => (
               <option key={p.id || p.nombre} value={p.nombre}>
@@ -475,9 +475,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('add')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
+              className="w-full px-4 py-3 text-left text-sm font-medium text-emerald-400 hover:bg-[#16181e] transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Añadir país y coordenadas
+              <span className="flex items-center gap-2 font-bold">
+                <span className="text-emerald-400">+</span> AÑADIR PAÍS
+              </span>
+              <span className="text-emerald-400 text-xs">▼</span>
             </button>
             {activeAccordion === 'add' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
@@ -488,7 +491,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     value={nuevoPaisNombre}
                     onChange={(e) => setNuevoPaisNombre(e.target.value)}
                     placeholder="Ej. Panamá"
-                    className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                    className="w-full bg-[#0e1117] border border-slate-800 rounded p-2 text-white"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -499,7 +502,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       value={nuevaLatitud}
                       onChange={(e) => setNuevaLatitud(e.target.value)}
                       placeholder="8.5379"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0e1117] border border-slate-800 rounded p-2 text-white"
                     />
                   </div>
                   <div>
@@ -509,7 +512,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       value={nuevaLongitud}
                       onChange={(e) => setNuevaLongitud(e.target.value)}
                       placeholder="-80.7821"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0e1117] border border-slate-800 rounded p-2 text-white"
                     />
                   </div>
                   <div>
@@ -519,13 +522,13 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       value={nuevoCic}
                       onChange={(e) => setNuevoCic(e.target.value)}
                       placeholder="220"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0e1117] border border-slate-800 rounded p-2 text-white"
                     />
                   </div>
                 </div>
                 <button
                   onClick={handleAgregarPais}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors font-bold"
                 >
                   Guardar
                 </button>
@@ -537,16 +540,19 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('edit')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
+              className="w-full px-4 py-3 text-left text-sm font-medium text-amber-400 hover:bg-[#16181e] transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'edit' ? '˅' : '❯'}</span> Editar país existente
+              <span className="flex items-center gap-2 font-bold">
+                <span>✏️</span> EDITAR PAÍS
+              </span>
+              <span className="text-amber-400 text-xs">▼</span>
             </button>
             {activeAccordion === 'edit' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
                 <select
                   onChange={(e) => handleSelectEdit(e.target.value)}
                   value={selectedPaisId}
-                  className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white cursor-pointer"
+                  className="w-full bg-[#0e1117] border border-slate-800 p-2 rounded text-xs text-white cursor-pointer"
                 >
                   <option value="">-- Selecciona un país --</option>
                   {listaPaises.map(p => (
@@ -565,7 +571,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                           type="text"
                           value={editLatitud}
                           onChange={(e) => setEditLatitud(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0e1117] border border-slate-800 p-2 rounded text-white"
                         />
                       </div>
                       <div>
@@ -574,7 +580,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                           type="text"
                           value={editLongitud}
                           onChange={(e) => setEditLongitud(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0e1117] border border-slate-800 p-2 rounded text-white"
                         />
                       </div>
                       <div>
@@ -583,13 +589,13 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                           type="number"
                           value={editCic}
                           onChange={(e) => setEditCic(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0e1117] border border-slate-800 p-2 rounded text-white"
                         />
                       </div>
                     </div>
                     <button 
                       onClick={handleGuardarCambios}
-                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium cursor-pointer transition-colors"
+                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-bold cursor-pointer transition-colors"
                     >
                       Actualizar
                     </button>
@@ -603,9 +609,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('delete')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
+              className="w-full px-4 py-3 text-left text-sm font-medium text-red-400 hover:bg-[#16181e] transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'delete' ? '˅' : '❯'}</span> Eliminar país
+              <span className="flex items-center gap-2 font-bold">
+                <span>🗑️</span> ELIMINAR PAÍS
+              </span>
+              <span className="text-red-400 text-xs">▼</span>
             </button>
             {activeAccordion === 'delete' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
@@ -615,7 +624,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       <span className="text-slate-200 font-medium">{p.nombre}</span>
                       <button
                         onClick={() => handleEliminarPais(p.id, p.nombre)}
-                        className="bg-red-600/80 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] cursor-pointer"
+                        className="bg-red-600/80 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold cursor-pointer"
                       >
                         Eliminar
                       </button>
