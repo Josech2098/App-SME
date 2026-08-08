@@ -139,8 +139,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       const { data: logiData, error: errLogi } = await supabase
         .from('tabLogi')
-        .select('*')
-        .order('pais', { ascending: true });
+        .select('*');
 
       if (errLogi) throw errLogi;
 
@@ -166,6 +165,23 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             datosFinales = filtradosPorDestino;
           }
         }
+
+        // ORDENAMIENTO: Los países con datos incompletos o vacíos quedan al final
+        datosFinales.sort((a, b) => {
+          const ttiA = calcularTtiParaFila(a.Paises);
+          const ttiB = calcularTtiParaFila(b.Paises);
+          const idlA = Number(a['Índice de Desempeño Logístico (IDL)']) || 0;
+          const idlB = Number(b['Índice de Desempeño Logístico (IDL)']) || 0;
+          const ccpA = Number(a['Calidad de las carreteras por país (CCP)']) || 0;
+          const ccpB = Number(b['Calidad de las carreteras por país (CCP)']) || 0;
+
+          const tieneDatosA = ttiA !== '-' && idlA > 0 && ccpA > 0;
+          const tieneDatosB = ttiB !== '-' && idlB > 0 && ccpB > 0;
+
+          if (tieneDatosA && !tieneDatosB) return -1; // A va primero
+          if (!tieneDatosA && tieneDatosB) return 1;  // B va primero
+          return a.Paises.localeCompare(b.Paises);    // Orden alfabético por defecto si ambos tienen o no tienen datos
+        });
 
         setTablaLogi(datosFinales);
       }
