@@ -48,8 +48,8 @@ function normalizarTexto(texto) {
   return String(texto)
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Quitar tildes
-    .replace(/^\d+[\s-]*/, '')        // Quitar códigos iniciales (ej: "0406 - ")
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^\d+[\s-]*/, '')
     .trim();
 }
 
@@ -91,13 +91,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     fetchPaises();
   }, []);
 
-  // Función principal para cargar datos y calcular la matriz usando la lógica unificada
   const cargarYCalcularMatriz = useCallback(async () => {
     setLoading(true);
     setErrorLog(null);
 
     try {
-      // 1. Obtener países
       const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
       if (errPaises) throw errPaises;
       if (!dbPaises || dbPaises.length === 0) {
@@ -106,22 +104,18 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         return;
       }
 
-      // 2. Obtener costos de importación (CIC)
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) console.warn("Aviso en CIC:", errCIC);
 
-      // 3. Obtener registros de la tabla 'productos'
       const { data: dbProds, error: errProds } = await supabase.from('productos').select('*');
       if (errProds) throw errProds;
 
-      // 4. Cargar palabras clave de categorías
       const { data: categoriasKeywords, error: errCategorias } = await supabase
         .from('productos_categoria')
         .select('*');
 
       if (errCategorias) throw errCategorias;
 
-      // 5. Crear las palabras clave de la categoría seleccionada
       const palabrasCategoria =
         categoria && categoria !== 'Todos'
           ? (categoriasKeywords || [])
@@ -129,7 +123,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               .map(k => String(k.palabra_clave || '').toLowerCase())
           : [];
 
-      // 6. Crear las palabras clave de la subcategoría seleccionada
       const palabrasSubcategoria =
         subcategoria && subcategoria !== 'Todos'
           ? (categoriasKeywords || [])
@@ -137,7 +130,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               .map(k => String(k.palabra_clave || '').toLowerCase())
           : [];
 
-      // Extraer nombre del producto activo o búsqueda manual
       let nombreProductoBuscado = '';
       if (typeof productoActivo === 'string') {
         nombreProductoBuscado = productoActivo;
@@ -160,7 +152,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             ''
           ).toLowerCase();
 
-          // Validación de filtros por categoría, subcategoría y búsqueda
           const coincideCategoria =
             categoria === 'Todos' ||
             palabrasCategoria.length === 0 ||
@@ -210,7 +201,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // 7. Consolidar datos por país
       const datosConsolidados = dbPaises
         .map((p) => {
           const nombreKey = p.nombre.trim().toLowerCase();
@@ -246,19 +236,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     }
   }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
 
-  // DISPARADOR PRINCIPAL: Se ejecuta cada vez que cambia cualquier filtro o el país base
   useEffect(() => {
     cargarYCalcularMatriz();
   }, [cargarYCalcularMatriz]);
 
-  // ----------------------------------------------------
-  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
-  // ----------------------------------------------------
-  const PESO_FACTOR_COSTO = 0.215; // 21.50%
-
-  const PESO_PPD = 0.44; // 44.00%
-  const PESO_CTI = 0.34; // 34.00%
-  const PESO_CIC = 0.22; // 22.00%
+  const PESO_FACTOR_COSTO = 0.215;
+  const PESO_PPD = 0.44;
+  const PESO_CTI = 0.34;
+  const PESO_CIC = 0.22;
   const PUNTAJE_MAXIMO = 10;
 
   const { maxPpd, minCti, minCic } = useMemo(() => {
@@ -300,7 +285,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const p3 = cicNorm ?? 0;
 
       const aporteFactorCosto = Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
-
       const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
 
       return {
@@ -325,7 +309,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   const matrizFiltrada = matrizCalculadaCompleta;
 
-  // Sincronización segura con el componente padre usando dependencias estables
   useEffect(() => {
     if (onDatosActualizados && matrizCalculadaCompleta.length > 0) {
       const datosString = JSON.stringify(matrizCalculadaCompleta);
@@ -352,12 +335,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   async function handleAgregarPais() {
     if (!nuevoPaisNombre) return alert("Por favor ingresa el nombre del país.");
-
     try {
       const { error: errP } = await supabase
         .from('paises')
         .insert([{ nombre: nuevoPaisNombre, latitud: nuevaLatitud, longitud: nuevaLongitud }]);
-
       if (errP) throw errP;
 
       if (nuevoCic) {
@@ -377,7 +358,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   async function handleGuardarCambios() {
     if (!selectedPaisId) return alert("Selecciona un país para editar.");
-
     const target = datosProductos.find(p => p.id === parseInt(selectedPaisId) || p.id === selectedPaisId);
     if (!target) return;
 
@@ -386,13 +366,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         .from('paises')
         .update({ latitud: editLatitud, longitud: editLongitud })
         .eq('id', selectedPaisId);
-
       if (errP) throw errP;
 
       const { error: errC } = await supabase
         .from('costo_importacion')
         .upsert({ pais: target.pais_nombre, valor: parseFloat(editCic) || 0 }, { onConflict: 'pais' });
-
       if (errC) throw errC;
 
       setSelectedPaisId(''); setEditLatitud(''); setEditLongitud(''); setEditCic('');
@@ -405,11 +383,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   async function handleEliminarPais(id, nombrePais) {
     if (!window.confirm(`¿Seguro que deseas eliminar los datos de ${nombrePais}?`)) return;
-
     try {
       await supabase.from('paises').delete().eq('id', id);
       await supabase.from('costo_importacion').delete().eq('pais', nombrePais);
-
       setActiveAccordion(null);
       cargarYCalcularMatriz();
     } catch (err) {
@@ -430,130 +406,107 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     (categoria && extraerNombreLegible(categoria) !== 'Todos' ? `Categoría: ${extraerNombreLegible(categoria)}` : 'Todos los productos');
 
   return (
-    <div className="space-y-8 text-slate-100 font-sans">
+    <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
       
-      {/* TÍTULO PRINCIPAL */}
-      <div className="flex justify-between items-start border-b border-slate-800 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            1. Costo (COSTO) — Estandarización de Criterios
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">21.50%</span>
-            <span className="ml-3 text-slate-300">
-              • Filtro Activo: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
-            </span>
-          </p>
-        </div>
-      </div>
-
-      {/* SELECTOR DE PAÍS BASE */}
-      <div className="space-y-2">
-        <label className="block text-xl font-bold text-white">
-          Selecciona el país base (Origen para transporte CTI)
-        </label>
-        <div className="relative">
-          <select
-            value={paisBase}
-            onChange={(e) => setPaisBase(e.target.value)}
-            className="w-full bg-[#1e2028] border border-slate-700/80 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
-          >
-            {listaPaises.map((p) => (
-              <option key={p.id || p.nombre} value={p.nombre}>
-                {p.nombre}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-            ▼
+      {/* 1. PANEL DE GESTIÓN (Barra Superior Estilo Tarjeta) */}
+      <div className="bg-[#121620] border border-[#1e2536] rounded-xl p-4 shadow-sm space-y-4">
+        
+        {/* Encabezado del Panel */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-[#1e2536] pb-3">
+          <div className="flex items-center gap-2 text-white font-bold text-base">
+            <span>⚙️</span>
+            <span>PANEL DE GESTIÓN DE PRODUCTOS</span>
+          </div>
+          <div className="bg-[#192233] text-[#93c5fd] border border-[#26354a] text-xs px-3 py-1.5 rounded-lg font-medium">
+            Módulo Activo
           </div>
         </div>
-      </div>
 
-      {/* GESTIÓN DE DATOS */}
-      <div className="space-y-4 pt-2">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <span>🔧</span> Gestión de Datos (Tabla COSTO)
-        </h2>
-
+        {/* Botones Acordeón Superiores */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           
           {/* Añadir */}
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+          <div className="bg-[#161c29] border border-[#222c40] rounded-lg overflow-hidden transition-all">
             <button
               onClick={() => toggleAccordion('add')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
+              className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Añadir país y coordenadas
+              <span className="flex items-center gap-2">
+                <span className="text-emerald-400 font-bold">+</span> Añadir producto
+              </span>
+              <span className="text-slate-400 text-xs">{activeAccordion === 'add' ? '▴' : '▾'}</span>
             </button>
             {activeAccordion === 'add' && (
-              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
+              <div className="p-4 border-t border-[#222c40] space-y-3 bg-[#131824] text-xs">
                 <div>
-                  <label className="block text-slate-400 mb-1">Nombre del País</label>
+                  <label className="block text-slate-400 mb-1 font-medium">Nombre del País</label>
                   <input
                     type="text"
                     value={nuevoPaisNombre}
                     onChange={(e) => setNuevoPaisNombre(e.target.value)}
                     placeholder="Ej. Panamá"
-                    className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                    className="w-full bg-[#0b0e14] border border-[#222c40] rounded p-2 text-white focus:outline-none focus:border-slate-500"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-slate-400 mb-1">Latitud</label>
+                    <label className="block text-slate-400 mb-1 font-medium">Latitud</label>
                     <input
                       type="text"
                       value={nuevaLatitud}
                       onChange={(e) => setNuevaLatitud(e.target.value)}
                       placeholder="8.5379"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0b0e14] border border-[#222c40] rounded p-2 text-white focus:outline-none focus:border-slate-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">Longitud</label>
+                    <label className="block text-slate-400 mb-1 font-medium">Longitud</label>
                     <input
                       type="text"
                       value={nuevaLongitud}
                       onChange={(e) => setNuevaLongitud(e.target.value)}
                       placeholder="-80.7821"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0b0e14] border border-[#222c40] rounded p-2 text-white focus:outline-none focus:border-slate-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">CIC ($)</label>
+                    <label className="block text-slate-400 mb-1 font-medium">CIC ($)</label>
                     <input
                       type="number"
                       value={nuevoCic}
                       onChange={(e) => setNuevoCic(e.target.value)}
                       placeholder="220"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0b0e14] border border-[#222c40] rounded p-2 text-white focus:outline-none focus:border-slate-500"
                     />
                   </div>
                 </div>
                 <button
                   onClick={handleAgregarPais}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors"
                 >
-                  Guardar
+                  Guardar País
                 </button>
               </div>
             )}
           </div>
 
           {/* Editar */}
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+          <div className="bg-[#161c29] border border-[#222c40] rounded-lg overflow-hidden transition-all">
             <button
               onClick={() => toggleAccordion('edit')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
+              className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'edit' ? '˅' : '❯'}</span> Editar país existente
+              <span className="flex items-center gap-2">
+                <span>✏️</span> Editar producto
+              </span>
+              <span className="text-slate-400 text-xs">{activeAccordion === 'edit' ? '▴' : '▾'}</span>
             </button>
             {activeAccordion === 'edit' && (
-              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
+              <div className="p-4 border-t border-[#222c40] space-y-3 bg-[#131824] text-xs">
                 <select
                   onChange={(e) => handleSelectEdit(e.target.value)}
                   value={selectedPaisId}
-                  className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white cursor-pointer"
+                  className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-xs text-white cursor-pointer focus:outline-none"
                 >
                   <option value="">-- Selecciona un país --</option>
                   {listaPaises.map(p => (
@@ -567,30 +520,30 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-slate-400 block mb-1">Latitud</label>
+                        <label className="text-slate-400 block mb-1 font-medium">Latitud</label>
                         <input
                           type="text"
                           value={editLatitud}
                           onChange={(e) => setEditLatitud(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-white focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">Longitud</label>
+                        <label className="text-slate-400 block mb-1 font-medium">Longitud</label>
                         <input
                           type="text"
                           value={editLongitud}
                           onChange={(e) => setEditLongitud(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-white focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">CIC ($)</label>
+                        <label className="text-slate-400 block mb-1 font-medium">CIC ($)</label>
                         <input
                           type="number"
                           value={editCic}
                           onChange={(e) => setEditCic(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-white focus:outline-none"
                         />
                       </div>
                     </div>
@@ -598,7 +551,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       onClick={handleGuardarCambios}
                       className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium cursor-pointer transition-colors"
                     >
-                      Actualizar
+                      Actualizar Cambios
                     </button>
                   </>
                 )}
@@ -607,22 +560,25 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           </div>
 
           {/* Eliminar */}
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+          <div className="bg-[#161c29] border border-[#222c40] rounded-lg overflow-hidden transition-all">
             <button
               onClick={() => toggleAccordion('delete')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2 cursor-pointer"
+              className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'delete' ? '˅' : '❯'}</span> Eliminar país
+              <span className="flex items-center gap-2">
+                <span>🗑️</span> Eliminar producto
+              </span>
+              <span className="text-slate-400 text-xs">{activeAccordion === 'delete' ? '▴' : '▾'}</span>
             </button>
             {activeAccordion === 'delete' && (
-              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
-                <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+              <div className="p-4 border-t border-[#222c40] space-y-3 bg-[#131824] text-xs">
+                <div className="max-h-40 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                   {listaPaises.map(p => (
-                    <div key={p.id} className="flex justify-between items-center bg-[#0e1117] p-2 rounded border border-slate-800">
+                    <div key={p.id} className="flex justify-between items-center bg-[#0b0e14] p-2 rounded border border-[#222c40]">
                       <span className="text-slate-200 font-medium">{p.nombre}</span>
                       <button
                         onClick={() => handleEliminarPais(p.id, p.nombre)}
-                        className="bg-red-600/80 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] cursor-pointer"
+                        className="bg-red-600/80 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] font-medium cursor-pointer transition-colors"
                       >
                         Eliminar
                       </button>
@@ -634,6 +590,43 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           </div>
 
         </div>
+
+      </div>
+
+      {/* SELECTOR DE PAÍS BASE Y DESCRIPCIÓN */}
+      <div className="bg-[#121620] border border-[#1e2536] rounded-xl p-4 space-y-3">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-white tracking-wide uppercase">
+              1. Costo (COSTO) — Estandarización de Criterios
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Ponderación del Factor: <span className="text-emerald-400 font-bold">21.50%</span> | Filtro Activo: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
+            </p>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
+            Selecciona el país base (Origen para transporte CTI)
+          </label>
+          <div className="relative">
+            <select
+              value={paisBase}
+              onChange={(e) => setPaisBase(e.target.value)}
+              className="w-full bg-[#0b0e14] border border-[#1e2536] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
+            >
+              {listaPaises.map((p) => (
+                <option key={p.id || p.nombre} value={p.nombre}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+              ▼
+            </div>
+          </div>
+        </div>
       </div>
 
       {errorLog && (
@@ -642,99 +635,110 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         </div>
       )}
 
-      {/* TABLA DE COSTOS BASE */}
-      <div className="space-y-4 pt-2">
-        <h2 className="text-2xl font-bold text-white">
-          Tabla de Costos Base
-        </h2>
+      {/* 2. TABLA DE COSTOS BASE (Estilo Exacto de la Imagen) */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-sm font-bold text-white">
+            Listado de Costos Base <span className="text-xs font-normal text-slate-500">(Haz clic en una fila para seleccionarla)</span>
+          </h3>
+          <span className="text-xs text-slate-400 font-mono">
+            Mostrando <strong className="text-slate-200">{matrizFiltrada.length}</strong> de <strong className="text-slate-200">{matrizFiltrada.length}</strong> registros
+          </span>
+        </div>
 
-        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-slate-400">
-                <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-3 font-medium text-slate-300">Países</th>
-                <th className="p-3 text-right font-medium text-slate-300">Precio Producto Destino (PPD)</th>
-                <th className="p-3 text-right font-medium text-slate-300">Transporte Internacional (CTI) ($0.38/km)</th>
-                <th className="p-3 text-right pr-6 font-medium text-slate-300">Cumplimiento Fronterizo (CIC)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
-              {loading ? (
-                <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
-                    Cargando datos...
-                  </td>
+        <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
+          <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="sticky top-0 bg-[#161c29] z-10 border-b border-[#1e2536]">
+                <tr className="text-slate-400">
+                  <th className="py-3 px-4 w-20 font-medium">ID</th>
+                  <th className="py-3 px-4 font-medium">País</th>
+                  <th className="py-3 px-4 text-right font-medium">Precio (PPD)</th>
+                  <th className="py-3 px-4 text-right font-medium">Transporte (CTI)</th>
+                  <th className="py-3 px-4 text-right font-medium pr-6">Cumplimiento (CIC)</th>
                 </tr>
-              ) : matrizFiltrada.length > 0 ? (
-                matrizFiltrada.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
-                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">${row.ppd.toFixed(2)}</td>
-                    <td className="p-3 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
-                    <td className="p-3 text-right pr-6">
-                      {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
+              </thead>
+              <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="py-6 text-center text-slate-500 font-sans">
+                      Cargando datos...
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
-                    No hay registros con datos de precios válidos para este filtro.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                ) : matrizFiltrada.length > 0 ? (
+                  matrizFiltrada.map((row) => (
+                    <tr key={row.id} className="hover:bg-[#161c29]/50 transition-colors">
+                      <td className="py-3 px-4 text-slate-400">{row.id}</td>
+                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
+                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">${row.ppd.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
+                      <td className="py-3 px-4 text-right pr-6">
+                        {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-slate-600">$0.00</span>}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-slate-500 font-sans">
+                      No hay registros con datos de precios válidos para este filtro.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      {/* TABLA DE NORMALIZACIÓN Y PONDERACIÓN */}
-      <div className="space-y-4 pt-4 border-t border-slate-800/80">
-        <h2 className="text-xl font-bold text-white">
-          Normalización y Ponderación Final
-        </h2>
+      {/* 3. TABLA DE NORMALIZACIÓN Y PONDERACIÓN FINAL */}
+      <div className="space-y-2 pt-2">
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-sm font-bold text-white">
+            Normalización y Ponderación Final (Factor Costo)
+          </h3>
+        </div>
 
-        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-slate-400">
-                <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-3 font-medium text-slate-300">Países</th>
-                <th className="p-3 text-right font-medium text-slate-300">PPD Norm (44.00%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">CTI Norm (34.00%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">CIC Norm (22.00%)</th>
-                <th className="p-3 text-right pr-6 font-bold text-emerald-400">Total Factor (21.50%)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
-                    Calculando...
-                  </td>
+        <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
+          <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="sticky top-0 bg-[#161c29] z-10 border-b border-[#1e2536]">
+                <tr className="text-slate-400">
+                  <th className="py-3 px-4 w-20 font-medium">ID</th>
+                  <th className="py-3 px-4 font-medium">País</th>
+                  <th className="py-3 px-4 text-right font-medium">PPD Norm (44%)</th>
+                  <th className="py-3 px-4 text-right font-medium">CTI Norm (34%)</th>
+                  <th className="py-3 px-4 text-right font-medium">CIC Norm (22%)</th>
+                  <th className="py-3 px-4 text-right font-bold text-emerald-400 pr-6">Total Factor (21.5%)</th>
                 </tr>
-              ) : matrizFiltrada.length > 0 ? (
-                matrizFiltrada.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
-                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
-                    <td className="p-3 text-right">{row.ppdNorm !== null ? row.ppdNorm : '-'}</td>
-                    <td className="p-3 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
-                    <td className="p-3 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
-                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
+              </thead>
+              <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="py-6 text-center text-slate-500 font-sans">
+                      Calculando...
+                    </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
-                    No hay datos normalizados para este filtro.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                ) : matrizFiltrada.length > 0 ? (
+                  matrizFiltrada.map((row) => (
+                    <tr key={row.id} className="hover:bg-[#161c29]/50 transition-colors">
+                      <td className="py-3 px-4 text-slate-400">{row.id}</td>
+                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
+                      <td className="py-3 px-4 text-right">{row.ppdNorm !== null ? row.ppdNorm : '-'}</td>
+                      <td className="py-3 px-4 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
+                      <td className="py-3 px-4 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
+                      <td className="py-3 px-4 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="py-8 text-center text-slate-500 font-sans">
+                      No hay datos normalizados para este filtro.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
