@@ -196,32 +196,41 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     cargarDatos();
   }, [paisesDestino, paisSalidaCalc, puertoSalidaCalc, velocidadBuque, resultadoManualFijado]);
 
+  // Extracción unificada y segura de valores numéricos de TTI para evitar que se queden en 10 por defecto cuando hay guiones '-'
+  const ttiValoresValidos = tablaLogi
+    .map(d => {
+      const ttiStr = String(calcularTtiParaFila(d.Paises) || '0').replace(/días|dias|-/gi, '').trim();
+      const num = Number(ttiStr);
+      return isNaN(num) || num <= 0 ? null : num;
+    })
+    .filter(v => v !== null);
+
+  const MIN_TTI = ttiValoresValidos.length > 0 ? Math.min(...ttiValoresValidos) : 1.0;
+
   // Actualización y normalización de variables para enviar al componente padre / matriz de costos
   useEffect(() => {
     if (tablaLogi.length === 0) return;
 
     const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
     const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
-    
-    const ttiVals = tablaLogi.map(d => {
-      const ttiStr = String(d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0').replace(/días|dias|-/gi, '').trim();
-      return Number(ttiStr);
-    }).filter(v => v > 0);
 
     const MAX_IDL = idkVals.length > 0 ? Math.max(...idkVals) : 5.0;
     const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : 300000000;
-    const MIN_TTI = ttiVals.length > 0 ? Math.min(...ttiVals) : 1.0;
     const A3 = 10;
 
     const tablaProcesada = tablaLogi.map(row => {
       const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
       const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
-      const ttiStr = String(row['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0').replace(/días|dias|-/gi, '').trim();
-      const tti = Number(ttiStr) || MIN_TTI;
+      
+      const ttiStr = String(calcularTtiParaFila(row.Paises) || '0').replace(/días|dias|-/gi, '').trim();
+      const ttiVal = Number(ttiStr);
+      const tieneTtiValido = !isNaN(ttiVal) && ttiVal > 0;
 
       const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
       const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-      const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
+      
+      // Si el TTI no está disponible (ej. muestra '-'), su valor normalizado debe ser 0 para no distorsionar la ponderación
+      const ttiNorm = tieneTtiValido ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : 0;
 
       const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
 
@@ -231,7 +240,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     if (onDatosActualizados) {
       onDatosActualizados(tablaProcesada);
     }
-  }, [tablaLogi]);
+  }, [tablaLogi, resultadoManualFijado, paisSalidaCalc, puertoSalidaCalc, velocidadBuque]);
 
   useEffect(() => {
     const pSalida = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
@@ -341,14 +350,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   // Cálculos para la tabla normalizada en tiempo real
   const idkValsCalc = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
   const ccpValsCalc = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
-  const ttiValsCalc = tablaLogi.map(d => {
-    const tStr = String(d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0').replace(/días|dias|-/gi, '').trim();
-    return Number(tStr);
-  }).filter(v => v > 0);
 
   const MAX_IDL = idkValsCalc.length > 0 ? Math.max(...idkValsCalc) : 5.0;
   const MAX_CCP = ccpValsCalc.length > 0 ? Math.max(...ccpValsCalc) : 300000000;
-  const MIN_TTI = ttiValsCalc.length > 0 ? Math.min(...ttiValsCalc) : 1.0;
   const A3 = 10;
 
   return (
@@ -560,11 +564,14 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
                   
                   const ttiStr = String(calcularTtiParaFila(row.Paises) || '0').replace(/días|dias|-/gi, '').trim();
-                  const tti = Number(ttiStr) || MIN_TTI;
+                  const ttiVal = Number(ttiStr);
+                  const tieneTtiValido = !isNaN(ttiVal) && ttiVal > 0;
 
                   const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
                   const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-                  const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
+                  
+                  // Si no hay TTI válido (aparece como '-'), se asigna 0 en lugar de forzar un 10 incorrecto
+                  const ttiNorm = tieneTtiValido ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : 0;
 
                   const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
 
@@ -574,7 +581,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                       <td className="p-3 font-medium text-white">{row.Paises}</td>
                       <td className="p-3 text-slate-300">{idlNorm}</td>
                       <td className="p-3 text-slate-300">{ccpNorm}</td>
-                      <td className="p-3 text-slate-300">{ttiNorm}</td>
+                      <td className="p-3 text-slate-300">{tieneTtiValido ? ttiNorm : '-'}</td>
                       <td className="p-3 font-bold text-indigo-400">{costoTotal}</td>
                     </tr>
                   );
