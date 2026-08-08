@@ -9,18 +9,16 @@ export default function TablaProductos({
   searchNombre,
   searchCodigo,
   searchSubcodigo,
-  onSeleccionarProducto, // <--- Prop para enviar el producto activo a App y TabCosto
-  productoSeleccionadoId // <--- Prop para resaltar visualmente el producto seleccionado
+  onSeleccionarProducto,
+  productoSeleccionadoId
 }) {
-  // Estados para datos de Supabase
   const [productos, setProductos] = useState([]);
   const [keywordsCategoria, setKeywordsCategoria] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para Acordeones CRUD
-  const [activeAccordion, setActiveAccordion] = useState(null); // 'add' | 'edit' | 'delete'
+  const [activeAccordion, setActiveAccordion] = useState(null);
 
-  // Form Añadir (País, Producto y Precio)
+  // Form Añadir
   const [addPais, setAddPais] = useState('');
   const [addNombre, setAddNombre] = useState('');
   const [addPrecio, setAddPrecio] = useState('');
@@ -34,7 +32,6 @@ export default function TablaProductos({
   // Form Eliminar
   const [deleteId, setDeleteId] = useState('');
 
-  // Cargar datos al montar el componente
   useEffect(() => {
     cargarDatosIniciales();
   }, []);
@@ -65,7 +62,6 @@ export default function TablaProductos({
     setLoading(false);
   }
 
-  // Helper para obtener la clave primaria en Supabase
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
   // 🔍 Lógica de Filtrado Dinámico para la Tabla
@@ -74,7 +70,7 @@ export default function TablaProductos({
     if (categoria && categoria !== 'Todos') {
       const palabrasCategoriaActual = keywordsCategoria
         .filter(k => String(k.categoria_codigo) === String(categoria))
-        .map(k => k.palabra_clave.toLowerCase());
+        .map(k => String(k.palabra_clave || '').toLowerCase());
 
       const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
       const coincideCategoria = palabrasCategoriaActual.some(palabra => nombreProducto.includes(palabra));
@@ -84,13 +80,19 @@ export default function TablaProductos({
     
     // 2. Filtro Subcategoría
     if (subcategoria && subcategoria !== 'Todos') {
+      const palabrasSubcategoriaActual = keywordsCategoria
+        .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
+        .map(k => String(k.palabra_clave || '').toLowerCase());
+
+      const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
       const subcatProducto = String(p.subcategoria_codigo || p.subcategoria || p.subcodigo || '').trim();
       const subcatFiltro = String(subcategoria).trim();
 
       const coincideSubExacto = subcatProducto === subcatFiltro;
       const coincideSubEmpieza = subcatFiltro.startsWith(subcatProducto) || subcatProducto.startsWith(subcatFiltro);
+      const coincideKeywordSub = palabrasSubcategoriaActual.some(palabra => nombreProducto.includes(palabra));
 
-      if (!coincideSubExacto && !coincideSubEmpieza) return false;
+      if (!coincideSubExacto && !coincideSubEmpieza && !coincideKeywordSub) return false;
     }
     
     // 3. Búsqueda por Nombre (Producto)
@@ -101,7 +103,7 @@ export default function TablaProductos({
     if (searchCodigo) {
       const palabrasCodigo = keywordsCategoria
         .filter(k => String(k.categoria_codigo).startsWith(searchCodigo))
-        .map(k => k.palabra_clave.toLowerCase());
+        .map(k => String(k.palabra_clave || '').toLowerCase());
 
       const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
       const coincideCodigo = palabrasCodigo.some(palabra => nombreProducto.includes(palabra));
@@ -162,7 +164,6 @@ export default function TablaProductos({
     } else {
       setActiveAccordion(null);
       
-      // Notificar inmediatamente el cambio al estado global de la app si es el producto activo
       const productoActualizado = {
         id: editId,
         pais: editPais,
@@ -303,7 +304,7 @@ export default function TablaProductos({
                     setEditPrecio('');
                   }
                 }}
-                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-amber-500"
+                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-amber-500 cursor-pointer"
               >
                 <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
@@ -371,7 +372,7 @@ export default function TablaProductos({
               <select
                 value={deleteId}
                 onChange={(e) => setDeleteId(e.target.value)}
-                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-red-500"
+                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-red-500 cursor-pointer"
               >
                 <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
