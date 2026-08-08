@@ -170,88 +170,76 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   }, [paisesDestino]);
 
   useEffect(() => {
+    if (tablaLogi.length === 0) return;
 
-  if (tablaLogi.length === 0) return;
+    const idkVals = tablaLogi
+      .map(d => Number(d['Índice de Desempeño Logístico (IDL)']))
+      .filter(v => v > 0);
 
-  const idkVals = tablaLogi
-    .map(d => Number(d['Índice de Desempeño Logístico (IDL)']))
-    .filter(v => v > 0);
+    const ccpVals = tablaLogi
+      .map(d => Number(d['Calidad de las carreteras por país (CCP)']))
+      .filter(v => v > 0);
 
-  const ccpVals = tablaLogi
-    .map(d => Number(d['Calidad de las carreteras por país (CCP)']))
-    .filter(v => v > 0);
+    const ttiVals = tablaLogi
+      .map(d => {
+        const ttiStr = String(
+          d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0'
+        )
+          .replace(/días|dias/gi, '')
+          .replace(',', '.')
+          .trim();
 
-  const ttiVals = tablaLogi
-    .map(d => {
+        return Number(ttiStr);
+      })
+      .filter(v => v > 0);
+
+    const MAX_IDL = Math.max(...idkVals);
+    const MAX_CCP = Math.max(...ccpVals);
+    const MIN_TTI = Math.min(...ttiVals);
+
+    const A3 = 10;
+
+    const tablaProcesada = tablaLogi.map(row => {
+      const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
+      const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
+
       const ttiStr = String(
-        d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0'
+        row['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0'
       )
         .replace(/días|dias/gi, '')
         .replace(',', '.')
         .trim();
 
-      return Number(ttiStr);
-    })
-    .filter(v => v > 0);
+      const tti = Number(ttiStr) || 1;
 
-  const MAX_IDL = Math.max(...idkVals);
-  const MAX_CCP = Math.max(...ccpVals);
-  const MIN_TTI = Math.min(...ttiVals);
+      const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
+      const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
+      const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
 
-  const A3 = 10;
+      const costoTotal = Number(
+        (
+          0.185 * idlNorm +
+          0.185 * ccpNorm +
+          0.63 * ttiNorm
+        ).toFixed(2)
+      );
 
-  const tablaProcesada = tablaLogi.map(row => {
+      return {
+        ...row,
+        idlNorm,
+        ccpNorm,
+        ttiNorm,
+        costoTotal
+      };
+    });
 
-    const idl =
-      Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
-
-    const ccp =
-      Number(row['Calidad de las carreteras por país (CCP)']) || 0;
-
-    const ttiStr = String(
-      row['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0'
-    )
-      .replace(/días|dias/gi, '')
-      .replace(',', '.')
-      .trim();
-
-    const tti = Number(ttiStr) || 1;
-
-    const idlNorm =
-      idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
-
-    const ccpNorm =
-      ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-
-    const ttiNorm =
-      tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
-
-    const costoTotal = Number(
-      (
-        0.185 * idlNorm +
-        0.185 * ccpNorm +
-        0.63 * ttiNorm
-      ).toFixed(2)
-    );
-
-    return {
-      ...row,
-      idlNorm,
-      ccpNorm,
-      ttiNorm,
-      costoTotal
-    };
-
-  });
-
-  setDatosLogisticaNormalizados(tablaProcesada);
-
+    setDatosLogisticaNormalizados(tablaProcesada);
   }, [tablaLogi]);
 
   useEffect(() => {
-  if (onDatosActualizados) {
-    onDatosActualizados(datosLogisticaNormalizados);
-  }
+    if (onDatosActualizados) {
+      onDatosActualizados(datosLogisticaNormalizados);
+    }
   }, [datosLogisticaNormalizados, onDatosActualizados]);
 
   // Actualizar puertos seleccionados por defecto al cambiar de país
@@ -412,7 +400,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     <div className="space-y-8 text-slate-100 font-sans">
       
       {/* HEADER */}
-      <div className="border-b border-slate-800 pb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+      <div className="border-b border-[#1b1f2e] pb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h2 className="text-xl font-bold text-white">2. Logística (LOGI)</h2>
           <p className="text-xs text-slate-400 mt-1">
@@ -425,11 +413,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         {/* AÑADIR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
           <button 
             type="button"
             onClick={() => setOpenAdd(!openAdd)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1a1d2b] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>
               ❯
@@ -438,7 +426,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           </button>
 
           {openAdd && (
-            <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+            <form onSubmit={handleAddPais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#0c0e17]">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Nombre del País:</label>
                 <input 
@@ -446,7 +434,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   value={nuevoPais} 
                   onChange={(e) => setNuevoPais(e.target.value)} 
                   required 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
@@ -456,7 +444,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   step="0.01" 
                   value={nuevoIdl} 
                   onChange={(e) => setNuevoIdl(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
@@ -465,12 +453,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   type="number" 
                   value={nuevoCcp} 
                   onChange={(e) => setNuevoCcp(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <button 
                 type="submit" 
-                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
+                className="w-full py-1.5 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
               >
                 Guardar en BD
               </button>
@@ -479,11 +467,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         </div>
 
         {/* EDITAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
           <button 
             type="button"
             onClick={() => setOpenEdit(!openEdit)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1a1d2b] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>
               ❯
@@ -492,13 +480,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           </button>
 
           {openEdit && (
-            <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+            <form onSubmit={handleUpdatePais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#0c0e17]">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Seleccionar País:</label>
                 <select 
                   value={paisSeleccionadoEdit} 
                   onChange={handleSelectEditPais}
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 >
                   {tablaLogi.map((item, idx) => (
                     <option key={idx} value={item.Paises}>{item.Paises}</option>
@@ -512,7 +500,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   step="0.01" 
                   value={editIdl} 
                   onChange={(e) => setEditIdl(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
@@ -521,12 +509,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   type="number" 
                   value={editCcp} 
                   onChange={(e) => setEditCcp(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <button 
                 type="submit" 
-                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
+                className="w-full py-1.5 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
               >
                 Actualizar Registro
               </button>
@@ -535,11 +523,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         </div>
 
         {/* ELIMINAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
           <button 
             type="button"
             onClick={() => setOpenDel(!openDel)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1a1d2b] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>
               ❯
@@ -548,13 +536,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           </button>
 
           {openDel && (
-            <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+            <form onSubmit={handleDeletePais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#0c0e17]">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Seleccionar País a Eliminar:</label>
                 <select 
                   value={paisSeleccionadoDel} 
                   onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
                 >
                   {tablaLogi.map((item, idx) => (
                     <option key={idx} value={item.Paises}>{item.Paises}</option>
@@ -563,7 +551,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               </div>
               <button 
                 type="submit" 
-                className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors cursor-pointer"
+                className="w-full py-1.5 mt-4 bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs rounded transition-colors cursor-pointer"
               >
                 Confirmar Eliminación
               </button>
@@ -574,7 +562,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       </div>
 
       {/* ================= CÁLCULO TTI ================= */}
-      <div className="bg-[#16181d] border border-slate-800 p-5 rounded-lg space-y-4">
+      <div className="bg-[#12141f] border border-[#1b1f2e] p-5 rounded-lg space-y-4 shadow-lg">
         <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito del Transporte Internacional (TTI)</h3>
         
         <form onSubmit={handleCalcularTti} className="space-y-4">
@@ -586,7 +574,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <select 
                 value={paisSalidaCalc} 
                 onChange={(e) => setPaisSalidaCalc(e.target.value)}
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
               >
                 {paisesDisponibles.map((pais, idx) => (
                   <option key={idx} value={pais}>{pais}</option>
@@ -600,7 +588,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <select 
                 value={paisLlegadaCalc} 
                 onChange={(e) => setPaisLlegadaCalc(e.target.value)}
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
               >
                 {paisesDisponibles.map((pais, idx) => (
                   <option key={idx} value={pais}>{pais}</option>
@@ -614,7 +602,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <select 
                 value={puertoSalidaCalc} 
                 onChange={(e) => setPuertoSalidaCalc(e.target.value)}
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
               >
                 {puertosSalidaLista.length === 0 ? (
                   <option value="">Seleccionar puerto</option>
@@ -632,7 +620,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <select 
                 value={puertoLlegadaCalc} 
                 onChange={(e) => setPuertoLlegadaCalc(e.target.value)}
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
               >
                 {puertosLlegadaLista.length === 0 ? (
                   <option value="">Seleccionar puerto</option>
@@ -654,43 +642,43 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 step="0.01" 
                 value={velocidadBuque} 
                 onChange={(e) => setVelocidadBuque(e.target.value)} 
-                className="w-full bg-[#181a20] border border-slate-700/80 rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+                className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
               />
             </div>
             <button 
               type="submit" 
-              className="px-5 py-2 bg-[#1b1e26] hover:bg-[#252833] text-xs font-semibold text-white border border-slate-700/80 rounded transition-colors cursor-pointer"
+              className="px-5 py-2 bg-[#1b1f2e] hover:bg-[#232738] text-xs font-semibold text-white border border-[#2a2f45] rounded transition-colors cursor-pointer"
             >
               Calcular TTI
             </button>
           </div>
         </form>
 
-        <div className="bg-[#12281d] border border-[#1e4620] px-4 py-2.5 rounded text-xs text-[#a3d9a5] mt-3">
+        <div className="bg-[#101b1e] border border-[#1b353a] px-4 py-2.5 rounded text-xs text-[#7ee787] mt-3">
           Distancia calculada: <strong className="text-white">{resultadoTti.distancia}</strong> | Tiempo de tránsito (TTI): <strong className="text-white">{resultadoTti.tiempo}</strong> (Tablas actualizadas automáticamente)
         </div>
       </div>
 
       {/* ================= TABLA LOGÍSTICA BD ================= */}
       <div className="space-y-2">
-        <h3 className="text-base font-bold text-white">Tabla Logística (LOGI) — Base de Datos</h3>
+        <h3 className="text-base font-bold text-white">Tabla Logística (LOGI) </h3>
         <p className="text-xs text-slate-400">Indicadores logísticos registrados (IDL, CCP) y TTI calculado automáticamente.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando datos desde Supabase...</div>
         ) : (
-          <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+          <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
             <table className="w-full text-left text-xs text-slate-300 relative">
-              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+              <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
                 <tr>
-                  <th className="p-3 w-12 bg-[#181a20]">#</th>
-                  <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Índice de Desempeño Logístico (IDL)</th>
-                  <th className="p-3 bg-[#181a20]">Calidad de las carreteras por país (CCP)</th>
-                  <th className="p-3 bg-[#181a20]">Tiempo de tránsito del Transporte Internacional (TTI)</th>
+                  <th className="p-3 w-12 bg-[#151824]">#</th>
+                  <th className="p-3 bg-[#151824]">País</th>
+                  <th className="p-3 bg-[#151824]">Índice de Desempeño Logístico (IDL)</th>
+                  <th className="p-3 bg-[#151824]">Calidad de las carreteras por país (CCP)</th>
+                  <th className="p-3 bg-[#151824]">Tiempo de tránsito del Transporte Internacional (TTI)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+              <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
                 {(() => {
                   const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
                   const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
@@ -738,12 +726,12 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   });
 
                   return tablaOrdenadaBD.map((row, index) => (
-                    <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                    <tr key={index} className="hover:bg-[#151824] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
                       <td className="p-3 font-medium text-white">{row.Paises}</td>
                       <td className="p-3">{row['Índice de Desempeño Logístico (IDL)']}</td>
                       <td className="p-3">{row['Calidad de las carreteras por país (CCP)']}</td>
-                      <td className="p-3 text-amber-400 font-medium">{row['Tiempo de tránsito del Transporte Internacional (TTI)']}</td>
+                      <td className="p-3 text-emerald-400 font-medium">{row['Tiempo de tránsito del Transporte Internacional (TTI)']}</td>
                     </tr>
                   ));
                 })()}
@@ -758,79 +746,29 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         <h3 className="text-base font-bold text-white">Tabla Logística Normalizada (LOGI)</h3>
         <p className="text-xs text-slate-400">Ponderaciones actualizadas: IDL=18.50% | CCP=18.50% | TTI=63.00%</p>
 
-        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+            <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
               <tr>
-                <th className="p-3 w-12 bg-[#181a20]">#</th>
-                <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">IDL Norm</th>
-                <th className="p-3 bg-[#181a20]">CCP Norm</th>
-                <th className="p-3 bg-[#181a20]">TTI Norm</th>
-                <th className="p-3 bg-[#181a20]">Costo Total Logístico Norm</th>
+                <th className="p-3 w-12 bg-[#151824]">#</th>
+                <th className="p-3 bg-[#151824]">País</th>
+                <th className="p-3 bg-[#151824]">IDL Norm</th>
+                <th className="p-3 bg-[#151824]">CCP Norm</th>
+                <th className="p-3 bg-[#151824]">TTI Norm</th>
+                <th className="p-3 bg-[#151824]">Costo Total Logístico Norm</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
-              {(() => {
-                const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
-                const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
-                
-                const ttiVals = tablaLogi.map(d => {
-                  const ttiStr = String(d['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0')
-                    .replace(/días|dias/gi, '')
-                    .replace(',', '.')
-                    .trim();
-                  return Number(ttiStr);
-                }).filter(v => v > 0);
-
-                const MAX_IDL = idkVals.length > 0 ? Math.max(...idkVals) : 5.0;          
-                const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : 300000000;  
-                const MIN_TTI = ttiVals.length > 0 ? Math.min(...ttiVals) : 5.0; 
-                const A3 = 10;
-
-                const tablaProcesada = tablaLogi.map((row) => {
-                  const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
-                  const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
-                  
-                  const ttiStr = String(row['Tiempo de tránsito del Transporte Internacional (TTI)'] || '0')
-                    .replace(/días|dias/gi, '')
-                    .replace(',', '.')
-                    .trim();
-                  const tti = Number(ttiStr) || 1;
-
-                  const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
-                  const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-                  const ttiNorm = tti ? Number((A3 * MIN_TTI / tti).toFixed(2)) : 0;
-
-                  const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
-                  const faltantes = [idlNorm, ccpNorm, ttiNorm].filter(v => v === 0).length;
-
-                  return {
-                    ...row,
-                    idlNorm,
-                    ccpNorm,
-                    ttiNorm,
-                    costoTotal,
-                    __faltantes: faltantes
-                  };
-                });
-
-                tablaProcesada.sort((a, b) => {
-                  if (a.__faltantes !== b.__faltantes) return a.__faltantes - b.__faltantes;
-                  return b.costoTotal - a.costoTotal;
-                });
-
-                return tablaProcesada.map((row, index) => (
-                  <tr key={index} className="hover:bg-[#16181d] transition-colors">
-                    <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{row.Paises}</td>
-                    <td className="p-3">{row.idlNorm}</td>
-                    <td className="p-3">{row.ccpNorm}</td>
-                    <td className="p-3">{row.ttiNorm}</td>
-                    <td className="p-3 text-emerald-400 font-semibold">{row.costoTotal}</td>
-                  </tr>
-                ));
-              })()}
+            <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
+              {datosLogisticaNormalizados.map((row, index) => (
+                <tr key={index} className="hover:bg-[#151824] transition-colors">
+                  <td className="p-3 text-slate-500">{index + 1}</td>
+                  <td className="p-3 font-medium text-white">{row.Paises}</td>
+                  <td className="p-3">{row.idlNorm}</td>
+                  <td className="p-3">{row.ccpNorm}</td>
+                  <td className="p-3">{row.ttiNorm}</td>
+                  <td className="p-3 text-emerald-400 font-bold">${row.costoTotal}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
