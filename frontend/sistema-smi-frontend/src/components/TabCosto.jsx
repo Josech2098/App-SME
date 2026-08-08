@@ -209,8 +209,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           const cicMatch = (dbCostoImportacion || []).find(
             (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
           );
-          let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
-          if (isNaN(cicVal)) cicVal = null;
+          
+          // MODIFICACIÓN: Si no hay registro o es nulo, se asume 0 en lugar de null para evitar vacíos
+          let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : 0;
+          if (isNaN(cicVal)) cicVal = 0;
 
           const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
           const ctiVal = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : 0;
@@ -249,12 +251,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const { maxPpd, minCti, minCic } = useMemo(() => {
     const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && v > 0);
     const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && v > 0);
-    const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && v > 0);
+    // Considerar también los ceros válidos para el mínimo de cumplimiento
+    const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined);
 
     return {
       maxPpd: ppdVals.length > 0 ? Math.max(...ppdVals) : null,
       minCti: ctiVals.length > 0 ? Math.min(...ctiVals) : null,
-      minCic: cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : null
+      // Si hay costos 0, el mínimo absoluto para el cumplimiento será 0
+      minCic: cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0
     };
   }, [datosProductos]);
 
@@ -265,7 +269,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   };
 
   const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined || val <= 0 || minVal === null || minVal <= 0) return null;
+    if (val === null || val === undefined) return null;
+    // Si el valor es exactamente 0, se le otorga la máxima puntuación (10)
+    if (val === 0) return PUNTAJE_MAXIMO;
+    if (minVal === null || minVal <= 0) {
+      // Si el mínimo guardado es 0, buscamos el siguiente valor mayor que 0 para aplicar la fórmula inversa proporcional
+      const valoresValidos = datosProductos.map(d => d.cic).filter(v => v > 0);
+      minVal = valoresValidos.length > 0 ? Math.min(...valoresValidos) : val;
+    }
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
     return Number(resultado.toFixed(2));
   };
@@ -341,7 +352,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         .insert([{ nombre: nuevoPaisNombre, latitud: nuevaLatitud, longitud: nuevaLongitud }]);
       if (errP) throw errP;
 
-      if (nuevoCic) {
+      if (nuevoCic !== '') {
         const { error: errC } = await supabase
           .from('costo_importacion')
           .insert([{ pais: nuevoPaisNombre, valor: parseFloat(nuevoCic) || 0 }]);
@@ -635,7 +646,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         </div>
       )}
 
-      {/* 2. TABLA DE COSTOS BASE (Estilo Exacto de la Imagen) */}
+      {/* 2. TABLA DE COSTOS BASE */}
       <div className="space-y-2">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-sm font-bold text-white">
@@ -673,7 +684,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       <td className="py-3 px-4 text-right text-emerald-400 font-semibold">${row.ppd.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
                       <td className="py-3 px-4 text-right pr-6">
-                        {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-slate-600">$0.00</span>}
+                        {row.cic !== null ? `$${row.cic.toFixed(2)}` : '$0.00'}
                       </td>
                     </tr>
                   ))
