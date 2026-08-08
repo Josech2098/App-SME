@@ -200,8 +200,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   return (
     <div className="space-y-6 text-slate-100 font-sans">
       
-      {/* 1. BARRA SUPERIOR IGUAL A LA IMAGEN 1 */}
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
+      {/* 1. BARRA SUPERIOR CON TONO AZULADO OSCURO EXACTO */}
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
         <div>
           <h2 className="text-sm font-bold text-white tracking-wide">
             6. SOSTENIBILIDAD (SUST) — ESTANDARIZACIÓN DE CRITERIOS
@@ -211,7 +211,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
           </p>
         </div>
         
-        {/* Selector de País Base idéntico al de Costos */}
         <div className="w-full md:w-72">
           <label className="block text-[11px] text-slate-400 mb-1 uppercase font-semibold">
             SELECCIONA EL PAÍS BASE
@@ -219,7 +218,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
           <select 
             value={paisBase} 
             onChange={(e) => setPaisBase(e.target.value)}
-            className="w-full bg-[#0b0d12] border border-[#1e2330] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 shadow-inner"
+            className="w-full bg-[#0d1017] border border-[#1b2230] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 shadow-inner"
           >
             {listaPaises.map(p => (
               <option key={p.id} value={p.nombre}>{p.nombre}</option>
@@ -228,30 +227,30 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         </div>
       </div>
 
-      {/* 2. ACCORDIONS / GESTIÓN DE DATOS */}
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-5 space-y-4">
+      {/* 2. GESTIÓN DE DATOS (ACORDEONES) */}
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-5 space-y-4">
         <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
           <span>⚙️</span> Gestión de Datos (Tabla SUST)
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          <div className="bg-[#0b0d12] border border-[#1e2330] rounded-lg overflow-hidden">
+          <div className="bg-[#0d1017] border border-[#1b2230] rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('add')}
-              className="w-full px-4 py-3 text-left text-xs font-bold text-slate-200 hover:bg-[#111318] transition-colors flex items-center justify-between cursor-pointer"
+              className="w-full px-4 py-3 text-left text-xs font-bold text-slate-200 hover:bg-[#121620] transition-colors flex items-center justify-between cursor-pointer"
             >
               <span>+ Asignar / Añadir valores a Países</span>
               <span className="text-slate-400">{activeAccordion === 'add' ? '▼' : '❯'}</span>
             </button>
             {activeAccordion === 'add' && (
-              <div className="p-4 border-t border-[#1e2330] space-y-3 bg-[#0b0d12] text-xs">
+              <div className="p-4 border-t border-[#1b2230] space-y-3 bg-[#0d1017] text-xs">
                 <div>
                   <label className="block text-[11px] text-slate-400 mb-1">Nombre del País</label>
                   <select
                     value={nuevoPaisNombre}
                     onChange={(e) => setNuevoPaisNombre(e.target.value)}
-                    className="w-full bg-[#111318] border border-[#1e2330] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                    className="w-full bg-[#121620] border border-[#1b2230] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                   >
                     <option value="">-- Selecciona un país --</option>
                     {listaPaises.map(p => (
@@ -267,7 +266,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                       value={nuevoEdc}
                       onChange={(e) => setNuevoEdc(e.target.value)}
                       placeholder="12.5"
-                      className="w-full bg-[#111318] border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <div>
@@ -277,7 +276,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                       value={nuevoRpg}
                       disabled
                       placeholder="N/A"
-                      className="w-full bg-[#111318]/50 border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
+                      className="w-full bg-[#121620]/50 border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -287,7 +286,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                       value={nuevoIsg}
                       onChange={(e) => setNuevoIsg(e.target.value)}
                       placeholder="75.4"
-                      className="w-full bg-[#111318] border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                 </div>
@@ -301,20 +300,20 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
             )}
           </div>
 
-          <div className="bg-[#0b0d12] border border-[#1e2330] rounded-lg overflow-hidden">
+          <div className="bg-[#0d1017] border border-[#1b2230] rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('edit')}
-              className="w-full px-4 py-3 text-left text-xs font-bold text-slate-200 hover:bg-[#111318] transition-colors flex items-center justify-between cursor-pointer"
+              className="w-full px-4 py-3 text-left text-xs font-bold text-slate-200 hover:bg-[#121620] transition-colors flex items-center justify-between cursor-pointer"
             >
               <span>Editar sostenibilidad existente</span>
               <span className="text-slate-400">{activeAccordion === 'edit' ? '▼' : '❯'}</span>
             </button>
             {activeAccordion === 'edit' && (
-              <div className="p-4 border-t border-[#1e2330] space-y-3 bg-[#0b0d12] text-xs">
+              <div className="p-4 border-t border-[#1b2230] space-y-3 bg-[#0d1017] text-xs">
                 <select
                   onChange={(e) => handleSelectEdit(e.target.value)}
                   value={selectedPaisId}
-                  className="w-full bg-[#111318] border border-[#1e2330] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-[#121620] border border-[#1b2230] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                 >
                   <option value="">-- Selecciona un país --</option>
                   {datosProductos.map(p => (
@@ -331,7 +330,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                           type="number"
                           value={editEdc}
                           onChange={(e) => setEditEdc(e.target.value)}
-                          className="w-full bg-[#111318] border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                          className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                         />
                       </div>
                       <div>
@@ -340,7 +339,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                           type="number"
                           value={editRpg}
                           disabled
-                          className="w-full bg-[#111318]/50 border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
+                          className="w-full bg-[#121620]/50 border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
                         />
                       </div>
                       <div>
@@ -349,7 +348,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                           type="number"
                           value={editIsg}
                           onChange={(e) => setEditIsg(e.target.value)}
-                          className="w-full bg-[#111318] border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                          className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                         />
                       </div>
                     </div>
@@ -374,9 +373,9 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         </div>
       )}
 
-      {/* 3. TABLA DE SOSTENIBILIDAD BASE (Estilo exacto Imagen 1) */}
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-[#1e2330] flex justify-between items-center">
+      {/* 3. TABLA DE SOSTENIBILIDAD BASE */}
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-[#1b2230] flex justify-between items-center">
           <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
             Listado de Sostenibilidad Base <span className="text-slate-500 font-normal normal-case">(Haz clic en una fila para seleccionarla)</span>
           </h3>
@@ -385,7 +384,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
         <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#0b0d12] z-10 text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1e2330]">
+            <thead className="sticky top-0 bg-[#0d1017] z-10 text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b2230]">
               <tr>
                 <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
                 <th className="p-3 font-medium text-slate-300">País</th>
@@ -394,14 +393,14 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                 <th className="p-3 text-right pr-6 font-medium text-slate-300">Índice de Sostenibilidad Global (ISG)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1e2330] font-mono text-slate-300">
+            <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
               {loading ? (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">Cargando datos...</td>
                 </tr>
               ) : datosProductos.length > 0 ? (
                 datosProductos.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-[#161a23] transition-colors">
+                  <tr key={row.id} className="hover:bg-[#181f2d] transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                     <td className="p-3 font-sans font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 text-right text-emerald-400">{row.edc !== null ? row.edc : <span className="text-slate-600">-</span>}</td>
@@ -420,8 +419,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       </div>
 
       {/* 4. TABLA DE NORMALIZACIÓN Y PONDERACIÓN FINAL */}
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-[#1e2330] flex justify-between items-center">
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-[#1b2230] flex justify-between items-center">
           <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
             Normalización y Ponderación Final <span className="text-slate-500 font-normal normal-case">(EDC: 30% | RPG: 30% | ISG: 40%)</span>
           </h3>
@@ -429,7 +428,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
         <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#0b0d12] z-10 text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1e2330]">
+            <thead className="sticky top-0 bg-[#0d1017] z-10 text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b2230]">
               <tr>
                 <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
                 <th className="p-3 font-medium text-slate-300">País</th>
@@ -439,7 +438,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                 <th className="p-3 text-right pr-6 font-bold text-sky-400">Total Factor (5.50%)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1e2330] font-mono text-slate-300">
+            <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
               {loading ? (
                 <tr>
                   <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">Calculando...</td>
@@ -453,7 +452,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   const aporteFactorSostenibilidad = Number((((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2));
 
                   return (
-                    <tr key={row.id} className="hover:bg-[#161a23] transition-colors">
+                    <tr key={row.id} className="hover:bg-[#181f2d] transition-colors">
                       <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
                       <td className="p-3 font-sans font-medium text-white">{row.pais_nombre}</td>
                       <td className="p-3 text-right text-slate-300">{edcNorm ?? '-'}</td>
