@@ -64,6 +64,15 @@ export default function TablaProductos({
 
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
+  // Función auxiliar para extraer el valor numérico del precio para el ordenamiento
+  const obtenerPrecioNumerico = (p) => {
+    const precioRaw = p.precio ?? p.Precio;
+    if (precioRaw === undefined || precioRaw === null || precioRaw === '') return 0;
+    if (typeof precioRaw === 'number') return precioRaw;
+    const num = Number(String(precioRaw).replace('€', '').trim().replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+  };
+
   // 🔍 Lógica de Filtrado Dinámico para la Tabla
   const productosFiltrados = productos.filter((p) => {
     if (categoria && categoria !== 'Todos') {
@@ -111,7 +120,7 @@ export default function TablaProductos({
     if (searchSubcodigo && (!subcodigoVal || !subcodigoVal.toString().includes(searchSubcodigo))) return false;
 
     return true;
-  });
+  }).sort((a, b) => obtenerPrecioNumerico(a) - obtenerPrecioNumerico(b)); // 👈 Ordenamiento de menor a mayor por precio
 
   // 📝 HANDLERS PARA OPERACIONES CRUD
   const handleGuardarProducto = async (e) => {
@@ -413,7 +422,7 @@ export default function TablaProductos({
       <div className="space-y-2">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-sm font-bold text-white">
-            Listado de Productos <span className="text-xs font-normal text-slate-500">(Haz clic en una fila para seleccionarla)</span>
+            Listado de Productos <span className="text-xs font-normal text-slate-500">(Ordenados por precio de menor a mayor)</span>
           </h3>
           <span className="text-xs text-slate-400 font-mono">
             Mostrando <strong className="text-slate-200">{productosFiltrados.length}</strong> de <strong className="text-slate-200">{productos.length}</strong> registros
@@ -428,7 +437,7 @@ export default function TablaProductos({
                   <th className="py-3 px-4 w-20 font-medium">ID</th>
                   <th className="py-3 px-4 font-medium">País</th>
                   <th className="py-3 px-4 font-medium">Producto</th>
-                  <th className="py-3 px-4 text-right font-medium pr-6">Precio (€)</th>
+                  <th className="py-3 px-4 text-right font-medium pr-6">Precio (€) ▲</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
