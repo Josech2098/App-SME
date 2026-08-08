@@ -256,10 +256,10 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
     <div className="space-y-8 text-slate-100 font-sans">
       
       {/* HEADER */}
-      <div className="border-b border-slate-800 pb-3">
+      <div className="border-b border-[#222634] pb-3">
         <h2 className="text-xl font-bold text-white">5. Política (POLI)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Origen actual: <span className="text-red-400 font-semibold">{paisOrigen}</span> | Datos integrados desde las tablas <code className="text-slate-200">paises</code>, <code className="text-slate-200">estadosfragiles</code>, <code className="text-slate-200">informeriesgo</code> e <code className="text-slate-200">indicedemocracia</code>.
+          Origen actual: <span className="text-[#3b82f6] font-semibold">{paisOrigen}</span> | Datos integrados desde las tablas <code className="text-slate-200">paises</code>, <code className="text-slate-200">estadosfragiles</code>, <code className="text-slate-200">informeriesgo</code> e <code className="text-slate-200">indicedemocracia</code>.
         </p>
       </div>
 
@@ -267,11 +267,11 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         {/* AÑADIR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#222634] bg-[#141824] rounded-lg overflow-hidden transition-all shadow-lg shadow-black/20">
           <button 
             type="button"
             onClick={() => setOpenAdd(!openAdd)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1c2230] transition-colors focus:outline-none"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>
               ❯
@@ -280,7 +280,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
           </button>
 
           {openAdd && (
-            <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+            <form onSubmit={handleAddPais} className="p-4 border-t border-[#222634] space-y-3 bg-[#0c0f17]">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">País:</label>
                 <input 
@@ -288,7 +288,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                   value={paisAdd} 
                   onChange={(e) => setPaisAdd(e.target.value)} 
                   required 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                 />
               </div>
               <div>
@@ -299,7 +299,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                   min="0"
                   value={fsiAdd} 
                   onChange={(e) => setFsiAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                 />
               </div>
               <div>
@@ -310,7 +310,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                   min="0"
                   value={inriAdd} 
                   onChange={(e) => setInriAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                 />
               </div>
               <div>
@@ -321,12 +321,12 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                   min="0"
                   value={deinAdd} 
                   onChange={(e) => setDeinAdd(e.target.value)} 
-                  className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                  className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                 />
               </div>
               <button 
                 type="submit" 
-                className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
+                className="w-full py-1.5 mt-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium text-xs rounded transition-colors shadow-md shadow-blue-900/30"
               >
                 Guardar país (POLI)
               </button>
@@ -335,11 +335,11 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
         </div>
 
         {/* EDITAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#222634] bg-[#141824] rounded-lg overflow-hidden transition-all shadow-lg shadow-black/20">
           <button 
             type="button"
             onClick={() => setOpenEdit(!openEdit)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1c2230] transition-colors focus:outline-none"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>
               ❯
@@ -349,13 +349,13 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
 
           {openEdit && (
             poliOverrides.length > 0 ? (
-              <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+              <form onSubmit={handleUpdatePais} className="p-4 border-t border-[#222634] space-y-3 bg-[#0c0f17]">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Selecciona país a editar:</label>
                   <select 
                     value={paisSeleccionadoEdit} 
                     onChange={handleSelectEditPais}
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                   >
                     {poliOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
@@ -368,7 +368,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                     type="text" 
                     value={editPaisNombre} 
                     onChange={(e) => setEditPaisNombre(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                   />
                 </div>
                 <div>
@@ -379,7 +379,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                     min="0"
                     value={editFsi} 
                     onChange={(e) => setEditFsi(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                   />
                 </div>
                 <div>
@@ -390,7 +390,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                     min="0"
                     value={editInri} 
                     onChange={(e) => setEditInri(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                   />
                 </div>
                 <div>
@@ -401,18 +401,18 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                     min="0"
                     value={editDein} 
                     onChange={(e) => setEditDein(e.target.value)} 
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                   />
                 </div>
                 <button 
                   type="submit" 
-                  className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors"
+                  className="w-full py-1.5 mt-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium text-xs rounded transition-colors shadow-md shadow-blue-900/30"
                 >
                   Actualizar país (POLI)
                 </button>
               </form>
             ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
+              <div className="p-4 border-t border-[#222634] text-xs text-slate-400 italic bg-[#0c0f17]">
                 No hay datos personalizados para editar aún. Añade un override primero.
               </div>
             )
@@ -420,11 +420,11 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
         </div>
 
         {/* ELIMINAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#222634] bg-[#141824] rounded-lg overflow-hidden transition-all shadow-lg shadow-black/20">
           <button 
             type="button"
             onClick={() => setOpenDel(!openDel)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1c2230] transition-colors focus:outline-none"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>
               ❯
@@ -434,13 +434,13 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
 
           {openDel && (
             poliOverrides.length > 0 ? (
-              <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+              <form onSubmit={handleDeletePais} className="p-4 border-t border-[#222634] space-y-3 bg-[#0c0f17]">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Selecciona país a eliminar:</label>
                   <select 
                     value={paisSeleccionadoDel} 
                     onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
-                    className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500"
+                    className="w-full bg-[#10141d] border border-[#222634] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-[#3b82f6]"
                   >
                     {poliOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
@@ -449,13 +449,13 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                 </div>
                 <button 
                   type="submit" 
-                  className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors"
+                  className="w-full py-1.5 mt-4 bg-[#dc2626] hover:bg-[#b91c1c] text-white font-medium text-xs rounded transition-colors shadow-md shadow-red-900/30"
                 >
                   Eliminar país (POLI)
                 </button>
               </form>
             ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
+              <div className="p-4 border-t border-[#222634] text-xs text-slate-400 italic bg-[#0c0f17]">
                 No hay países personalizados en memoria para eliminar.
               </div>
             )
@@ -477,20 +477,20 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando información desde Supabase...</div>
         ) : (
-          <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-800 rounded-lg">
+          <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-[#222634] rounded-lg shadow-xl">
             <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
-              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10 shadow-sm">
+              <thead className="bg-[#141824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#222634] sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="p-3 w-12 bg-[#181a20]">#</th>
-                  <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Índice de Estados Frágiles (IEF)</th>
-                  <th className="p-3 bg-[#181a20]">Índice de Riesgo (IDR)</th>
-                  <th className="p-3 bg-[#181a20]">Índice de Democracia (IDE)</th>
+                  <th className="p-3 w-12 bg-[#141824]">#</th>
+                  <th className="p-3 bg-[#141824]">País</th>
+                  <th className="p-3 bg-[#141824]">Índice de Estados Frágiles (IEF)</th>
+                  <th className="p-3 bg-[#141824]">Índice de Riesgo (IDR)</th>
+                  <th className="p-3 bg-[#141824]">Índice de Democracia (IDE)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+              <tbody className="divide-y divide-[#222634]/60 bg-[#0c0f17]">
                 {datosPoliConsolidados.map((row, index) => (
-                  <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                  <tr key={index} className="hover:bg-[#141824]/60 transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3">{row.FSI !== null ? row.FSI : '-'}</td>
@@ -509,27 +509,27 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
         <h3 className="text-base font-bold text-white">Tabla Política Normalizada (POLI)</h3>
         <p className="text-xs text-slate-400">Ponderaciones: IEF = 35.50% | IDR = 35.00% | IDE = 29.50% — (Puntaje global afectado al 13.00%)</p>
 
-        <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-slate-800 rounded-lg">
+        <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-[#222634] rounded-lg shadow-xl">
           <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10 shadow-sm">
+            <thead className="bg-[#141824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#222634] sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="p-3 w-12 bg-[#181a20]">#</th>
-                <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">IEF Norm (35.50%)</th>
-                <th className="p-3 bg-[#181a20]">IDR Norm (35.00%)</th>
-                <th className="p-3 bg-[#181a20]">IDE Norm (29.50%)</th>
-                <th className="p-3 bg-[#181a20]">Puntaje POLI Norm. (13.00%)</th>
+                <th className="p-3 w-12 bg-[#141824]">#</th>
+                <th className="p-3 bg-[#141824]">País</th>
+                <th className="p-3 bg-[#141824]">IEF Norm (35.50%)</th>
+                <th className="p-3 bg-[#141824]">IDR Norm (35.00%)</th>
+                <th className="p-3 bg-[#141824]">IDE Norm (29.50%)</th>
+                <th className="p-3 bg-[#141824]">Puntaje POLI Norm. (13.00%)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+            <tbody className="divide-y divide-[#222634]/60 bg-[#0c0f17]">
               {datosPoliNormalizados.map((row, index) => (
-                <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                <tr key={index} className="hover:bg-[#141824]/60 transition-colors">
                   <td className="p-3 text-slate-500">{index + 1}</td>
                   <td className="p-3 font-medium text-white">{row.Paises}</td>
                   <td className="p-3">{row.FSI_norm !== null ? row.FSI_norm : '-'}</td>
                   <td className="p-3">{row.INRI_norm !== null ? row.INRI_norm : '-'}</td>
                   <td className="p-3">{row.DEIN_norm !== null ? row.DEIN_norm : '-'}</td>
-                  <td className="p-3 font-bold text-emerald-400">{row.Puntaje_POLI_Normalizado}</td>
+                  <td className="p-3 font-bold text-[#3b82f6]">{row.Puntaje_POLI_Normalizado}</td>
                 </tr>
               ))}
             </tbody>
