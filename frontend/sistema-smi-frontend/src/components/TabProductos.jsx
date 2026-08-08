@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { THEME } from '../theme.js';
 
 export default function TablaProductos({
   paisDestino,
@@ -196,323 +195,304 @@ export default function TablaProductos({
   };
 
   return (
-    <div className="space-y-6" style={{ color: THEME.text }}>
+    <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
 
-      {/* 🛠️ PANEL DE CONTROL / GESTIÓN (ESTILO TABCOSTO) */}
-      <div 
-        className="p-5 rounded-xl border shadow-sm space-y-4"
-        style={{ backgroundColor: THEME.card, borderColor: THEME.border }}
-      >
-        <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: THEME.border }}>
-          <h3 className="text-sm font-bold flex items-center gap-2 tracking-wide uppercase" style={{ color: THEME.text }}>
-            <span>⚙️</span> Panel de Gestión de Productos
-          </h3>
-          <span className="text-[11px] px-2.5 py-1 rounded-md font-mono" style={{ backgroundColor: THEME.panel, color: THEME.textSecondary, border: `1px solid ${THEME.border}` }}>
+      {/* 🛠️ PANEL DE GESTIÓN DE PRODUCTOS */}
+      <div className="bg-[#121620] border border-[#1e2536] rounded-xl p-4 shadow-sm space-y-4">
+        
+        {/* Encabezado del Panel */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-[#1e2536] pb-3">
+          <div className="flex items-center gap-2 text-white font-bold text-base">
+            <span>⚙️</span>
+            <span>PANEL DE GESTIÓN DE PRODUCTOS</span>
+          </div>
+          <div className="bg-[#192233] text-[#93c5fd] border border-[#26354a] text-xs px-3 py-1.5 rounded-lg font-medium">
             Módulo Activo
-          </span>
+          </div>
         </div>
 
+        {/* Botones Acordeón Superiores */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Botón Añadir */}
-          <button
-            type="button"
-            onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
-            style={{
-              backgroundColor: activeAccordion === 'add' ? THEME.success : THEME.panel,
-              borderColor: activeAccordion === 'add' ? THEME.success : THEME.border,
-              color: activeAccordion === 'add' ? THEME.background : THEME.text,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              fontWeight: activeAccordion === 'add' ? 'bold' : 'medium'
-            }}
-            className="p-3 rounded-lg text-xs text-left flex items-center justify-between transition-all cursor-pointer shadow-sm"
-          >
-            <span className="flex items-center gap-2"><span>➕</span> Añadir producto</span>
-            <span className="text-[10px]">{activeAccordion === 'add' ? '▼' : '❯'}</span>
-          </button>
+          
+          {/* Añadir */}
+          <div className="bg-[#161c29] border border-[#222c40] rounded-lg overflow-hidden transition-all">
+            <button
+              type="button"
+              onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
+              className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-emerald-400 font-bold">+</span> Añadir producto
+              </span>
+              <span className="text-slate-400 text-xs">{activeAccordion === 'add' ? '▴' : '▾'}</span>
+            </button>
+            {activeAccordion === 'add' && (
+              <form onSubmit={handleGuardarProducto} className="p-4 border-t border-[#222c40] space-y-3 bg-[#131824] text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">País</label>
+                  <input
+                    type="text"
+                    value={addPais}
+                    onChange={(e) => setAddPais(e.target.value)}
+                    placeholder="Ej. España"
+                    className="w-full bg-[#0b0e14] border border-[#222c40] rounded p-2 text-white focus:outline-none focus:border-slate-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">Nombre del Producto</label>
+                  <input
+                    type="text"
+                    value={addNombre}
+                    onChange={(e) => setAddNombre(e.target.value)}
+                    placeholder="Ej. Queso local (1 kg)"
+                    className="w-full bg-[#0b0e14] border border-[#222c40] rounded p-2 text-white focus:outline-none focus:border-slate-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">Precio (€)</label>
+                  <input
+                    type="text"
+                    value={addPrecio}
+                    onChange={(e) => setAddPrecio(e.target.value)}
+                    placeholder="12.50"
+                    className="w-full bg-[#0b0e14] border border-[#222c40] rounded p-2 text-white focus:outline-none focus:border-slate-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors"
+                >
+                  Guardar cambios
+                </button>
+              </form>
+            )}
+          </div>
 
-          {/* Botón Editar */}
-          <button
-            type="button"
-            onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
-            style={{
-              backgroundColor: activeAccordion === 'edit' ? THEME.warning : THEME.panel,
-              borderColor: activeAccordion === 'edit' ? THEME.warning : THEME.border,
-              color: activeAccordion === 'edit' ? THEME.background : THEME.text,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              fontWeight: activeAccordion === 'edit' ? 'bold' : 'medium'
-            }}
-            className="p-3 rounded-lg text-xs text-left flex items-center justify-between transition-all cursor-pointer shadow-sm"
-          >
-            <span className="flex items-center gap-2"><span>✏️</span> Editar producto</span>
-            <span className="text-[10px]">{activeAccordion === 'edit' ? '▼' : '❯'}</span>
-          </button>
+          {/* Editar */}
+          <div className="bg-[#161c29] border border-[#222c40] rounded-lg overflow-hidden transition-all">
+            <button
+              type="button"
+              onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
+              className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <span>✏️</span> Editar producto
+              </span>
+              <span className="text-slate-400 text-xs">{activeAccordion === 'edit' ? '▴' : '▾'}</span>
+            </button>
+            {activeAccordion === 'edit' && (
+              <form onSubmit={handleEditarProducto} className="p-4 border-t border-[#222c40] space-y-3 bg-[#131824] text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">Seleccionar registro:</label>
+                  <select
+                    value={editId}
+                    onChange={(e) => {
+                      const selectedVal = e.target.value;
+                      setEditId(selectedVal);
+                      const sel = productos.find((p) => String(getProductoId(p)) === String(selectedVal));
+                      if (sel) {
+                        setEditPais(sel.pais || sel.Pais || '');
+                        setEditNombre(sel.nombre || sel.producto || '');
+                        setEditPrecio(sel.precio || sel.Precio || '');
+                      } else {
+                        setEditPais('');
+                        setEditNombre('');
+                        setEditPrecio('');
+                      }
+                    }}
+                    className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-xs text-white cursor-pointer focus:outline-none"
+                  >
+                    <option value="">-- Seleccionar producto --</option>
+                    {productos.map((p) => {
+                      const pId = getProductoId(p);
+                      const pPais = p.pais || p.Pais || 'Sin país';
+                      const pNombre = p.nombre || p.producto || 'Sin nombre';
+                      const pPrecio = p.precio || p.Precio || 'Sin precio';
+                      return (
+                        <option key={pId} value={pId}>
+                          [{pPais}] — {pNombre} — ({pPrecio})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
 
-          {/* Botón Eliminar */}
-          <button
-            type="button"
-            onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
-            style={{
-              backgroundColor: activeAccordion === 'delete' ? THEME.danger : THEME.panel,
-              borderColor: activeAccordion === 'delete' ? THEME.danger : THEME.border,
-              color: activeAccordion === 'delete' ? THEME.background : THEME.text,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              fontWeight: activeAccordion === 'delete' ? 'bold' : 'medium'
-            }}
-            className="p-3 rounded-lg text-xs text-left flex items-center justify-between transition-all cursor-pointer shadow-sm"
-          >
-            <span className="flex items-center gap-2"><span>🗑️</span> Eliminar producto</span>
-            <span className="text-[10px]">{activeAccordion === 'delete' ? '▼' : '❯'}</span>
-          </button>
+                {editId && (
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-medium">País</label>
+                      <input
+                        type="text"
+                        value={editPais}
+                        onChange={(e) => setEditPais(e.target.value)}
+                        className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-white focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-medium">Nombre</label>
+                      <input
+                        type="text"
+                        value={editNombre}
+                        onChange={(e) => setEditNombre(e.target.value)}
+                        className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-white focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 mb-1 font-medium">Precio</label>
+                      <input
+                        type="text"
+                        value={editPrecio}
+                        onChange={(e) => setEditPrecio(e.target.value)}
+                        className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-white focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <button 
+                  type="submit"
+                  className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium cursor-pointer transition-colors"
+                >
+                  Actualizar cambios
+                </button>
+              </form>
+            )}
+          </div>
+
+          {/* Eliminar */}
+          <div className="bg-[#161c29] border border-[#222c40] rounded-lg overflow-hidden transition-all">
+            <button
+              type="button"
+              onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
+              className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <span>🗑️</span> Eliminar producto
+              </span>
+              <span className="text-slate-400 text-xs">{activeAccordion === 'delete' ? '▴' : '▾'}</span>
+            </button>
+            {activeAccordion === 'delete' && (
+              <form onSubmit={handleEliminarProducto} className="p-4 border-t border-[#222c40] space-y-3 bg-[#131824] text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">Selecciona el registro a eliminar:</label>
+                  <select
+                    value={deleteId}
+                    onChange={(e) => setDeleteId(e.target.value)}
+                    className="w-full bg-[#0b0e14] border border-[#222c40] p-2 rounded text-xs text-white cursor-pointer focus:outline-none"
+                  >
+                    <option value="">-- Seleccionar producto a remover --</option>
+                    {productos.map((p) => {
+                      const pId = getProductoId(p);
+                      const pPais = p.pais || p.Pais || 'Sin país';
+                      const pNombre = p.nombre || p.producto || 'Sin nombre';
+                      const pPrecio = p.precio || p.Precio || 'Sin precio';
+                      return (
+                        <option key={pId} value={pId}>
+                          [{pPais}] — {pNombre} — ({pPrecio})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  className="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition-colors"
+                >
+                  Confirmar eliminación
+                </button>
+              </form>
+            )}
+          </div>
+
         </div>
 
-        {/* Formulario: Añadir */}
-        {activeAccordion === 'add' && (
-          <form onSubmit={handleGuardarProducto} className="p-4 rounded-lg border space-y-3 shadow-inner mt-3 animate-fadeIn" style={{ backgroundColor: THEME.background, borderColor: THEME.border }}>
-            <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: THEME.success }}>Registrar Nuevo Producto</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <input
-                type="text"
-                placeholder="País"
-                value={addPais}
-                onChange={(e) => setAddPais(e.target.value)}
-                className="p-2.5 rounded-md focus:outline-none"
-                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-              />
-              <input
-                type="text"
-                placeholder="Nombre del Producto"
-                value={addNombre}
-                onChange={(e) => setAddNombre(e.target.value)}
-                className="p-2.5 rounded-md focus:outline-none"
-                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-                required
-              />
-              <input
-                type="text"
-                placeholder="Precio (Ej: 12.50)"
-                value={addPrecio}
-                onChange={(e) => setAddPrecio(e.target.value)}
-                className="p-2.5 rounded-md focus:outline-none"
-                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-              />
-            </div>
-            <div className="flex justify-end pt-2">
-              <button type="submit" className="text-xs px-4 py-2 rounded-md font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.success, color: THEME.background }}>
-                Guardar cambios
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Formulario: Editar */}
-        {activeAccordion === 'edit' && (
-          <form onSubmit={handleEditarProducto} className="p-4 rounded-lg border space-y-3 shadow-inner mt-3 animate-fadeIn" style={{ backgroundColor: THEME.background, borderColor: THEME.border }}>
-            <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: THEME.warning }}>Actualizar Registro Existente</h4>
-            
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium" style={{ color: THEME.textSecondary }}>Seleccionar registro:</label>
-              <select
-                value={editId}
-                onChange={(e) => {
-                  const selectedVal = e.target.value;
-                  setEditId(selectedVal);
-                  const sel = productos.find((p) => String(getProductoId(p)) === String(selectedVal));
-                  if (sel) {
-                    setEditPais(sel.pais || sel.Pais || '');
-                    setEditNombre(sel.nombre || sel.producto || '');
-                    setEditPrecio(sel.precio || sel.Precio || '');
-                  } else {
-                    setEditPais('');
-                    setEditNombre('');
-                    setEditPrecio('');
-                  }
-                }}
-                className="w-full p-2.5 rounded-md text-xs focus:outline-none cursor-pointer"
-                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-              >
-                <option value="" style={{ backgroundColor: THEME.card, color: THEME.text }}>-- Seleccionar producto --</option>
-                {productos.map((p) => {
-                  const pId = getProductoId(p);
-                  const pPais = p.pais || p.Pais || 'Sin país';
-                  const pNombre = p.nombre || p.producto || 'Sin nombre';
-                  const pPrecio = p.precio || p.Precio || 'Sin precio';
-                  return (
-                    <option key={pId} value={pId} style={{ backgroundColor: THEME.card, color: THEME.text }}>
-                      [{pPais}] — {pNombre} — ({pPrecio})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            {editId && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2" style={{ borderTop: `1px solid ${THEME.border}` }}>
-                <div>
-                  <label className="block text-[10px] uppercase mb-1 font-semibold" style={{ color: THEME.textSecondary }}>País</label>
-                  <input
-                    type="text"
-                    value={editPais}
-                    onChange={(e) => setEditPais(e.target.value)}
-                    className="w-full p-2.5 rounded-md focus:outline-none"
-                    style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase mb-1 font-semibold" style={{ color: THEME.textSecondary }}>Nombre</label>
-                  <input
-                    type="text"
-                    value={editNombre}
-                    onChange={(e) => setEditNombre(e.target.value)}
-                    className="w-full p-2.5 rounded-md focus:outline-none"
-                    style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] uppercase mb-1 font-semibold" style={{ color: THEME.textSecondary }}>Precio</label>
-                  <input
-                    type="text"
-                    value={editPrecio}
-                    onChange={(e) => setEditPrecio(e.target.value)}
-                    className="w-full p-2.5 rounded-md focus:outline-none"
-                    style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-                  />
-                </div>
-              </div>
-            )}
-            
-            <div className="flex justify-end pt-2">
-              <button type="submit" className="text-xs px-4 py-2 rounded-md font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.warning, color: THEME.background }}>
-                Actualizar cambios
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Formulario: Eliminar */}
-        {activeAccordion === 'delete' && (
-          <form onSubmit={handleEliminarProducto} className="p-4 rounded-lg border space-y-3 shadow-inner mt-3 animate-fadeIn" style={{ backgroundColor: THEME.background, borderColor: THEME.border }}>
-            <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: THEME.danger }}>Eliminar Registro</h4>
-            
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium" style={{ color: THEME.textSecondary }}>Selecciona el registro a eliminar:</label>
-              <select
-                value={deleteId}
-                onChange={(e) => setDeleteId(e.target.value)}
-                className="w-full p-2.5 rounded-md text-xs focus:outline-none cursor-pointer"
-                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
-              >
-                <option value="" style={{ backgroundColor: THEME.card, color: THEME.text }}>-- Seleccionar producto a remover --</option>
-                {productos.map((p) => {
-                  const pId = getProductoId(p);
-                  const pPais = p.pais || p.Pais || 'Sin país';
-                  const pNombre = p.nombre || p.producto || 'Sin nombre';
-                  const pPrecio = p.precio || p.Precio || 'Sin precio';
-                  return (
-                    <option key={pId} value={pId} style={{ backgroundColor: THEME.card, color: THEME.text }}>
-                      [{pPais}] — {pNombre} — ({pPrecio})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button type="submit" className="text-xs px-4 py-2 rounded-md font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.danger, color: THEME.background }}>
-                Confirmar eliminación
-              </button>
-            </div>
-          </form>
-        )}
       </div>
 
       {/* 📊 TABLA DE RESULTADOS PRINCIPAL */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold" style={{ color: THEME.text }}>
-            Listado de Productos <span className="text-xs font-normal" style={{ color: THEME.textSecondary }}>(Haz clic en una fila para seleccionarla)</span>
+      <div className="space-y-2">
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-sm font-bold text-white">
+            Listado de Productos <span className="text-xs font-normal text-slate-500">(Haz clic en una fila para seleccionarla)</span>
           </h3>
-          <span className="text-xs px-3 py-1 rounded-full border font-mono" style={{ backgroundColor: THEME.card, borderColor: THEME.border, color: THEME.textSecondary }}>
-            Mostrando <strong style={{ color: THEME.text }}>{productosFiltrados.length}</strong> de {productos.length} registros
+          <span className="text-xs text-slate-400 font-mono">
+            Mostrando <strong className="text-slate-200">{productosFiltrados.length}</strong> de <strong className="text-slate-200">{productos.length}</strong> registros
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border shadow-sm" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
-          <table className="w-full text-left text-xs" style={{ color: THEME.textSecondary }}>
-            <thead>
-              <tr style={{ backgroundColor: THEME.panel, borderBottom: `1px solid ${THEME.border}`, color: THEME.textSecondary }}>
-                <th className="p-3.5 font-semibold">ID</th>
-                <th className="p-3.5 font-semibold">País</th>
-                <th className="p-3.5 font-semibold text-right">Precio (€)</th>
-                <th className="p-3.5 font-semibold">Producto</th>
-              </tr>
-            </thead>
-            <tbody style={{ borderTop: `1px solid ${THEME.border}` }}>
-              {loading ? (
-                <tr>
-                  <td colSpan="4" className="p-8 text-center animate-pulse" style={{ color: THEME.textSecondary }}>
-                    Cargando registros desde base de datos...
-                  </td>
+        <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
+          <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="sticky top-0 bg-[#161c29] z-10 border-b border-[#1e2536]">
+                <tr className="text-slate-400">
+                  <th className="py-3 px-4 w-20 font-medium">ID</th>
+                  <th className="py-3 px-4 font-medium">País</th>
+                  <th className="py-3 px-4 text-right font-medium">Precio (€)</th>
+                  <th className="py-3 px-4 font-medium pr-6">Producto</th>
                 </tr>
-              ) : productosFiltrados.length > 0 ? (
-                productosFiltrados.map((item) => {
-                  const idVal = getProductoId(item) || '—';
-                  const paisVal = item.pais || item.Pais || '—';
-                  const nombre = item.nombre || item.producto || '—';
-                  const precioRaw = item.precio ?? item.Precio;
-                  const isSelected = String(productoSeleccionadoId) === String(idVal);
-                  
-                  let precioFmt = '—';
-                  if (precioRaw !== undefined && precioRaw !== null && precioRaw !== '') {
-                    if (typeof precioRaw === 'number') {
-                      precioFmt = `${precioRaw.toFixed(2)} €`;
-                    } else {
-                      const strVal = String(precioRaw).trim();
-                      if (strVal.includes('€')) {
-                        precioFmt = strVal;
+              </thead>
+              <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
+                {loading ? (
+                  <tr>
+                    <td colSpan="4" className="py-6 text-center text-slate-500 font-sans">
+                      Cargando registros desde base de datos...
+                    </td>
+                  </tr>
+                ) : productosFiltrados.length > 0 ? (
+                  productosFiltrados.map((item) => {
+                    const idVal = getProductoId(item) || '—';
+                    const paisVal = item.pais || item.Pais || '—';
+                    const nombre = item.nombre || item.producto || '—';
+                    const precioRaw = item.precio ?? item.Precio;
+                    const isSelected = String(productoSeleccionadoId) === String(idVal);
+                    
+                    let precioFmt = '—';
+                    if (precioRaw !== undefined && precioRaw !== null && precioRaw !== '') {
+                      if (typeof precioRaw === 'number') {
+                        precioFmt = `${precioRaw.toFixed(2)} €`;
                       } else {
-                        const num = Number(strVal.replace(',', '.'));
-                        precioFmt = !isNaN(num) ? `${num.toFixed(2)} €` : strVal;
+                        const strVal = String(precioRaw).trim();
+                        if (strVal.includes('€')) {
+                          precioFmt = strVal;
+                        } else {
+                          const num = Number(strVal.replace(',', '.'));
+                          precioFmt = !isNaN(num) ? `${num.toFixed(2)} €` : strVal;
+                        }
                       }
                     }
-                  }
 
-                  return (
-                    <tr 
-                      key={idVal} 
-                      onClick={() => {
-                        if (onSeleccionarProducto) {
-                          onSeleccionarProducto(item);
-                        }
-                      }}
-                      className="transition-colors cursor-pointer"
-                      style={{
-                        backgroundColor: isSelected ? 'rgba(52, 211, 153, 0.15)' : 'transparent',
-                        borderLeft: isSelected ? `4px solid ${THEME.success}` : '4px solid transparent'
-                      }}
-                    >
-                      <td className="p-3.5 font-mono" style={{ color: THEME.textSecondary }}>{idVal}</td>
-                      <td className="p-3.5 font-medium" style={{ color: THEME.textSecondary }}>{paisVal}</td>
-                      <td className="p-3.5 text-right font-mono font-semibold" style={{ color: THEME.success }}>
-                        {precioFmt}
-                      </td>
-                      <td className="p-3.5 font-medium" style={{ color: THEME.text }}>{nombre}</td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="4" className="p-8 text-center" style={{ color: THEME.textSecondary }}>
-                    No se encontraron registros que coincidan con los filtros activos.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    return (
+                      <tr 
+                        key={idVal} 
+                        onClick={() => {
+                          if (onSeleccionarProducto) {
+                            onSeleccionarProducto(item);
+                          }
+                        }}
+                        className={`transition-colors cursor-pointer ${
+                          isSelected ? 'bg-emerald-500/10 border-l-4 border-emerald-400' : 'hover:bg-[#161c29]/50'
+                        }`}
+                      >
+                        <td className="py-3 px-4 text-slate-400">{idVal}</td>
+                        <td className="py-3 px-4 font-sans font-medium text-slate-200">{paisVal}</td>
+                        <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{precioFmt}</td>
+                        <td className="py-3 px-4 font-sans text-slate-200 pr-6">{nombre}</td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="py-8 text-center text-slate-500 font-sans">
+                      No se encontraron registros que coincidan con los filtros activos.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
     </div>
   );
 }
