@@ -1,701 +1,511 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { THEME } from '../theme';
+import { THEME } from '../theme.js';
 
-// --- Helper: Cálculo de distancia geográfica mediante Haversine ---
-function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
-  
-  const parseCoord = (val) => parseFloat(String(val).replace(',', '.'));
-  
-  const l1 = parseCoord(lat1);
-  const ln1 = parseCoord(lon1);
-  const l2 = parseCoord(lat2);
-  const ln2 = parseCoord(lon2);
-
-  if (isNaN(l1) || isNaN(ln1) || isNaN(l2) || isNaN(ln2)) return 0;
-
-  const R = 6371; // Radio de la Tierra en km
-  const dLat = (l2 - l1) * (Math.PI / 180);
-  const dLon = (ln2 - ln1) * (Math.PI / 180);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(l1 * (Math.PI / 180)) *
-    Math.cos(l2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-// --- Helper: Limpiar el formato del precio (ej. "8,97 €" -> 8.97) ---
-function limpiarPrecio(val) {
-  if (val === null || val === undefined) return 0;
-  if (typeof val === 'number') return val > 0 ? val : 0;
-  
-  const str = String(val).trim();
-  if (str.toLowerCase().includes('no encontrado') || str === '' || str === '0' || str === '$0.00') return 0;
-
-  const limpio = str.replace(/[^\d,.-]/g, '').replace(',', '.');
-  const numero = parseFloat(limpio);
-  return isNaN(numero) || numero <= 0 ? 0 : numero;
-}
-
-// --- Helper: Normalizar texto (quitar tildes, minúsculas, códigos numéricos) ---
-function normalizarTexto(texto) {
-  if (!texto) return '';
-  return String(texto)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Quitar tildes
-    .replace(/^\d+[\s-]*/, '')        // Quitar códigos iniciales (ej: "0406 - ")
-    .trim();
-}
-
-// --- Componente Principal ---
-
-export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
-  const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
-  const [datosProductos, setDatosProductos] = useState([]);
-  const [listaPaises, setListaPaises] = useState([]);
+export default function TablaProductos({
+  paisDestino,
+  setPaisDestino,
+  categoria,
+  subcategoria,
+  searchNombre,
+  searchCodigo,
+  searchSubcodigo,
+  onSeleccionarProducto,
+  productoSeleccionadoId
+}) {
+  const [productos, setProductos] = useState([]);
+  const [keywordsCategoria, setKeywordsCategoria] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [errorLog, setErrorLog] = useState(null);
 
   const [activeAccordion, setActiveAccordion] = useState(null);
 
-  // Estados Formulario Añadir
-  const [nuevoPaisNombre, setNuevoPaisNombre] = useState('');
-  const [nuevaLatitud, setNuevaLatitud] = useState('');
-  const [nuevaLongitud, setNuevaLongitud] = useState('');
-  const [nuevoCic, setNuevoCic] = useState('');
+  // Form Añadir
+  const [addPais, setAddPais] = useState('');
+  const [addNombre, setAddNombre] = useState('');
+  const [addPrecio, setAddPrecio] = useState('');
 
-  // Estados Formulario Editar
-  const [selectedPaisId, setSelectedPaisId] = useState('');
-  const [editLatitud, setEditLatitud] = useState('');
-  const [editLongitud, setEditLongitud] = useState('');
-  const [editCic, setEditCic] = useState('');
+  // Form Editar
+  const [editId, setEditId] = useState('');
+  const [editPais, setEditPais] = useState('');
+  const [editNombre, setEditNombre] = useState('');
+  const [editPrecio, setEditPrecio] = useState('');
 
-  // Referencia para evitar bucles infinitos con onDatosActualizados
-  const prevDatosRef = useRef('');
-
-  useEffect(() => {
-    if (paisOrigen) setPaisBase(paisOrigen);
-  }, [paisOrigen]);
+  // Form Eliminar
+  const [deleteId, setDeleteId] = useState('');
 
   useEffect(() => {
-    async function fetchPaises() {
-      const { data } = await supabase.from('paises').select('*').order('nombre');
-      if (data) setListaPaises(data);
-    }
-    fetchPaises();
+    cargarDatosIniciales();
   }, []);
 
-  // Función principal para cargar datos y calcular la matriz usando la lógica unificada
-  async function cargarYCalcularMatriz() {
+  async function cargarDatosIniciales() {
     setLoading(true);
-    setErrorLog(null);
 
-    try {
-      // 1. Obtener países
-      const { data: dbPaises, error: errPaises } = await supabase.from('paises').select('*').order('nombre');
-      if (errPaises) throw errPaises;
-      if (!dbPaises || dbPaises.length === 0) {
-        setDatosProductos([]);
-        setLoading(false);
-        return;
-      }
+    const { data: dataProductos, error } = await supabase
+      .from('productos')
+      .select('*');
 
-      // 2. Obtener costos de importación (CIC)
-      const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
-      if (errCIC) console.warn("Aviso en CIC:", errCIC);
-
-      // 3. Obtener registros de la tabla 'productos'
-      const { data: dbProds, error: errProds } = await supabase.from('productos').select('*');
-      if (errProds) throw errProds;
-
-      // 4. Cargar palabras clave de categorías
-      const { data: categoriasKeywords, error: errCategorias } = await supabase
-        .from('productos_categoria')
-        .select('*');
-
-      if (errCategorias) throw errCategorias;
-
-      // 5. Crear las palabras clave de la categoría seleccionada
-      const palabrasCategoria =
-        categoria && categoria !== 'Todos'
-          ? (categoriasKeywords || [])
-              .filter(k => String(k.categoria_codigo) === String(categoria))
-              .map(k => String(k.palabra_clave || '').toLowerCase())
-          : [];
-
-      // 6. Crear las palabras clave de la subcategoría seleccionada
-      const palabrasSubcategoria =
-        subcategoria && subcategoria !== 'Todos'
-          ? (categoriasKeywords || [])
-              .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
-              .map(k => String(k.palabra_clave || '').toLowerCase())
-          : [];
-
-      // Extraer nombre del producto activo o búsqueda manual
-      let nombreProductoBuscado = '';
-      if (typeof productoActivo === 'string') {
-        nombreProductoBuscado = productoActivo;
-      } else if (productoActivo && typeof productoActivo === 'object') {
-        nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
-      }
-      if (!nombreProductoBuscado) {
-        nombreProductoBuscado = busqueda ?? '';
-      }
-
-      let mapaPreciosTemp = {}; 
-
-      if (dbProds) {
-        dbProds.forEach(item => {
-          const nombreProd = (
-            item.producto ||
-            item.nombre ||
-            item.titulo ||
-            item.descripcion ||
-            ''
-          ).toLowerCase();
-
-          // Validación de filtros por categoría, subcategoría y búsqueda
-          const coincideCategoria =
-            categoria === 'Todos' ||
-            palabrasCategoria.length === 0 ||
-            palabrasCategoria.some(p => nombreProd.includes(p));
-
-          const coincideSubcategoria =
-            subcategoria === 'Todos' ||
-            palabrasSubcategoria.length === 0 ||
-            palabrasSubcategoria.some(p => nombreProd.includes(p));
-
-          const cumpleFiltroBusqueda = !nombreProductoBuscado || normalizarTexto(nombreProd).includes(normalizarTexto(nombreProductoBuscado));
-
-          if (
-            coincideCategoria &&
-            coincideSubcategoria &&
-            cumpleFiltroBusqueda
-          ) {
-            const paisItem = item.pais || item.Pais || item.country;
-
-            if (paisItem) {
-              const nombrePaisKey = String(paisItem).trim().toLowerCase();
-              const precioRaw = item.precio ?? item.price ?? item.costo;
-              const precioLim = limpiarPrecio(precioRaw);
-              
-              if (precioLim > 0) {
-                if (!mapaPreciosTemp[nombrePaisKey]) {
-                  mapaPreciosTemp[nombrePaisKey] = [];
-                }
-                mapaPreciosTemp[nombrePaisKey].push(precioLim);
-              }
-            }
-          }
-        });
-      }
-
-      let mapaPreciosPorPais = {};
-      Object.keys(mapaPreciosTemp).forEach(pais => {
-        const precios = mapaPreciosTemp[pais];
-        const promedio = precios.reduce((acc, curr) => acc + curr, 0) / precios.length;
-        mapaPreciosPorPais[pais] = promedio;
-      });
-
-      const objetoPaisBase = dbPaises.find(
-        (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
-      ) || dbPaises[0];
-
-      const latBase = objetoPaisBase?.latitud;
-      const lonBase = objetoPaisBase?.longitud;
-
-      // 7. Consolidar datos por país
-      const datosConsolidados = dbPaises
-        .map((p) => {
-          const nombreKey = p.nombre.trim().toLowerCase();
-          const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
-
-          const cicMatch = (dbCostoImportacion || []).find(
-            (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
-          );
-          let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
-          if (isNaN(cicVal)) cicVal = null;
-
-          const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
-          const ctiVal = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : 0;
-
-          return {
-            id: p.id,
-            pais_nombre: p.nombre,
-            latitud: p.latitud,
-            longitud: p.longitud,
-            ppd: ppdVal,
-            cti: ctiVal,
-            cic: cicVal
-          };
-        })
-        .filter(item => item.ppd > 0);
-
-      setDatosProductos(datosConsolidados);
-    } catch (err) {
-      console.error("❌ Error al consolidar costos:", err);
-      setErrorLog(err.message || "Error al conectar con Supabase");
-    } finally {
-      setLoading(false);
+    if (error) {
+      console.error('Error cargando productos:', error);
+    } else if (dataProductos) {
+      setProductos(dataProductos);
     }
+
+    const { data: dataKeywords, error: errorKeywords } = await supabase
+      .from('productos_categoria')
+      .select('*');
+
+    if (errorKeywords) {
+      console.error('Error cargando keywords:', errorKeywords);
+    } else if (dataKeywords) {
+      setKeywordsCategoria(dataKeywords);
+    }
+
+    setLoading(false);
   }
 
-  // DISPARADOR PRINCIPAL: Se ejecuta cada vez que cambia cualquier filtro o el país base
-  useEffect(() => {
-    cargarYCalcularMatriz();
-  }, [productoActivo, categoria, subcategoria, busqueda, paisBase]);
+  const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
-  // ----------------------------------------------------
-  // CÁLCULOS DE NORMALIZACIÓN Y PONDERACIÓN (FÓRMULAS EXCEL)
-  // ----------------------------------------------------
-  const PESO_FACTOR_COSTO = 0.215; // 21.50%
+  // 🔍 Lógica de Filtrado Dinámico para la Tabla
+  const productosFiltrados = productos.filter((p) => {
+    if (categoria && categoria !== 'Todos') {
+      const palabrasCategoriaActual = keywordsCategoria
+        .filter(k => String(k.categoria_codigo) === String(categoria))
+        .map(k => String(k.palabra_clave || '').toLowerCase());
 
-  const PESO_PPD = 0.44; // 44.00%
-  const PESO_CTI = 0.34; // 34.00%
-  const PESO_CIC = 0.22; // 22.00%
-  const PUNTAJE_MAXIMO = 10;
+      const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
+      const coincideCategoria = palabrasCategoriaActual.some(palabra => nombreProducto.includes(palabra));
 
-  const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && v > 0);
-  const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && v > 0);
-  const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && v > 0);
+      if (!coincideCategoria) return false;
+    }
+    
+    if (subcategoria && subcategoria !== 'Todos') {
+      const palabrasSubcategoriaActual = keywordsCategoria
+        .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
+        .map(k => String(k.palabra_clave || '').toLowerCase());
 
-  const maxPpd = ppdVals.length > 0 ? Math.max(...ppdVals) : null;
-  const minCti = ctiVals.length > 0 ? Math.min(...ctiVals) : null;
-  const minCic = cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : null;
+      const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
+      const subcatProducto = String(p.subcategoria_codigo || p.subcategoria || p.subcodigo || '').trim();
+      const subcatFiltro = String(subcategoria).trim();
 
-  const calcularNormalizadoDirecto = (val, maxVal) => {
-    if (val === null || val === undefined || val <= 0 || !maxVal) return null;
-    const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
-    return Number(resultado.toFixed(2));
-  };
+      const coincideSubExacto = subcatProducto === subcatFiltro;
+      const coincideSubEmpieza = subcatFiltro.startsWith(subcatProducto) || subcatProducto.startsWith(subcatFiltro);
+      const coincideKeywordSub = palabrasSubcategoriaActual.some(palabra => nombreProducto.includes(palabra));
 
-  const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined || val <= 0 || minVal === null || minVal <= 0) return null;
-    const resultado = (PUNTAJE_MAXIMO * minVal) / val;
-    return Number(resultado.toFixed(2));
-  };
+      if (!coincideSubExacto && !coincideSubEmpieza && !coincideKeywordSub) return false;
+    }
+    
+    const nombreVal = p.nombre || p.producto || '';
+    if (searchNombre && !nombreVal.toLowerCase().includes(searchNombre.toLowerCase())) return false;
+    
+    if (searchCodigo) {
+      const palabrasCodigo = keywordsCategoria
+        .filter(k => String(k.categoria_codigo).startsWith(searchCodigo))
+        .map(k => String(k.palabra_clave || '').toLowerCase());
 
-  const matrizCalculadaCompleta = datosProductos.map(row => {
-    const valPpd = row.ppd ?? row.PPD ?? 0;
-    const valCti = row.cti ?? row.CTI ?? row.transport_cost ?? 0; 
-    const valCic = row.cic ?? row.CIC ?? row.cumplimiento ?? 0;
+      const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
+      const coincideCodigo = palabrasCodigo.some(palabra => nombreProducto.includes(palabra));
 
-    const ppdNorm = calcularNormalizadoDirecto(valPpd, maxPpd);
-    const ctiNorm = calcularNormalizadoInverso(valCti, minCti);
-    const cicNorm = calcularNormalizadoInverso(valCic, minCic);
+      if (!coincideCodigo) return false;
+    }
+    
+    const subcodigoVal = p.subcodigo || p.subcategoria_codigo;
+    if (searchSubcodigo && (!subcodigoVal || !subcodigoVal.toString().includes(searchSubcodigo))) return false;
 
-    const p1 = ppdNorm ?? 0;
-    const p2 = ctiNorm ?? 0;
-    const p3 = cicNorm ?? 0;
+    return true;
+  });
 
-    const aporteFactorCosto = Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
+  // 📝 HANDLERS PARA OPERACIONES CRUD
+  const handleGuardarProducto = async (e) => {
+    e.preventDefault();
+    if (!addNombre) return alert('Por favor ingresa al menos el nombre del producto.');
 
-    const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
-
-    return {
-      ...row,
-      ppdNorm,
-      ctiNorm,
-      cicNorm,
-      aporteFactorCosto,
-      __faltantes: faltantes
+    const payload = {
+      nombre: addNombre,
+      categoria_codigo: categoria && categoria !== 'Todos' ? categoria : null,
+      subcategoria_codigo: subcategoria && subcategoria !== 'Todos' ? subcategoria : null
     };
-  });
 
-  matrizCalculadaCompleta.sort((a, b) => {
-    if (a.__faltantes !== b.__faltantes) {
-      return a.__faltantes - b.__faltantes;
-    }
-    return b.aporteFactorCosto - a.aporteFactorCosto; 
-  });
+    if (addPais) payload.pais = addPais;
+    if (addPrecio) payload.precio = addPrecio;
 
-  const matrizFiltrada = matrizCalculadaCompleta;
+    const { error } = await supabase.from('productos').insert([payload]);
 
-  // Sincronización segura con el componente padre usando dependencias estables
-  useEffect(() => {
-    if (onDatosActualizados && matrizCalculadaCompleta.length > 0) {
-      const datosString = JSON.stringify(matrizCalculadaCompleta);
-      if (datosString !== prevDatosRef.current) {
-        prevDatosRef.current = datosString;
-        onDatosActualizados(matrizCalculadaCompleta);
-      }
-    }
-  }, [matrizCalculadaCompleta]);
-
-  const toggleAccordion = (tab) => {
-    setActiveAccordion(activeAccordion === tab ? null : tab);
-  };
-
-  const handleSelectEdit = (id) => {
-    setSelectedPaisId(id);
-    const target = datosProductos.find(p => p.id === parseInt(id) || p.id === id);
-    if (target) {
-      setEditLatitud(target.latitud ?? '');
-      setEditLongitud(target.longitud ?? '');
-      setEditCic(target.cic ?? '');
+    if (error) {
+      alert('Error al guardar el producto: ' + error.message);
+    } else {
+      setAddPais('');
+      setAddNombre('');
+      setAddPrecio('');
+      setActiveAccordion(null);
+      cargarDatosIniciales();
     }
   };
 
-  async function handleAgregarPais() {
-    if (!nuevoPaisNombre) return alert("Por favor ingresa el nombre del país.");
+  const handleEditarProducto = async (e) => {
+    e.preventDefault();
+    if (!editId) return alert('Selecciona un registro para editar.');
 
-    try {
-      const { error: errP } = await supabase
-        .from('paises')
-        .insert([{ nombre: nuevoPaisNombre, latitud: nuevaLatitud, longitud: nuevaLongitud }]);
+    const { error } = await supabase
+      .from('productos')
+      .update({
+        pais: editPais,
+        nombre: editNombre,
+        precio: editPrecio
+      })
+      .eq('id', editId);
 
-      if (errP) throw errP;
-
-      if (nuevoCic) {
-        const { error: errC } = await supabase
-          .from('costo_importacion')
-          .insert([{ pais: nuevoPaisNombre, valor: parseFloat(nuevoCic) || 0 }]);
-        if (errC) throw errC;
+    if (error) {
+      alert('Error al actualizar: ' + error.message);
+    } else {
+      setActiveAccordion(null);
+      
+      const productoActualizado = {
+        id: editId,
+        pais: editPais,
+        nombre: editNombre,
+        precio: editPrecio
+      };
+      if (onSeleccionarProducto) {
+        onSeleccionarProducto(productoActualizado);
       }
 
-      setNuevoPaisNombre(''); setNuevaLatitud(''); setNuevaLongitud(''); setNuevoCic('');
-      setActiveAccordion(null);
-      cargarYCalcularMatriz();
-    } catch (err) {
-      alert("Error al agregar registro: " + err.message);
+      setEditId('');
+      setEditPais('');
+      setEditNombre('');
+      setEditPrecio('');
+      cargarDatosIniciales();
     }
-  }
-
-  async function handleGuardarCambios() {
-    if (!selectedPaisId) return alert("Selecciona un país para editar.");
-
-    const target = datosProductos.find(p => p.id === parseInt(selectedPaisId) || p.id === selectedPaisId);
-    if (!target) return;
-
-    try {
-      const { error: errP } = await supabase
-        .from('paises')
-        .update({ latitud: editLatitud, longitud: editLongitud })
-        .eq('id', selectedPaisId);
-
-      if (errP) throw errP;
-
-      const { error: errC } = await supabase
-        .from('costo_importacion')
-        .upsert({ pais: target.pais_nombre, valor: parseFloat(editCic) || 0 }, { onConflict: 'pais' });
-
-      if (errC) throw errC;
-
-      setSelectedPaisId(''); setEditLatitud(''); setEditLongitud(''); setEditCic('');
-      setActiveAccordion(null);
-      cargarYCalcularMatriz();
-    } catch (err) {
-      alert("Error al actualizar: " + err.message);
-    }
-  }
-
-  async function handleEliminarPais(id, nombrePais) {
-    if (!window.confirm(`¿Seguro que deseas eliminar los datos de ${nombrePais}?`)) return;
-
-    try {
-      await supabase.from('paises').delete().eq('id', id);
-      await supabase.from('costo_importacion').delete().eq('pais', nombrePais);
-
-      setActiveAccordion(null);
-      cargarYCalcularMatriz();
-    } catch (err) {
-      alert("Error al eliminar registro: " + err.message);
-    }
-  }
-
-  const extraerNombreLegible = (val) => {
-    if (!val) return '';
-    if (typeof val === 'string') return val;
-    if (typeof val === 'object') return val.nombre ?? val.label ?? val.categoria ?? val.subcategoria ?? val.codigo ?? '';
-    return String(val);
   };
 
-  const nombreProductoMostrado = 
-    extraerNombreLegible(productoActivo) || 
-    busqueda || 
-    (categoria && extraerNombreLegible(categoria) !== 'Todos' ? `Categoría: ${extraerNombreLegible(categoria)}` : 'Todos los productos');
+  const handleEliminarProducto = async (e) => {
+    e.preventDefault();
+    if (!deleteId) return alert('Selecciona un registro para eliminar.');
+
+    const { error } = await supabase
+      .from('productos')
+      .delete()
+      .eq('id', deleteId);
+
+    if (error) {
+      alert('Error al eliminar: ' + error.message);
+    } else {
+      setActiveAccordion(null);
+      setDeleteId('');
+      cargarDatosIniciales();
+    }
+  };
 
   return (
-    <div className="space-y-6 text-white font-sans text-xs">
-      
-      {/* TÍTULO PRINCIPAL */}
-      <div className="flex justify-between items-start border-b border-slate-800 pb-3">
-        <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">
-            1. Costo (COSTO) — Estandarización de Criterios
-          </h1>
-          <p className="text-xs text-slate-300 mt-1">
-            Ponderación del Factor en la Tabla Principal: <span className="text-white font-bold">21.50%</span>
-            <span className="ml-3 text-slate-300">
-              • Filtro Activo: <strong className="text-white">{nombreProductoMostrado}</strong>
-            </span>
-          </p>
-        </div>
-      </div>
+    <div className="space-y-6" style={{ color: THEME.text }}>
 
-      {/* SELECTOR DE PAÍS BASE */}
-      <div className="space-y-1.5">
-        <label className="block text-sm font-bold text-white">
-          Selecciona el país base (Origen para transporte CTI)
-        </label>
-        <div className="relative">
-          <select
-            value={paisBase}
-            onChange={(e) => setPaisBase(e.target.value)}
-            className="w-full bg-[#0e1117] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-slate-700 appearance-none cursor-pointer"
-          >
-            {listaPaises.map((p) => (
-              <option key={p.id || p.nombre} value={p.nombre}>
-                {p.nombre}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-white text-[10px]">
-            ▼
-          </div>
+      {/* 🛠️ PANEL DE CONTROL / GESTIÓN (ESTILO TABCOSTO) */}
+      <div 
+        className="p-5 rounded-xl border shadow-sm space-y-4"
+        style={{ backgroundColor: THEME.card, borderColor: THEME.border }}
+      >
+        <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: THEME.border }}>
+          <h3 className="text-sm font-bold flex items-center gap-2 tracking-wide uppercase" style={{ color: THEME.text }}>
+            <span>⚙️</span> Panel de Gestión de Productos
+          </h3>
+          <span className="text-[11px] px-2.5 py-1 rounded-md font-mono" style={{ backgroundColor: THEME.panel, color: THEME.textSecondary, border: `1px solid ${THEME.border}` }}>
+            Módulo Activo
+          </span>
         </div>
-      </div>
-
-      {/* GESTIÓN DE DATOS */}
-      <div className="space-y-3 pt-1">
-        <h2 className="text-sm font-bold text-white flex items-center gap-2">
-          <span>🔧</span> Gestión de Datos (Tabla COSTO)
-        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          
-          {/* Añadir */}
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleAccordion('add')}
-              className={`w-full px-3 py-2 text-left text-xs font-bold transition-colors flex items-center justify-between cursor-pointer ${
-                activeAccordion === 'add'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-white hover:bg-[#16181e]'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span>+</span> Añadir país
-              </span>
-              <span className="text-[10px] text-white">▼</span>
-            </button>
-            {activeAccordion === 'add' && (
-              <div className="p-3 border-t border-slate-800 space-y-2.5 bg-[#16181e] text-xs">
+          {/* Botón Añadir */}
+          <button
+            type="button"
+            onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
+            style={{
+              backgroundColor: activeAccordion === 'add' ? THEME.success : THEME.panel,
+              borderColor: activeAccordion === 'add' ? THEME.success : THEME.border,
+              color: activeAccordion === 'add' ? THEME.background : THEME.text,
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              fontWeight: activeAccordion === 'add' ? 'bold' : 'medium'
+            }}
+            className="p-3 rounded-lg text-xs text-left flex items-center justify-between transition-all cursor-pointer shadow-sm"
+          >
+            <span className="flex items-center gap-2"><span>➕</span> Añadir producto</span>
+            <span className="text-[10px]">{activeAccordion === 'add' ? '▼' : '❯'}</span>
+          </button>
+
+          {/* Botón Editar */}
+          <button
+            type="button"
+            onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
+            style={{
+              backgroundColor: activeAccordion === 'edit' ? THEME.warning : THEME.panel,
+              borderColor: activeAccordion === 'edit' ? THEME.warning : THEME.border,
+              color: activeAccordion === 'edit' ? THEME.background : THEME.text,
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              fontWeight: activeAccordion === 'edit' ? 'bold' : 'medium'
+            }}
+            className="p-3 rounded-lg text-xs text-left flex items-center justify-between transition-all cursor-pointer shadow-sm"
+          >
+            <span className="flex items-center gap-2"><span>✏️</span> Editar producto</span>
+            <span className="text-[10px]">{activeAccordion === 'edit' ? '▼' : '❯'}</span>
+          </button>
+
+          {/* Botón Eliminar */}
+          <button
+            type="button"
+            onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
+            style={{
+              backgroundColor: activeAccordion === 'delete' ? THEME.danger : THEME.panel,
+              borderColor: activeAccordion === 'delete' ? THEME.danger : THEME.border,
+              color: activeAccordion === 'delete' ? THEME.background : THEME.text,
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              fontWeight: activeAccordion === 'delete' ? 'bold' : 'medium'
+            }}
+            className="p-3 rounded-lg text-xs text-left flex items-center justify-between transition-all cursor-pointer shadow-sm"
+          >
+            <span className="flex items-center gap-2"><span>🗑️</span> Eliminar producto</span>
+            <span className="text-[10px]">{activeAccordion === 'delete' ? '▼' : '❯'}</span>
+          </button>
+        </div>
+
+        {/* Formulario: Añadir */}
+        {activeAccordion === 'add' && (
+          <form onSubmit={handleGuardarProducto} className="p-4 rounded-lg border space-y-3 shadow-inner mt-3 animate-fadeIn" style={{ backgroundColor: THEME.background, borderColor: THEME.border }}>
+            <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: THEME.success }}>Registrar Nuevo Producto</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <input
+                type="text"
+                placeholder="País"
+                value={addPais}
+                onChange={(e) => setAddPais(e.target.value)}
+                className="p-2.5 rounded-md focus:outline-none"
+                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
+              />
+              <input
+                type="text"
+                placeholder="Nombre del Producto"
+                value={addNombre}
+                onChange={(e) => setAddNombre(e.target.value)}
+                className="p-2.5 rounded-md focus:outline-none"
+                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Precio (Ej: 12.50)"
+                value={addPrecio}
+                onChange={(e) => setAddPrecio(e.target.value)}
+                className="p-2.5 rounded-md focus:outline-none"
+                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
+              />
+            </div>
+            <div className="flex justify-end pt-2">
+              <button type="submit" className="text-xs px-4 py-2 rounded-md font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.success, color: THEME.background }}>
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Formulario: Editar */}
+        {activeAccordion === 'edit' && (
+          <form onSubmit={handleEditarProducto} className="p-4 rounded-lg border space-y-3 shadow-inner mt-3 animate-fadeIn" style={{ backgroundColor: THEME.background, borderColor: THEME.border }}>
+            <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: THEME.warning }}>Actualizar Registro Existente</h4>
+            
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium" style={{ color: THEME.textSecondary }}>Seleccionar registro:</label>
+              <select
+                value={editId}
+                onChange={(e) => {
+                  const selectedVal = e.target.value;
+                  setEditId(selectedVal);
+                  const sel = productos.find((p) => String(getProductoId(p)) === String(selectedVal));
+                  if (sel) {
+                    setEditPais(sel.pais || sel.Pais || '');
+                    setEditNombre(sel.nombre || sel.producto || '');
+                    setEditPrecio(sel.precio || sel.Precio || '');
+                  } else {
+                    setEditPais('');
+                    setEditNombre('');
+                    setEditPrecio('');
+                  }
+                }}
+                className="w-full p-2.5 rounded-md text-xs focus:outline-none cursor-pointer"
+                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
+              >
+                <option value="" style={{ backgroundColor: THEME.card, color: THEME.text }}>-- Seleccionar producto --</option>
+                {productos.map((p) => {
+                  const pId = getProductoId(p);
+                  const pPais = p.pais || p.Pais || 'Sin país';
+                  const pNombre = p.nombre || p.producto || 'Sin nombre';
+                  const pPrecio = p.precio || p.Precio || 'Sin precio';
+                  return (
+                    <option key={pId} value={pId} style={{ backgroundColor: THEME.card, color: THEME.text }}>
+                      [{pPais}] — {pNombre} — ({pPrecio})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {editId && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2" style={{ borderTop: `1px solid ${THEME.border}` }}>
                 <div>
-                  <label className="block text-white mb-1">Nombre del país</label>
+                  <label className="block text-[10px] uppercase mb-1 font-semibold" style={{ color: THEME.textSecondary }}>País</label>
                   <input
                     type="text"
-                    value={nuevoPaisNombre}
-                    onChange={(e) => setNuevoPaisNombre(e.target.value)}
-                    placeholder="Ej. Panamá"
-                    className="w-full bg-[#0e1117] border border-slate-800 rounded p-1.5 text-white text-xs"
+                    value={editPais}
+                    onChange={(e) => setEditPais(e.target.value)}
+                    className="w-full p-2.5 rounded-md focus:outline-none"
+                    style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-white mb-1">Latitud</label>
-                    <input
-                      type="text"
-                      value={nuevaLatitud}
-                      onChange={(e) => setNuevaLatitud(e.target.value)}
-                      placeholder="8.5379"
-                      className="w-full bg-[#0e1117] border border-slate-800 rounded p-1.5 text-white text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white mb-1">Longitud</label>
-                    <input
-                      type="text"
-                      value={nuevaLongitud}
-                      onChange={(e) => setNuevaLongitud(e.target.value)}
-                      placeholder="-80.7821"
-                      className="w-full bg-[#0e1117] border border-slate-800 rounded p-1.5 text-white text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-white mb-1">CIC ($)</label>
-                    <input
-                      type="number"
-                      value={nuevoCic}
-                      onChange={(e) => setNuevoCic(e.target.value)}
-                      placeholder="220"
-                      className="w-full bg-[#0e1117] border border-slate-800 rounded p-1.5 text-white text-xs"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] uppercase mb-1 font-semibold" style={{ color: THEME.textSecondary }}>Nombre</label>
+                  <input
+                    type="text"
+                    value={editNombre}
+                    onChange={(e) => setEditNombre(e.target.value)}
+                    className="w-full p-2.5 rounded-md focus:outline-none"
+                    style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
+                  />
                 </div>
-                <button
-                  onClick={handleAgregarPais}
-                  className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1 rounded text-xs cursor-pointer transition-colors font-bold border border-slate-700"
-                >
-                  Guardar
-                </button>
+                <div>
+                  <label className="block text-[10px] uppercase mb-1 font-semibold" style={{ color: THEME.textSecondary }}>Precio</label>
+                  <input
+                    type="text"
+                    value={editPrecio}
+                    onChange={(e) => setEditPrecio(e.target.value)}
+                    className="w-full p-2.5 rounded-md focus:outline-none"
+                    style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
+                  />
+                </div>
               </div>
             )}
-          </div>
+            
+            <div className="flex justify-end pt-2">
+              <button type="submit" className="text-xs px-4 py-2 rounded-md font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.warning, color: THEME.background }}>
+                Actualizar cambios
+              </button>
+            </div>
+          </form>
+        )}
 
-          {/* Editar */}
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleAccordion('edit')}
-              className={`w-full px-3 py-2 text-left text-xs font-bold transition-colors flex items-center justify-between cursor-pointer ${
-                activeAccordion === 'edit'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-white hover:bg-[#16181e]'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span>✏️</span> Editar país
-              </span>
-              <span className="text-[10px] text-white">▼</span>
-            </button>
-            {activeAccordion === 'edit' && (
-              <div className="p-3 border-t border-slate-800 space-y-2.5 bg-[#16181e] text-xs">
-                <select
-                  onChange={(e) => handleSelectEdit(e.target.value)}
-                  value={selectedPaisId}
-                  className="w-full bg-[#0e1117] border border-slate-800 p-1.5 rounded text-xs text-white cursor-pointer"
-                >
-                  <option value="">-- Selecciona un país --</option>
-                  {listaPaises.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre} (ID: {p.id})
+        {/* Formulario: Eliminar */}
+        {activeAccordion === 'delete' && (
+          <form onSubmit={handleEliminarProducto} className="p-4 rounded-lg border space-y-3 shadow-inner mt-3 animate-fadeIn" style={{ backgroundColor: THEME.background, borderColor: THEME.border }}>
+            <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: THEME.danger }}>Eliminar Registro</h4>
+            
+            <div className="space-y-1">
+              <label className="text-[11px] font-medium" style={{ color: THEME.textSecondary }}>Selecciona el registro a eliminar:</label>
+              <select
+                value={deleteId}
+                onChange={(e) => setDeleteId(e.target.value)}
+                className="w-full p-2.5 rounded-md text-xs focus:outline-none cursor-pointer"
+                style={{ backgroundColor: THEME.card, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
+              >
+                <option value="" style={{ backgroundColor: THEME.card, color: THEME.text }}>-- Seleccionar producto a remover --</option>
+                {productos.map((p) => {
+                  const pId = getProductoId(p);
+                  const pPais = p.pais || p.Pais || 'Sin país';
+                  const pNombre = p.nombre || p.producto || 'Sin nombre';
+                  const pPrecio = p.precio || p.Precio || 'Sin precio';
+                  return (
+                    <option key={pId} value={pId} style={{ backgroundColor: THEME.card, color: THEME.text }}>
+                      [{pPais}] — {pNombre} — ({pPrecio})
                     </option>
-                  ))}
-                </select>
+                  );
+                })}
+              </select>
+            </div>
 
-                {selectedPaisId && (
-                  <>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="text-white block mb-1">Latitud</label>
-                        <input
-                          type="text"
-                          value={editLatitud}
-                          onChange={(e) => setEditLatitud(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-800 p-1.5 rounded text-white text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-white block mb-1">Longitud</label>
-                        <input
-                          type="text"
-                          value={editLongitud}
-                          onChange={(e) => setEditLongitud(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-800 p-1.5 rounded text-white text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-white block mb-1">CIC ($)</label>
-                        <input
-                          type="number"
-                          value={editCic}
-                          onChange={(e) => setEditCic(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-800 p-1.5 rounded text-white text-xs"
-                        />
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleGuardarCambios}
-                      className="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1 rounded font-bold cursor-pointer transition-colors border border-slate-700"
+            <div className="flex justify-end pt-2">
+              <button type="submit" className="text-xs px-4 py-2 rounded-md font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.danger, color: THEME.background }}>
+                Confirmar eliminación
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* 📊 TABLA DE RESULTADOS PRINCIPAL */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold" style={{ color: THEME.text }}>
+            Listado de Productos <span className="text-xs font-normal" style={{ color: THEME.textSecondary }}>(Haz clic en una fila para seleccionarla)</span>
+          </h3>
+          <span className="text-xs px-3 py-1 rounded-full border font-mono" style={{ backgroundColor: THEME.card, borderColor: THEME.border, color: THEME.textSecondary }}>
+            Mostrando <strong style={{ color: THEME.text }}>{productosFiltrados.length}</strong> de {productos.length} registros
+          </span>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border shadow-sm" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+          <table className="w-full text-left text-xs" style={{ color: THEME.textSecondary }}>
+            <thead>
+              <tr style={{ backgroundColor: THEME.panel, borderBottom: `1px solid ${THEME.border}`, color: THEME.textSecondary }}>
+                <th className="p-3.5 font-semibold">ID</th>
+                <th className="p-3.5 font-semibold">País</th>
+                <th className="p-3.5 font-semibold text-right">Precio (€)</th>
+                <th className="p-3.5 font-semibold">Producto</th>
+              </tr>
+            </thead>
+            <tbody style={{ borderTop: `1px solid ${THEME.border}` }}>
+              {loading ? (
+                <tr>
+                  <td colSpan="4" className="p-8 text-center animate-pulse" style={{ color: THEME.textSecondary }}>
+                    Cargando registros desde base de datos...
+                  </td>
+                </tr>
+              ) : productosFiltrados.length > 0 ? (
+                productosFiltrados.map((item) => {
+                  const idVal = getProductoId(item) || '—';
+                  const paisVal = item.pais || item.Pais || '—';
+                  const nombre = item.nombre || item.producto || '—';
+                  const precioRaw = item.precio ?? item.Precio;
+                  const isSelected = String(productoSeleccionadoId) === String(idVal);
+                  
+                  let precioFmt = '—';
+                  if (precioRaw !== undefined && precioRaw !== null && precioRaw !== '') {
+                    if (typeof precioRaw === 'number') {
+                      precioFmt = `${precioRaw.toFixed(2)} €`;
+                    } else {
+                      const strVal = String(precioRaw).trim();
+                      if (strVal.includes('€')) {
+                        precioFmt = strVal;
+                      } else {
+                        const num = Number(strVal.replace(',', '.'));
+                        precioFmt = !isNaN(num) ? `${num.toFixed(2)} €` : strVal;
+                      }
+                    }
+                  }
+
+                  return (
+                    <tr 
+                      key={idVal} 
+                      onClick={() => {
+                        if (onSeleccionarProducto) {
+                          onSeleccionarProducto(item);
+                        }
+                      }}
+                      className="transition-colors cursor-pointer"
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(52, 211, 153, 0.15)' : 'transparent',
+                        borderLeft: isSelected ? `4px solid ${THEME.success}` : '4px solid transparent'
+                      }}
                     >
-                      Actualizar
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Eliminar */}
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleAccordion('delete')}
-              className={`w-full px-3 py-2 text-left text-xs font-bold transition-colors flex items-center justify-between cursor-pointer ${
-                activeAccordion === 'delete'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-white hover:bg-[#16181e]'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span>🗑️</span> Eliminar país
-              </span>
-              <span className="text-[10px] text-white">▼</span>
-            </button>
-            {activeAccordion === 'delete' && (
-              <div className="p-3 border-t border-slate-800 space-y-2.5 bg-[#16181e] text-xs">
-                <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
-                  {listaPaises.map(p => (
-                    <div key={p.id} className="flex justify-between items-center bg-[#0e1117] p-1.5 rounded border border-slate-800">
-                      <span className="text-white font-medium">{p.nombre}</span>
-                      <button
-                        onClick={() => handleEliminarPais(p.id, p.nombre)}
-                        className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer border border-slate-700"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-        </div>
-      </div>
-
-      {errorLog && (
-        <div className="bg-red-500/10 border border-red-500 text-white p-2.5 rounded-lg text-xs">
-          ⚠️ <strong>Error BD:</strong> {errorLog}
-        </div>
-      )}
-
-      {/* TABLA DE COSTOS BASE */}
-      <div className="space-y-3 pt-1">
-        <h2 className="text-sm font-bold text-white">
-          Tabla de costos base
-        </h2>
-
-        <div className="max-h-[380px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-white">
-                <th className="p-2.5 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-2.5 font-medium text-white">Países</th>
-                <th className="p-2.5 text-right font-medium text-white">Precio producto destino (PPD)</th>
-                <th className="p-2.5 text-right font-medium text-white">Transporte internacional (CTI) ($0.38/km)</th>
-                <th className="p-2.5 text-right pr-6 font-medium text-white">Cumplimiento fronterizo (CIC)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-white">
-              {loading ? (
-                <tr>
-                  <td colSpan="5" className="p-5 text-center text-white font-sans">
-                    Cargando datos...
-                  </td>
-                </tr>
-              ) : matrizFiltrada.length > 0 ? (
-                matrizFiltrada.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-2.5 text-right pr-6 text-white font-sans">{idx + 1}</td>
-                    <td className="p-2.5 font-sans font-medium text-white">{row.pais_nombre}</td>
-                    <td className="p-2.5 text-right">${row.ppd.toFixed(2)}</td>
-                    <td className="p-2.5 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
-                    <td className="p-2.5 text-right pr-6">
-                      {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-white">$0.00</span>}
-                    </td>
-                  </tr>
-                ))
+                      <td className="p-3.5 font-mono" style={{ color: THEME.textSecondary }}>{idVal}</td>
+                      <td className="p-3.5 font-medium" style={{ color: THEME.textSecondary }}>{paisVal}</td>
+                      <td className="p-3.5 text-right font-mono font-semibold" style={{ color: THEME.success }}>
+                        {precioFmt}
+                      </td>
+                      <td className="p-3.5 font-medium" style={{ color: THEME.text }}>{nombre}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan="5" className="p-5 text-center text-white font-sans">
-                    No hay registros con datos de precios válidos para este filtro.
+                  <td colSpan="4" className="p-8 text-center" style={{ color: THEME.textSecondary }}>
+                    No se encontraron registros que coincidan con los filtros activos.
                   </td>
                 </tr>
               )}
@@ -703,55 +513,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           </table>
         </div>
       </div>
-
-      {/* TABLA DE NORMALIZACIÓN Y PONDERACIÓN */}
-      <div className="space-y-3 pt-3 border-t border-slate-800/80">
-        <h2 className="text-sm font-bold text-white">
-          Normalización y ponderación final
-        </h2>
-
-        <div className="max-h-[380px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-white">
-                <th className="p-2.5 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-2.5 font-medium text-white">Países</th>
-                <th className="p-2.5 text-right font-medium text-white">PPD norm (44.00%)</th>
-                <th className="p-2.5 text-right font-medium text-white">CTI norm (34.00%)</th>
-                <th className="p-2.5 text-right font-medium text-white">CIC norm (22.00%)</th>
-                <th className="p-2.5 text-right pr-6 font-bold text-white">Total factor (21.50%)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-white">
-              {loading ? (
-                <tr>
-                  <td colSpan="6" className="p-5 text-center text-white font-sans">
-                    Calculando...
-                  </td>
-                </tr>
-              ) : matrizFiltrada.length > 0 ? (
-                matrizFiltrada.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-2.5 text-right pr-6 text-white font-sans">{idx + 1}</td>
-                    <td className="p-2.5 font-sans font-medium text-white">{row.pais_nombre}</td>
-                    <td className="p-2.5 text-right">{row.ppdNorm !== null ? row.ppdNorm : '-'}</td>
-                    <td className="p-2.5 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
-                    <td className="p-2.5 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
-                    <td className="p-2.5 text-right pr-6 font-bold text-white">{row.aporteFactorCosto}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="6" className="p-5 text-center text-white font-sans">
-                    No hay datos normalizados para este filtro.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
   );
 }
