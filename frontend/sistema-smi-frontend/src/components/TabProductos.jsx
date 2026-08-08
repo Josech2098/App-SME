@@ -427,8 +427,8 @@ export default function TablaProductos({
                 <tr className="text-slate-400">
                   <th className="py-3 px-4 w-20 font-medium">ID</th>
                   <th className="py-3 px-4 font-medium">País</th>
-                  <th className="py-3 px-4 text-right font-medium">Precio (€)</th>
-                  <th className="py-3 px-4 font-medium pr-6">Producto</th>
+                  <th className="py-3 px-4 font-medium">Producto</th>
+                  <th className="py-3 px-4 text-right font-medium pr-6">Precio (€)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
@@ -475,8 +475,8 @@ export default function TablaProductos({
                       >
                         <td className="py-3 px-4 text-slate-400">{idVal}</td>
                         <td className="py-3 px-4 font-sans font-medium text-slate-200">{paisVal}</td>
-                        <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{precioFmt}</td>
-                        <td className="py-3 px-4 font-sans text-slate-200 pr-6">{nombre}</td>
+                        <td className="py-3 px-4 font-sans text-slate-200">{nombre}</td>
+                        <td className="py-3 px-4 text-right text-emerald-400 font-semibold pr-6">{precioFmt}</td>
                       </tr>
                     );
                   })
