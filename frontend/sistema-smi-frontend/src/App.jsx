@@ -293,9 +293,9 @@ export default function App() {
           ))}
         </div>
 
-        {/* Contenido Dinámico según la pestaña activa */}
+        {/* Contenido Dinámico (Montados permanentemente mediante display CSS para precargar los datos) */}
         <div>
-          {activeTab === 0 && (
+          <div className={activeTab === 0 ? 'block' : 'hidden'}>
             <TablaProductos 
               productoSeleccionado={productoSeleccionado}
               setProductoSeleccionado={setProductoSeleccionado}
@@ -307,9 +307,9 @@ export default function App() {
               searchCodigo={searchCodigo}
               searchSubcodigo={searchSubcodigo}
             />
-          )}
+          </div>
 
-          {activeTab === 1 && (
+          <div className={activeTab === 1 ? 'block' : 'hidden'}>
             <TabCosto
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
@@ -319,18 +319,18 @@ export default function App() {
               paisOrigen={paisOrigen}
               onDatosActualizados={setDatosCosto}
             />
-          )}
+          </div>
 
-          {activeTab === 2 && (
+          <div className={activeTab === 2 ? 'block' : 'hidden'}>
             <TabLogistica
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
               onDatosActualizados={setDatosLogi}
             />
-          )}
+          </div>
 
-          {activeTab === 3 && (
+          <div className={activeTab === 3 ? 'block' : 'hidden'}>
             <TabComercial
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
@@ -340,9 +340,9 @@ export default function App() {
               datosLibertadEconomica={datosLibertadEconomica}
               onDatosActualizados={setDatosComm}
             />
-          )}
+          </div>
 
-          {activeTab === 4 && (
+          <div className={activeTab === 4 ? 'block' : 'hidden'}>
             <TabEconomia
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
@@ -350,27 +350,27 @@ export default function App() {
               datosCostoDeVida={datosCostoDeVida}
               onDatosActualizados={setDatosEcon}
             />
-          )}
+          </div>
 
-          {activeTab === 5 && (
+          <div className={activeTab === 5 ? 'block' : 'hidden'}>
             <TabPolitica
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
               onDatosActualizados={setDatosPoli}
             />
-          )}
+          </div>
 
-          {activeTab === 6 && (
+          <div className={activeTab === 6 ? 'block' : 'hidden'}>
             <TabCultura
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
               paisOrigen={paisOrigen}
               onDatosActualizados={setDatosCult}
             />
-          )}
+          </div>
 
-          {activeTab === 7 && (
+          <div className={activeTab === 7 ? 'block' : 'hidden'}>
             <TabSostenibilidad
               productoActivo={productoSeleccionado}
               paisesDestino={paisesDestino}
@@ -378,9 +378,9 @@ export default function App() {
               datosSostenibilidad={datosSostenibilidad}
               onDatosActualizados={setDatosSust}
             />
-          )}
+          </div>
 
-          {activeTab === 8 && (
+          <div className={activeTab === 8 ? 'block' : 'hidden'}>
             <TabTablaTotal
               datosCosto={datosCosto}
               datosLogi={datosLogi}
@@ -391,13 +391,13 @@ export default function App() {
               datosSust={datosSust}
               onDatosActualizados={setDatosTablaTotal}
             />
-          )}
+          </div>
 
-          {activeTab === 9 && (
+          <div className={activeTab === 9 ? 'block' : 'hidden'}>
             <TabGraficosComparativos 
               datosTotales={datosTablaTotal} 
             />
-          )}
+          </div>
         </div>
       </main>
     </div>
