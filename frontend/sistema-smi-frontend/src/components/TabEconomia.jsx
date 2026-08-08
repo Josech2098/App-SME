@@ -315,7 +315,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
     <div className="space-y-8 text-slate-100 font-sans">
       
       {/* HEADER */}
-      <div className="border-b border-slate-800 pb-3">
+      <div className="border-b border-[#1b1f2e] pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
           Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas de Supabase.
@@ -326,35 +326,35 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         {/* AÑADIR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
           <button 
             type="button"
             onClick={() => setOpenAdd(!openAdd)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#151824] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>❯</span>
             Añadir país
           </button>
 
           {openAdd && (
-            <form onSubmit={handleAddPais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+            <form onSubmit={handleAddPais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#10121b]/80">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">País nuevo:</label>
-                <input type="text" value={paisAdd} onChange={(e) => setPaisAdd(e.target.value)} required className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                <input type="text" value={paisAdd} onChange={(e) => setPaisAdd(e.target.value)} required className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">ICV (Costo de Vida):</label>
-                <input type="number" step="0.01" min="0" value={icvAdd} onChange={(e) => setIcvAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                <input type="number" step="0.01" min="0" value={icvAdd} onChange={(e) => setIcvAdd(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">IAN (Inflación Anual):</label>
-                <input type="number" step="0.01" min="0" value={inanAdd} onChange={(e) => setInanAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                <input type="number" step="0.01" min="0" value={inanAdd} onChange={(e) => setInanAdd(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">TAD (Tasa de Desempleo):</label>
-                <input type="number" step="0.01" min="0" value={tadAdd} onChange={(e) => setTadAdd(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                <input type="number" step="0.01" min="0" value={tadAdd} onChange={(e) => setTadAdd(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
               </div>
-              <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer">
+              <button type="submit" className="w-full py-1.5 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs rounded transition-colors cursor-pointer shadow">
                 Guardar país ECON
               </button>
             </form>
@@ -362,11 +362,11 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         </div>
 
         {/* EDITAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
           <button 
             type="button"
             onClick={() => setOpenEdit(!openEdit)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#151824] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>❯</span>
             Editar país
@@ -374,10 +374,10 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
           {openEdit && (
             econOverrides.length > 0 ? (
-              <form onSubmit={handleUpdatePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+              <form onSubmit={handleUpdatePais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#10121b]/80">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Selecciona país a editar:</label>
-                  <select value={paisSeleccionadoEdit} onChange={handleSelectEditPais} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500">
+                  <select value={paisSeleccionadoEdit} onChange={handleSelectEditPais} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
                     {econOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
                     ))}
@@ -385,26 +385,26 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Nuevo país:</label>
-                  <input type="text" value={editPaisNombre} onChange={(e) => setEditPaisNombre(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                  <input type="text" value={editPaisNombre} onChange={(e) => setEditPaisNombre(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Nuevo ICV:</label>
-                  <input type="number" step="0.01" min="0" value={editIcv} onChange={(e) => setEditIcv(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                  <input type="number" step="0.01" min="0" value={editIcv} onChange={(e) => setEditIcv(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Nuevo IAN:</label>
-                  <input type="number" step="0.01" min="0" value={editInan} onChange={(e) => setEditInan(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                  <input type="number" step="0.01" min="0" value={editInan} onChange={(e) => setEditInan(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Nuevo TAD:</label>
-                  <input type="number" step="0.01" min="0" value={editTad} onChange={(e) => setEditTad(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500" />
+                  <input type="number" step="0.01" min="0" value={editTad} onChange={(e) => setEditTad(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500" />
                 </div>
-                <button type="submit" className="w-full py-1.5 mt-2 bg-red-600 hover:bg-red-700 text-white font-medium text-xs rounded transition-colors cursor-pointer">
+                <button type="submit" className="w-full py-1.5 mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs rounded transition-colors cursor-pointer shadow">
                   Actualizar país ECON
                 </button>
               </form>
             ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
+              <div className="p-4 border-t border-[#1b1f2e] text-xs text-slate-400 italic bg-[#10121b]/80">
                 No hay datos personalizados para editar aún.
               </div>
             )
@@ -412,11 +412,11 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         </div>
 
         {/* ELIMINAR */}
-        <div className="border border-slate-800 bg-[#16181d] rounded-lg overflow-hidden transition-all">
+        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
           <button 
             type="button"
             onClick={() => setOpenDel(!openDel)}
-            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1e2029] transition-colors focus:outline-none cursor-pointer"
+            className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#151824] transition-colors focus:outline-none cursor-pointer"
           >
             <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>❯</span>
             Eliminar país
@@ -424,21 +424,21 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
           {openDel && (
             econOverrides.length > 0 ? (
-              <form onSubmit={handleDeletePais} className="p-4 border-t border-slate-800/80 space-y-3 bg-[#0e1117]/50">
+              <form onSubmit={handleDeletePais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#10121b]/80">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Selecciona país a eliminar:</label>
-                  <select value={paisSeleccionadoDel} onChange={(e) => setPaisSeleccionadoDel(e.target.value)} className="w-full bg-[#181a20] border border-slate-700/80 rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500">
+                  <select value={paisSeleccionadoDel} onChange={(e) => setPaisSeleccionadoDel(e.target.value)} className="w-full bg-[#151824] border border-[#1b1f2e] rounded px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-red-500">
                     {econOverrides.map((item, idx) => (
                       <option key={idx} value={item.Paises}>{item.Paises}</option>
                     ))}
                   </select>
                 </div>
-                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors cursor-pointer">
+                <button type="submit" className="w-full py-1.5 mt-4 bg-red-800 hover:bg-red-900 text-white font-medium text-xs rounded transition-colors cursor-pointer shadow">
                   Eliminar país ECON
                 </button>
               </form>
             ) : (
-              <div className="p-4 border-t border-slate-800 text-xs text-slate-400 italic bg-[#0e1117]/50">
+              <div className="p-4 border-t border-[#1b1f2e] text-xs text-slate-400 italic bg-[#10121b]/80">
                 No hay países en memoria para eliminar aún.
               </div>
             )
@@ -448,7 +448,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       </div>
 
       {errorEco && (
-        <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
+        <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400 shadow">
           {errorEco}
         </div>
       )}
@@ -461,20 +461,20 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Procesando datos económicos...</div>
         ) : (
-          <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+          <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
             <table className="w-full text-left text-xs text-slate-300 relative">
-              <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+              <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
                 <tr>
-                  <th className="p-3 w-12 bg-[#181a20]">#</th>
-                  <th className="p-3 bg-[#181a20]">País</th>
-                  <th className="p-3 bg-[#181a20]">Índice del Costo de Vida (ICV)</th>
-                  <th className="p-3 bg-[#181a20]">Inflación Anual (IAN)</th>
-                  <th className="p-3 bg-[#181a20]">Tasa de Desempleo (TAD)</th>
+                  <th className="p-3 w-12 bg-[#151824]">#</th>
+                  <th className="p-3 bg-[#151824]">País</th>
+                  <th className="p-3 bg-[#151824]">Índice del Costo de Vida (ICV)</th>
+                  <th className="p-3 bg-[#151824]">Inflación Anual (IAN)</th>
+                  <th className="p-3 bg-[#151824]">Tasa de Desempleo (TAD)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+              <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
                 {datosEconConsolidados.map((row, index) => (
-                  <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                  <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : '-'}</td>
@@ -493,21 +493,21 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         <h3 className="text-base font-bold text-white">Tabla de Normalización Económica (ECON)</h3>
         <p className="text-xs text-slate-400">Ponderaciones: ICV = 30% | IAN = 30% | TAD = 40% (Normalización Inversa)</p>
 
-        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0 z-10">
+            <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
               <tr>
-                <th className="p-3 w-12 bg-[#181a20]">#</th>
-                <th className="p-3 bg-[#181a20]">País</th>
-                <th className="p-3 bg-[#181a20]">ICV Norm (30%)</th>
-                <th className="p-3 bg-[#181a20]">IAN Norm (30%)</th>
-                <th className="p-3 bg-[#181a20]">TAD Norm (40%)</th>
-                <th className="p-3 bg-[#181a20]">Puntaje ECON Normalizado</th>
+                <th className="p-3 w-12 bg-[#151824]">#</th>
+                <th className="p-3 bg-[#151824]">País</th>
+                <th className="p-3 bg-[#151824]">ICV Norm (30%)</th>
+                <th className="p-3 bg-[#151824]">IAN Norm (30%)</th>
+                <th className="p-3 bg-[#151824]">TAD Norm (40%)</th>
+                <th className="p-3 bg-[#151824]">Puntaje ECON Normalizado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+            <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
               {datosEconNormalizados.map((row, index) => (
-                <tr key={index} className="hover:bg-[#16181d] transition-colors">
+                <tr key={index} className="hover:bg-[#151824] transition-colors">
                   <td className="p-3 text-slate-500">{index + 1}</td>
                   <td className="p-3 font-medium text-white">{row.Paises}</td>
                   <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : '-'}</td>
