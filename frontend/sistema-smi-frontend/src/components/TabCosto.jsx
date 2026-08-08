@@ -432,7 +432,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               className="w-full px-4 py-3 text-left text-xs font-semibold text-slate-200 hover:bg-[#1d2638] transition-colors flex items-center justify-between cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <span className="text-emerald-400 font-bold">+</span> Añadir producto
+                <span className="text-emerald-400 font-bold">+</span> Añadir país
               </span>
               <span className="text-slate-400 text-xs">{activeAccordion === 'add' ? '▴' : '▾'}</span>
             </button>
