@@ -281,43 +281,44 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
-      <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+      <div className="flex justify-between items-start border-b border-[#1e2330] pb-4 bg-[#111318] p-6 rounded-xl border border-[#1e2330]">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl font-bold text-white tracking-tight">
             6. Sostenibilidad (SUST) — Estandarización de Criterios
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">5.50%</span>
+          <p className="text-xs text-slate-400 mt-1">
+            Ponderación del Factor en la Tabla Principal: <span className="text-sky-400 font-bold">5.50%</span>
             <span className="ml-3 text-slate-300">
-              • Producto: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
+              • Producto: <strong className="text-white">{nombreProductoMostrado}</strong>
             </span>
           </p>
         </div>
       </div>
 
       {/* GESTIÓN DE DATOS */}
-      <div className="space-y-4 pt-2">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-6 space-y-4">
+        <h2 className="text-base font-bold text-white mb-2 flex items-center gap-2">
           <span>🔧</span> Gestión de Datos (Tabla SUST)
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+          <div className="bg-[#0b0d12] border border-[#1e2330] rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('add')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+              className="w-full px-4 py-3 text-left text-xs font-bold text-white hover:bg-slate-900/50 transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'add' ? '˅' : '❯'}</span> Asignar / Añadir valores a Países
+              <span>Asignar / Añadir valores a Países</span>
+              <span className="transform transition-transform">{activeAccordion === 'add' ? '▼' : '❯'}</span>
             </button>
             {activeAccordion === 'add' && (
-              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
+              <div className="p-4 border-t border-[#1e2330] space-y-3 bg-[#0b0d12] text-xs">
                 <div>
-                  <label className="block text-slate-400 mb-1">Nombre del País (Catálogo)</label>
+                  <label className="block text-[11px] text-slate-300 mb-1">Nombre del País (Catálogo)</label>
                   <select
                     value={nuevoPaisNombre}
                     onChange={(e) => setNuevoPaisNombre(e.target.value)}
-                    className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                    className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                   >
                     <option value="">-- Selecciona un país del catálogo --</option>
                     {listaPaises.map(p => (
@@ -327,39 +328,39 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-slate-400 mb-1">EDC (Emisiones)</label>
+                    <label className="block text-[11px] text-slate-300 mb-1">EDC (Emisiones)</label>
                     <input
                       type="number"
                       value={nuevoEdc}
                       onChange={(e) => setNuevoEdc(e.target.value)}
                       placeholder="12.5"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">RPG (Riesgo)</label>
+                    <label className="block text-[11px] text-slate-300 mb-1">RPG (Riesgo)</label>
                     <input
                       type="number"
                       value={nuevoRpg}
                       disabled
                       placeholder="N/A"
-                      className="w-full bg-[#0e1117]/50 border border-slate-800 rounded p-2 text-slate-500 cursor-not-allowed"
+                      className="w-full bg-[#0b0d12]/50 border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">ISG (Índice)</label>
+                    <label className="block text-[11px] text-slate-300 mb-1">ISG (Índice)</label>
                     <input
                       type="number"
                       value={nuevoIsg}
                       onChange={(e) => setNuevoIsg(e.target.value)}
                       placeholder="75.4"
-                      className="w-full bg-[#0e1117] border border-slate-700 rounded p-2 text-white"
+                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                 </div>
                 <button
                   onClick={handleAgregarPais}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors"
+                  className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
                 >
                   Guardar / Actualizar
                 </button>
@@ -367,19 +368,20 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
             )}
           </div>
 
-          <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
+          <div className="bg-[#0b0d12] border border-[#1e2330] rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('edit')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-slate-200 hover:bg-[#181a20] transition-colors flex items-center gap-2"
+              className="w-full px-4 py-3 text-left text-xs font-bold text-white hover:bg-slate-900/50 transition-colors flex items-center justify-between cursor-pointer"
             >
-              <span>{activeAccordion === 'edit' ? '˅' : '❯'}</span> Editar sostenibilidad existente
+              <span>Editar sostenibilidad existente</span>
+              <span className="transform transition-transform">{activeAccordion === 'edit' ? '▼' : '❯'}</span>
             </button>
             {activeAccordion === 'edit' && (
-              <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
+              <div className="p-4 border-t border-[#1e2330] space-y-3 bg-[#0b0d12] text-xs">
                 <select
                   onChange={(e) => handleSelectEdit(e.target.value)}
                   value={selectedPaisId}
-                  className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white"
+                  className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                 >
                   <option value="">-- Selecciona un país --</option>
                   {datosProductos.map(p => (
@@ -391,36 +393,36 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   <>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-slate-400 block mb-1">EDC</label>
+                        <label className="block text-[11px] text-slate-300 mb-1">EDC</label>
                         <input
                           type="number"
                           value={editEdc}
                           onChange={(e) => setEditEdc(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">RPG</label>
+                        <label className="block text-[11px] text-slate-300 mb-1">RPG</label>
                         <input
                           type="number"
                           value={editRpg}
                           disabled
-                          className="w-full bg-[#0e1117]/50 border border-slate-800 p-2 rounded text-slate-500 cursor-not-allowed"
+                          className="w-full bg-[#0b0d12]/50 border border-[#1e2330] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">ISG</label>
+                        <label className="block text-[11px] text-slate-300 mb-1">ISG</label>
                         <input
                           type="number"
                           value={editIsg}
                           onChange={(e) => setEditIsg(e.target.value)}
-                          className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white"
+                          className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                         />
                       </div>
                     </div>
                     <button 
                       onClick={handleGuardarCambios}
-                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-medium cursor-pointer transition-colors"
+                      className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
                     >
                       Actualizar
                     </button>
@@ -434,29 +436,29 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       </div>
 
       {errorLog && (
-        <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs">
+        <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
           ⚠️ <strong>Error BD:</strong> {errorLog}
         </div>
       )}
 
       {/* TABLA DE VALORES BASE */}
-      <div className="space-y-4 pt-2">
-        <h2 className="text-2xl font-bold text-white">
+      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-6 space-y-4">
+        <h3 className="text-lg font-bold text-white">
           Tabla de Sostenibilidad Base
-        </h2>
+        </h3>
 
-        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
+        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-[#1e2330] bg-[#0b0d12] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-slate-400">
+            <thead className="sticky top-0 bg-[#0b0d12] z-10 text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1e2330]">
+              <tr>
                 <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-3 font-medium text-slate-300">Países</th>
-                <th className="p-3 text-right font-medium text-slate-300">Emisiones de Dióxido de Carbono (EDC)</th>
-                <th className="p-3 text-right font-medium text-slate-300">Riesgo País Global (RPG)</th>
-                <th className="p-3 text-right pr-6 font-medium text-slate-300">Índice de Sostenibilidad Global (ISG)</th>
+                <th className="p-3 font-medium text-slate-200">Países</th>
+                <th className="p-3 text-right font-medium text-slate-200">Emisiones de Dióxido de Carbono (EDC)</th>
+                <th className="p-3 text-right font-medium text-slate-200">Riesgo País Global (RPG)</th>
+                <th className="p-3 text-right pr-6 font-medium text-slate-200">Índice de Sostenibilidad Global (ISG)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
+            <tbody className="divide-y divide-[#1e2330] font-mono text-slate-300">
               {loading ? (
                 <tr>
                   <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
@@ -465,9 +467,9 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                 </tr>
               ) : datosProductos.length > 0 ? (
                 datosProductos.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
+                  <tr key={row.id} className="hover:bg-slate-900/50 transition-colors">
                     <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
-                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
+                    <td className="p-3 font-sans font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 text-right">{row.edc !== null ? row.edc : <span className="text-slate-500">-</span>}</td>
                     <td className="p-3 text-right">
                       {row.rpg !== null ? row.rpg : <span className="text-slate-500">-</span>}
@@ -488,24 +490,27 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       </div>
 
       {/* TABLA DE NORMALIZACIÓN Y PONDERACIÓN */}
-      <div className="space-y-4 pt-4 border-t border-slate-800/80">
-        <h2 className="text-xl font-bold text-white">
-          Normalización y Ponderación Final
-        </h2>
+      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-6 space-y-4">
+        <div>
+          <h3 className="text-lg font-bold text-white">
+            Normalización y Ponderación Final
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">EDC Norm = 30.00% | RPG Norm = 30.00% | ISG Norm = 40.00%</p>
+        </div>
 
-        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
+        <div className="max-h-[450px] overflow-y-auto rounded-lg border border-[#1e2330] bg-[#0b0d12] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-slate-400">
+            <thead className="sticky top-0 bg-[#0b0d12] z-10 text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1e2330]">
+              <tr>
                 <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-3 font-medium text-slate-300">Países</th>
-                <th className="p-3 text-right font-medium text-slate-300">EDC Norm (30.00%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">RPG Norm (30.00%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">ISG Norm (40.00%)</th>
-                <th className="p-3 text-right pr-6 font-bold text-emerald-400">Total Factor (5.50%)</th>
+                <th className="p-3 font-medium text-slate-200">Países</th>
+                <th className="p-3 text-right font-medium text-slate-200">EDC Norm (30.00%)</th>
+                <th className="p-3 text-right font-medium text-slate-200">RPG Norm (30.00%)</th>
+                <th className="p-3 text-right font-medium text-slate-200">ISG Norm (40.00%)</th>
+                <th className="p-3 text-right pr-6 font-bold text-sky-400">Total Factor (5.50%)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
+            <tbody className="divide-y divide-[#1e2330] font-mono text-slate-300">
               {loading ? (
                 <tr>
                   <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
@@ -525,15 +530,15 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   const aporteFactorSostenibilidad = Number((((PESO_EDC * p1) + (PESO_RPG * p2) + (PESO_ISG * p3)) * PESO_FACTOR_SOST).toFixed(2));
 
                   return (
-                    <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
+                    <tr key={row.id} className="hover:bg-slate-900/50 transition-colors">
                       <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
-                      <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
+                      <td className="p-3 font-sans font-medium text-white">{row.pais_nombre}</td>
                       <td className="p-3 text-right">{edcNorm ?? '-'}</td>
                       <td className="p-3 text-right">
                         {rpgNorm ?? '-'}
                       </td>
                       <td className="p-3 text-right">{isgNorm ?? '-'}</td>
-                      <td className="p-3 text-right pr-6 font-bold text-emerald-400">{aporteFactorSostenibilidad}</td>
+                      <td className="p-3 text-right pr-6 font-bold text-sky-400">{aporteFactorSostenibilidad}</td>
                     </tr>
                   );
                 })
