@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient.js';
 
+
+export const THEME = {
+  background: '#0e1117',
+  card: '#16181e',
+  panel: '#0b1220',
+
+  success: '#34d399',
+  warning: '#fbbf24',
+  danger: '#f87171',
+
+  text: '#ffffff',
+  textSecondary: '#94a3b8',
+  border: '#1e293b'
+};
 // --- Helper: Cálculo de distancia geográfica mediante Haversine ---
 function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
