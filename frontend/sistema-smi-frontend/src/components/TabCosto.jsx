@@ -423,7 +423,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     (categoria && extraerNombreLegible(categoria) !== 'Todos' ? `Categoría: ${extraerNombreLegible(categoria)}` : 'Todos los productos');
 
   return (
-    <div className="space-y-8 text-slate-100 font-sans">
+    <div className="space-y-8 text-white font-sans">
       
       {/* TÍTULO PRINCIPAL */}
       <div className="flex justify-between items-start border-b border-slate-800 pb-4">
@@ -431,10 +431,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <h1 className="text-3xl font-bold text-white tracking-tight">
             1. Costo (COSTO) — Estandarización de Criterios
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Ponderación del Factor en la Tabla Principal: <span className="text-emerald-400 font-bold">21.50%</span>
+          <p className="text-sm text-slate-300 mt-1">
+            Ponderación del Factor en la Tabla Principal: <span className="text-white font-bold">21.50%</span>
             <span className="ml-3 text-slate-300">
-              • Filtro Activo: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
+              • Filtro Activo: <strong className="text-white">{nombreProductoMostrado}</strong>
             </span>
           </p>
         </div>
@@ -449,7 +449,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <select
             value={paisBase}
             onChange={(e) => setPaisBase(e.target.value)}
-            className="w-full bg-[#0e1117] border border-slate-800 rounded-lg px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-slate-700 appearance-none cursor-pointer"
+            className="w-full bg-[#0e1117] border border-slate-800 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-slate-700 appearance-none cursor-pointer"
           >
             {listaPaises.map((p) => (
               <option key={p.id || p.nombre} value={p.nombre}>
@@ -457,7 +457,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               </option>
             ))}
           </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white">
             ▼
           </div>
         </div>
@@ -477,19 +477,19 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               onClick={() => toggleAccordion('add')}
               className={`w-full px-4 py-3 text-left text-sm font-bold transition-colors flex items-center justify-between cursor-pointer ${
                 activeAccordion === 'add'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-emerald-400 hover:bg-[#16181e]'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-white hover:bg-[#16181e]'
               }`}
             >
               <span className="flex items-center gap-2">
-                <span className={activeAccordion === 'add' ? 'text-white' : 'text-emerald-400'}>+</span> AÑADIR PAÍS
+                <span>+</span> AÑADIR PAÍS
               </span>
-              <span className={`text-xs ${activeAccordion === 'add' ? 'text-white' : 'text-emerald-400'}`}>▼</span>
+              <span className="text-xs text-white">▼</span>
             </button>
             {activeAccordion === 'add' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
                 <div>
-                  <label className="block text-slate-400 mb-1">Nombre del País</label>
+                  <label className="block text-white mb-1">Nombre del País</label>
                   <input
                     type="text"
                     value={nuevoPaisNombre}
@@ -500,7 +500,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-slate-400 mb-1">Latitud</label>
+                    <label className="block text-white mb-1">Latitud</label>
                     <input
                       type="text"
                       value={nuevaLatitud}
@@ -510,7 +510,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">Longitud</label>
+                    <label className="block text-white mb-1">Longitud</label>
                     <input
                       type="text"
                       value={nuevaLongitud}
@@ -520,7 +520,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1">CIC ($)</label>
+                    <label className="block text-white mb-1">CIC ($)</label>
                     <input
                       type="number"
                       value={nuevoCic}
@@ -532,7 +532,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                 </div>
                 <button
                   onClick={handleAgregarPais}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors font-bold"
+                  className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs cursor-pointer transition-colors font-bold border border-slate-700"
                 >
                   Guardar
                 </button>
@@ -546,14 +546,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               onClick={() => toggleAccordion('edit')}
               className={`w-full px-4 py-3 text-left text-sm font-bold transition-colors flex items-center justify-between cursor-pointer ${
                 activeAccordion === 'edit'
-                  ? 'bg-amber-600 text-white'
-                  : 'text-amber-400 hover:bg-[#16181e]'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-white hover:bg-[#16181e]'
               }`}
             >
               <span className="flex items-center gap-2">
                 <span>✏️</span> EDITAR PAÍS
               </span>
-              <span className={`text-xs ${activeAccordion === 'edit' ? 'text-white' : 'text-amber-400'}`}>▼</span>
+              <span className="text-xs text-white">▼</span>
             </button>
             {activeAccordion === 'edit' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
@@ -574,7 +574,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="text-slate-400 block mb-1">Latitud</label>
+                        <label className="text-white block mb-1">Latitud</label>
                         <input
                           type="text"
                           value={editLatitud}
@@ -583,7 +583,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">Longitud</label>
+                        <label className="text-white block mb-1">Longitud</label>
                         <input
                           type="text"
                           value={editLongitud}
@@ -592,7 +592,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                         />
                       </div>
                       <div>
-                        <label className="text-slate-400 block mb-1">CIC ($)</label>
+                        <label className="text-white block mb-1">CIC ($)</label>
                         <input
                           type="number"
                           value={editCic}
@@ -603,7 +603,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     </div>
                     <button 
                       onClick={handleGuardarCambios}
-                      className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3 py-1.5 rounded font-bold cursor-pointer transition-colors"
+                      className="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded font-bold cursor-pointer transition-colors border border-slate-700"
                     >
                       Actualizar
                     </button>
@@ -619,24 +619,24 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               onClick={() => toggleAccordion('delete')}
               className={`w-full px-4 py-3 text-left text-sm font-bold transition-colors flex items-center justify-between cursor-pointer ${
                 activeAccordion === 'delete'
-                  ? 'bg-red-600 text-white'
-                  : 'text-red-400 hover:bg-[#16181e]'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-white hover:bg-[#16181e]'
               }`}
             >
               <span className="flex items-center gap-2">
                 <span>🗑️</span> ELIMINAR PAÍS
               </span>
-              <span className={`text-xs ${activeAccordion === 'delete' ? 'text-white' : 'text-red-400'}`}>▼</span>
+              <span className="text-xs text-white">▼</span>
             </button>
             {activeAccordion === 'delete' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
                 <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
                   {listaPaises.map(p => (
                     <div key={p.id} className="flex justify-between items-center bg-[#0e1117] p-2 rounded border border-slate-800">
-                      <span className="text-slate-200 font-medium">{p.nombre}</span>
+                      <span className="text-white font-medium">{p.nombre}</span>
                       <button
                         onClick={() => handleEliminarPais(p.id, p.nombre)}
-                        className="bg-red-600/80 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] font-bold cursor-pointer"
+                        className="bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded text-[10px] font-bold cursor-pointer border border-slate-700"
                       >
                         Eliminar
                       </button>
@@ -651,7 +651,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       </div>
 
       {errorLog && (
-        <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs">
+        <div className="bg-red-500/10 border border-red-500 text-white p-3 rounded-lg text-xs">
           ⚠️ <strong>Error BD:</strong> {errorLog}
         </div>
       )}
@@ -665,36 +665,36 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-slate-400">
+              <tr className="border-b border-slate-800 text-white">
                 <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-3 font-medium text-slate-300">Países</th>
-                <th className="p-3 text-right font-medium text-slate-300">Precio Producto Destino (PPD)</th>
-                <th className="p-3 text-right font-medium text-slate-300">Transporte Internacional (CTI) ($0.38/km)</th>
-                <th className="p-3 text-right pr-6 font-medium text-slate-300">Cumplimiento Fronterizo (CIC)</th>
+                <th className="p-3 font-medium text-white">Países</th>
+                <th className="p-3 text-right font-medium text-white">Precio Producto Destino (PPD)</th>
+                <th className="p-3 text-right font-medium text-white">Transporte Internacional (CTI) ($0.38/km)</th>
+                <th className="p-3 text-right pr-6 font-medium text-white">Cumplimiento Fronterizo (CIC)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
+            <tbody className="divide-y divide-slate-800/50 font-mono text-white">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="5" className="p-6 text-center text-white font-sans">
                     Cargando datos...
                   </td>
                 </tr>
               ) : matrizFiltrada.length > 0 ? (
                 matrizFiltrada.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
-                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
+                    <td className="p-3 text-right pr-6 text-white font-sans">{idx + 1}</td>
+                    <td className="p-3 font-sans font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 text-right">${row.ppd.toFixed(2)}</td>
                     <td className="p-3 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
                     <td className="p-3 text-right pr-6">
-                      {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-slate-500">$0.00</span>}
+                      {row.cic !== null ? `$${row.cic.toFixed(2)}` : <span className="text-white">$0.00</span>}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="5" className="p-6 text-center text-white font-sans">
                     No hay registros con datos de precios válidos para este filtro.
                   </td>
                 </tr>
@@ -713,36 +713,36 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         <div className="max-h-[450px] overflow-y-auto rounded-lg border border-slate-800/80 bg-[#0e1117] custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#16181e] z-10">
-              <tr className="border-b border-slate-800 text-slate-400">
+              <tr className="border-b border-slate-800 text-white">
                 <th className="p-3 w-16 text-right pr-6 font-normal">#</th>
-                <th className="p-3 font-medium text-slate-300">Países</th>
-                <th className="p-3 text-right font-medium text-slate-300">PPD Norm (44.00%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">CTI Norm (34.00%)</th>
-                <th className="p-3 text-right font-medium text-slate-300">CIC Norm (22.00%)</th>
-                <th className="p-3 text-right pr-6 font-bold text-emerald-400">Total Factor (21.50%)</th>
+                <th className="p-3 font-medium text-white">Países</th>
+                <th className="p-3 text-right font-medium text-white">PPD Norm (44.00%)</th>
+                <th className="p-3 text-right font-medium text-white">CTI Norm (34.00%)</th>
+                <th className="p-3 text-right font-medium text-white">CIC Norm (22.00%)</th>
+                <th className="p-3 text-right pr-6 font-bold text-white">Total Factor (21.50%)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50 font-mono text-slate-200">
+            <tbody className="divide-y divide-slate-800/50 font-mono text-white">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="6" className="p-6 text-center text-white font-sans">
                     Calculando...
                   </td>
                 </tr>
               ) : matrizFiltrada.length > 0 ? (
                 matrizFiltrada.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-[#16181e]/60 transition-colors">
-                    <td className="p-3 text-right pr-6 text-slate-500 font-sans">{idx + 1}</td>
-                    <td className="p-3 font-sans font-medium text-slate-100">{row.pais_nombre}</td>
+                    <td className="p-3 text-right pr-6 text-white font-sans">{idx + 1}</td>
+                    <td className="p-3 font-sans font-medium text-white">{row.pais_nombre}</td>
                     <td className="p-3 text-right">{row.ppdNorm !== null ? row.ppdNorm : '-'}</td>
                     <td className="p-3 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
                     <td className="p-3 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
-                    <td className="p-3 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
+                    <td className="p-3 text-right pr-6 font-bold text-white">{row.aporteFactorCosto}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="p-6 text-center text-slate-500 font-sans">
+                  <td colSpan="6" className="p-6 text-center text-white font-sans">
                     No hay datos normalizados para este filtro.
                   </td>
                 </tr>
