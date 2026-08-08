@@ -415,7 +415,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-[#1e2536] pb-3">
           <div className="flex items-center gap-2 text-white font-bold text-base">
             <span>⚙️</span>
-            <span>PANEL DE GESTIÓN DE PRODUCTOS</span>
+            <span>DE GESTIÓN DE DATOS</span>
           </div>
           <div className="bg-[#192233] text-[#93c5fd] border border-[#26354a] text-xs px-3 py-1.5 rounded-lg font-medium">
             Módulo Activo
