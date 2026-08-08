@@ -320,7 +320,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
           
           {/* AÑADIR */}
           <details className="bg-[#0b0d12] rounded-lg border border-[#1e2330] p-4 group">
-            <summary className="text-xs font-bold text-sky-400 uppercase tracking-wide cursor-pointer select-none flex justify-between items-center">
+            <summary className="text-xs font-bold text-white tracking-wide cursor-pointer select-none flex justify-between items-center normal-case">
               <span>➕ Añadir país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
@@ -374,7 +374,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
 
           {/* EDITAR */}
           <details className="bg-[#0b0d12] rounded-lg border border-[#1e2330] p-4 group">
-            <summary className="text-xs font-bold text-sky-400 uppercase tracking-wide cursor-pointer select-none flex justify-between items-center">
+            <summary className="text-xs font-bold text-white tracking-wide cursor-pointer select-none flex justify-between items-center normal-case">
               <span>✏️ Editar país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
@@ -445,7 +445,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
 
           {/* ELIMINAR */}
           <details className="bg-[#0b0d12] rounded-lg border border-[#1e2330] p-4 group">
-            <summary className="text-xs font-bold text-sky-400 uppercase tracking-wide cursor-pointer select-none flex justify-between items-center">
+            <summary className="text-xs font-bold text-white tracking-wide cursor-pointer select-none flex justify-between items-center normal-case">
               <span>🗑️ Eliminar país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
