@@ -42,10 +42,10 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       setCargando(true);
       try {
        const [resPaises, resGLIN, resCPCI, resHofstede] = await Promise.all([
-        supabase.from("paises").select("*").order("nombre"),
-        supabase.from("indiceglobalizacion").select("*"),
-        supabase.from("indiceCorrupcion").select("*"),
-        supabase.from("cultura").select("*")
+          supabase.from("paises").select("*").order("nombre"),
+          supabase.from("indiceglobalizacion").select("*"),
+          supabase.from("indiceCorrupcion").select("*"),
+          supabase.from("cultura").select("*")
       ]);
 
         if (resPaises.error) throw resPaises.error;
@@ -296,7 +296,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
     <div className="space-y-8 text-slate-100 font-sans">
       
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#111318] p-6 rounded-xl border border-[#1e2330]">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#121620] border border-[#1b2230] p-6 rounded-xl shadow-sm">
         <div>
           <span className="text-xs uppercase tracking-wider text-sky-400 font-semibold">Módulo de Análisis</span>
           <h2 className="text-2xl font-bold text-white mt-1">6. Cultura (CULT)</h2>
@@ -313,18 +313,18 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       </div>
 
       {/* SECCIÓN CRUD — ACORDEONES DESPLEGABLES */}
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-6 space-y-4">
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <h3 className="text-base font-bold text-white mb-2">Gestión de Datos (Tabla CULT)</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
           {/* AÑADIR */}
-          <details className="bg-[#0b0d12] rounded-lg border border-[#1e2330] p-4 group">
+          <details className="bg-[#0d1017] rounded-lg border border-[#1b2230] p-4 group">
             <summary className="text-xs font-bold text-white tracking-wide cursor-pointer select-none flex justify-between items-center normal-case">
               <span>➕ Añadir país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
-            <form onSubmit={handleAddPais} className="space-y-3 mt-4 pt-3 border-t border-[#1e2330]">
+            <form onSubmit={handleAddPais} className="space-y-3 mt-4 pt-3 border-t border-[#1b2230]">
               <div>
                 <label className="block text-[11px] text-slate-300 mb-1">País</label>
                 <input
@@ -332,7 +332,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                   value={paisAdd}
                   onChange={(e) => setPaisAdd(e.target.value)}
                   placeholder="Ej. Argentina"
-                  className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                   required
                 />
               </div>
@@ -343,7 +343,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                   step="any"
                   value={glinAdd}
                   onChange={(e) => setGlinAdd(e.target.value)}
-                  className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                 />
               </div>
               <div>
@@ -353,7 +353,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                   step="any"
                   value={cpciAdd}
                   onChange={(e) => setCpciAdd(e.target.value)}
-                  className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                 />
               </div>
               <div>
@@ -363,7 +363,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                   step="any"
                   value={cudiAdd}
                   onChange={(e) => setCudiAdd(e.target.value)}
-                  className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                 />
               </div>
               <button type="submit" className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer">
@@ -373,12 +373,12 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
           </details>
 
           {/* EDITAR */}
-          <details className="bg-[#0b0d12] rounded-lg border border-[#1e2330] p-4 group">
+          <details className="bg-[#0d1017] rounded-lg border border-[#1b2230] p-4 group">
             <summary className="text-xs font-bold text-white tracking-wide cursor-pointer select-none flex justify-between items-center normal-case">
               <span>✏️ Editar país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
-            <div className="mt-4 pt-3 border-t border-[#1e2330]">
+            <div className="mt-4 pt-3 border-t border-[#1b2230]">
               {cultOverrides.length === 0 ? (
                 <p className="text-xs text-slate-500">No hay datos personalizados para editar aún.</p>
               ) : (
@@ -388,7 +388,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                     <select
                       value={paisSeleccionadoEdit}
                       onChange={handleSelectEditPais}
-                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                       required
                     >
                       {cultOverrides.map((item, idx) => (
@@ -402,7 +402,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                       type="text"
                       value={editPaisNombre}
                       onChange={(e) => setEditPaisNombre(e.target.value)}
-                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <div>
@@ -412,7 +412,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                       step="any"
                       value={editGlin}
                       onChange={(e) => setEditGlin(e.target.value)}
-                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <div>
@@ -422,7 +422,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                       step="any"
                       value={editCpci}
                       onChange={(e) => setEditCpci(e.target.value)}
-                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <div>
@@ -432,7 +432,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                       step="any"
                       value={editCudi}
                       onChange={(e) => setEditCudi(e.target.value)}
-                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <button type="submit" className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer">
@@ -444,12 +444,12 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
           </details>
 
           {/* ELIMINAR */}
-          <details className="bg-[#0b0d12] rounded-lg border border-[#1e2330] p-4 group">
+          <details className="bg-[#0d1017] rounded-lg border border-[#1b2230] p-4 group">
             <summary className="text-xs font-bold text-white tracking-wide cursor-pointer select-none flex justify-between items-center normal-case">
               <span>🗑️ Eliminar país</span>
               <span className="transform group-open:rotate-180 transition-transform">▼</span>
             </summary>
-            <div className="mt-4 pt-3 border-t border-[#1e2330]">
+            <div className="mt-4 pt-3 border-t border-[#1b2230]">
               {cultOverrides.length === 0 ? (
                 <p className="text-xs text-slate-500">No hay países personalizados para eliminar.</p>
               ) : (
@@ -459,7 +459,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                     <select
                       value={paisSeleccionadoDel}
                       onChange={(e) => setPaisSeleccionadoDel(e.target.value)}
-                      className="w-full bg-[#0b0d12] border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
                       required
                     >
                       {cultOverrides.map((item, idx) => (
@@ -485,14 +485,14 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       )}
 
       {/* TABLA 1: DATOS ORIGINALES COMBINADOS */}
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-6 space-y-4">
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <h3 className="text-lg font-bold text-white">Tabla Cultural (CULT) — Datos originales combinados</h3>
         {cargando ? (
           <p className="text-xs text-slate-400">Cargando datos culturales desde Supabase...</p>
         ) : (
           <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
             <table className="w-full text-left text-xs text-slate-300 border-collapse">
-              <thead className="bg-[#0b0d12] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1e2330] sticky top-0 z-10">
+              <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
                 <tr>
                   <th className="p-3">#</th>
                   <th className="p-3">Países</th>
@@ -501,9 +501,9 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                   <th className="p-3">Diferencia cultural (CUDI)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1e2330]">
+              <tbody className="divide-y divide-[#1b2230]">
                 {datosCulturaConsolidados.map((item, index) => (
-                  <tr key={index} className="hover:bg-slate-900/50">
+                  <tr key={index} className="hover:bg-[#181f2d] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{item.Paises}</td>
                     <td className="p-3">{item.GLIN !== null ? item.GLIN : '-'}</td>
@@ -518,7 +518,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       </div>
 
       {/* TABLA 2: TABLA CULTURAL NORMALIZADA */}
-      <div className="bg-[#111318] border border-[#1e2330] rounded-xl p-6 space-y-4">
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla Cultural Normalizada (CULT)</h3>
           <p className="text-xs text-slate-400 mt-1">Ponderaciones: GLIN = 30% | CPCI = 50% | CUDI = 20%</p>
@@ -526,7 +526,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
           <table className="w-full text-left text-xs text-slate-300 border-collapse">
-            <thead className="bg-[#0b0d12] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1e2330] sticky top-0 z-10">
+            <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
               <tr>
                 <th className="p-3">#</th>
                 <th className="p-3">Paises</th>
@@ -536,9 +536,9 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                 <th className="p-3 font-bold text-sky-400">Puntaje_CULT_Normalizado</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1e2330]">
+            <tbody className="divide-y divide-[#1b2230]">
               {datosCulturaNormalizados.map((item, index) => (
-                <tr key={index} className="hover:bg-slate-900/50">
+                <tr key={index} className="hover:bg-[#181f2d] transition-colors">
                   <td className="p-3 text-slate-500">{index + 1}</td>
                   <td className="p-3 font-medium text-white">{item.Paises}</td>
                   <td className="p-3">{item.GLIN_norm !== null ? item.GLIN_norm : '-'}</td>
