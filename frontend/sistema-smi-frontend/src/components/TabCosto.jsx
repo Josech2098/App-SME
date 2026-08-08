@@ -475,12 +475,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('add')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-emerald-400 hover:bg-[#16181e] transition-colors flex items-center justify-between cursor-pointer"
+              className={`w-full px-4 py-3 text-left text-sm font-bold transition-colors flex items-center justify-between cursor-pointer ${
+                activeAccordion === 'add'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-emerald-400 hover:bg-[#16181e]'
+              }`}
             >
-              <span className="flex items-center gap-2 font-bold">
-                <span className="text-emerald-400">+</span> AÑADIR PAÍS
+              <span className="flex items-center gap-2">
+                <span className={activeAccordion === 'add' ? 'text-white' : 'text-emerald-400'}>+</span> AÑADIR PAÍS
               </span>
-              <span className="text-emerald-400 text-xs">▼</span>
+              <span className={`text-xs ${activeAccordion === 'add' ? 'text-white' : 'text-emerald-400'}`}>▼</span>
             </button>
             {activeAccordion === 'add' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
@@ -540,12 +544,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('edit')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-amber-400 hover:bg-[#16181e] transition-colors flex items-center justify-between cursor-pointer"
+              className={`w-full px-4 py-3 text-left text-sm font-bold transition-colors flex items-center justify-between cursor-pointer ${
+                activeAccordion === 'edit'
+                  ? 'bg-amber-600 text-white'
+                  : 'text-amber-400 hover:bg-[#16181e]'
+              }`}
             >
-              <span className="flex items-center gap-2 font-bold">
+              <span className="flex items-center gap-2">
                 <span>✏️</span> EDITAR PAÍS
               </span>
-              <span className="text-amber-400 text-xs">▼</span>
+              <span className={`text-xs ${activeAccordion === 'edit' ? 'text-white' : 'text-amber-400'}`}>▼</span>
             </button>
             {activeAccordion === 'edit' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
@@ -609,12 +617,16 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           <div className="bg-[#0e1117] border border-slate-800 rounded-lg overflow-hidden">
             <button
               onClick={() => toggleAccordion('delete')}
-              className="w-full px-4 py-3 text-left text-sm font-medium text-red-400 hover:bg-[#16181e] transition-colors flex items-center justify-between cursor-pointer"
+              className={`w-full px-4 py-3 text-left text-sm font-bold transition-colors flex items-center justify-between cursor-pointer ${
+                activeAccordion === 'delete'
+                  ? 'bg-red-600 text-white'
+                  : 'text-red-400 hover:bg-[#16181e]'
+              }`}
             >
-              <span className="flex items-center gap-2 font-bold">
+              <span className="flex items-center gap-2">
                 <span>🗑️</span> ELIMINAR PAÍS
               </span>
-              <span className="text-red-400 text-xs">▼</span>
+              <span className={`text-xs ${activeAccordion === 'delete' ? 'text-white' : 'text-red-400'}`}>▼</span>
             </button>
             {activeAccordion === 'delete' && (
               <div className="p-4 border-t border-slate-800 space-y-3 bg-[#16181e] text-xs">
