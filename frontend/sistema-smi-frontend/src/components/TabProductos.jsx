@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { THEME } from '../theme.js'; // Ajusta la ruta según la ubicación real de tu theme.js
+import { THEME } from '../theme.js';
 
 export default function TablaProductos({
   paisDestino,
@@ -211,13 +211,14 @@ export default function TablaProductos({
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
             style={{
-              backgroundColor: activeAccordion === 'add' ? THEME.panel : THEME.card,
-              borderColor: activeAccordion === 'add' ? THEME.danger : THEME.border,
-              color: THEME.text,
+              backgroundColor: activeAccordion === 'add' ? THEME.success : THEME.card,
+              borderColor: activeAccordion === 'add' ? THEME.success : THEME.border,
+              color: activeAccordion === 'add' ? THEME.background : THEME.text,
               borderWidth: '1px',
-              borderStyle: 'solid'
+              borderStyle: 'solid',
+              fontWeight: activeAccordion === 'add' ? 'bold' : 'medium'
             }}
-            className="p-3 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
+            className="p-3 rounded-lg text-xs text-left flex items-center gap-2 transition-all cursor-pointer shadow-sm"
           >
             <span>{activeAccordion === 'add' ? '▼' : '❯'}</span> Añadir producto
           </button>
@@ -227,13 +228,14 @@ export default function TablaProductos({
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
             style={{
-              backgroundColor: activeAccordion === 'edit' ? THEME.panel : THEME.card,
+              backgroundColor: activeAccordion === 'edit' ? THEME.warning : THEME.card,
               borderColor: activeAccordion === 'edit' ? THEME.warning : THEME.border,
-              color: THEME.text,
+              color: activeAccordion === 'edit' ? THEME.background : THEME.text,
               borderWidth: '1px',
-              borderStyle: 'solid'
+              borderStyle: 'solid',
+              fontWeight: activeAccordion === 'edit' ? 'bold' : 'medium'
             }}
-            className="p-3 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
+            className="p-3 rounded-lg text-xs text-left flex items-center gap-2 transition-all cursor-pointer shadow-sm"
           >
             <span>{activeAccordion === 'edit' ? '▼' : '❯'}</span> Editar producto existente
           </button>
@@ -243,13 +245,14 @@ export default function TablaProductos({
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
             style={{
-              backgroundColor: activeAccordion === 'delete' ? THEME.panel : THEME.card,
+              backgroundColor: activeAccordion === 'delete' ? THEME.danger : THEME.card,
               borderColor: activeAccordion === 'delete' ? THEME.danger : THEME.border,
-              color: THEME.text,
+              color: activeAccordion === 'delete' ? THEME.background : THEME.text,
               borderWidth: '1px',
-              borderStyle: 'solid'
+              borderStyle: 'solid',
+              fontWeight: activeAccordion === 'delete' ? 'bold' : 'medium'
             }}
-            className="p-3 rounded-lg text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
+            className="p-3 rounded-lg text-xs text-left flex items-center gap-2 transition-all cursor-pointer shadow-sm"
           >
             <span>{activeAccordion === 'delete' ? '▼' : '❯'}</span> Eliminar producto existente
           </button>
@@ -257,24 +260,24 @@ export default function TablaProductos({
 
         {/* Formulario: Añadir */}
         {activeAccordion === 'add' && (
-          <form onSubmit={handleGuardarProducto} className="p-4 rounded-lg border space-y-3" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
-            <h4 className="text-xs font-bold uppercase" style={{ color: THEME.danger }}>Añadir Nuevo Producto</h4>
+          <form onSubmit={handleGuardarProducto} className="p-4 rounded-lg border space-y-3 shadow-md" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+            <h4 className="text-xs font-bold uppercase" style={{ color: THEME.success }}>Añadir Nuevo Producto</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <input
                 type="text"
                 placeholder="País"
                 value={addPais}
                 onChange={(e) => setAddPais(e.target.value)}
-                className="p-2 rounded text-white focus:outline-none"
-                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                className="p-2 rounded focus:outline-none"
+                style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
               />
               <input
                 type="text"
                 placeholder="Nombre del Producto"
                 value={addNombre}
                 onChange={(e) => setAddNombre(e.target.value)}
-                className="p-2 rounded text-white focus:outline-none"
-                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                className="p-2 rounded focus:outline-none"
+                style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
                 required
               />
               <input
@@ -282,11 +285,11 @@ export default function TablaProductos({
                 placeholder="Precio (Ej: 12.50)"
                 value={addPrecio}
                 onChange={(e) => setAddPrecio(e.target.value)}
-                className="p-2 rounded text-white focus:outline-none"
-                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                className="p-2 rounded focus:outline-none"
+                style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
               />
             </div>
-            <button type="submit" className="text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors" style={{ backgroundColor: THEME.danger }}>
+            <button type="submit" className="text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.success, color: THEME.background }}>
               Guardar nuevo producto
             </button>
           </form>
@@ -294,7 +297,7 @@ export default function TablaProductos({
 
         {/* Formulario: Editar */}
         {activeAccordion === 'edit' && (
-          <form onSubmit={handleEditarProducto} className="p-4 rounded-lg border space-y-3" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+          <form onSubmit={handleEditarProducto} className="p-4 rounded-lg border space-y-3 shadow-md" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
             <h4 className="text-xs font-bold uppercase" style={{ color: THEME.warning }}>Editar Producto Existente</h4>
             
             <div className="space-y-1">
@@ -315,17 +318,17 @@ export default function TablaProductos({
                     setEditPrecio('');
                   }
                 }}
-                className="w-full p-2 rounded text-xs text-white focus:outline-none cursor-pointer"
-                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                className="w-full p-2 rounded text-xs focus:outline-none cursor-pointer"
+                style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
               >
-                <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
+                <option value="" style={{ backgroundColor: THEME.background, color: THEME.text }}>-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
                   const pId = getProductoId(p);
                   const pPais = p.pais || p.Pais || 'Sin país';
                   const pNombre = p.nombre || p.producto || 'Sin nombre';
                   const pPrecio = p.precio || p.Precio || 'Sin precio';
                   return (
-                    <option key={pId} value={pId}>
+                    <option key={pId} value={pId} style={{ backgroundColor: THEME.background, color: THEME.text }}>
                       [{pPais}] — {pNombre} — ({pPrecio})
                     </option>
                   );
@@ -342,8 +345,8 @@ export default function TablaProductos({
                     placeholder="País"
                     value={editPais}
                     onChange={(e) => setEditPais(e.target.value)}
-                    className="w-full p-2 rounded text-white focus:outline-none"
-                    style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                    className="w-full p-2 rounded focus:outline-none"
+                    style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
                   />
                 </div>
                 <div>
@@ -353,8 +356,8 @@ export default function TablaProductos({
                     placeholder="Nombre"
                     value={editNombre}
                     onChange={(e) => setEditNombre(e.target.value)}
-                    className="w-full p-2 rounded text-white focus:outline-none"
-                    style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                    className="w-full p-2 rounded focus:outline-none"
+                    style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
                   />
                 </div>
                 <div>
@@ -364,14 +367,14 @@ export default function TablaProductos({
                     placeholder="Precio"
                     value={editPrecio}
                     onChange={(e) => setEditPrecio(e.target.value)}
-                    className="w-full p-2 rounded text-white focus:outline-none"
-                    style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                    className="w-full p-2 rounded focus:outline-none"
+                    style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
                   />
                 </div>
               </div>
             )}
             
-            <button type="submit" className="text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors" style={{ backgroundColor: THEME.warning }}>
+            <button type="submit" className="text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.warning, color: THEME.background }}>
               Actualizar producto
             </button>
           </form>
@@ -379,7 +382,7 @@ export default function TablaProductos({
 
         {/* Formulario: Eliminar */}
         {activeAccordion === 'delete' && (
-          <form onSubmit={handleEliminarProducto} className="p-4 rounded-lg border space-y-3" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+          <form onSubmit={handleEliminarProducto} className="p-4 rounded-lg border space-y-3 shadow-md" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
             <h4 className="text-xs font-bold uppercase" style={{ color: THEME.danger }}>Eliminar Producto</h4>
             
             <div className="space-y-1">
@@ -387,17 +390,17 @@ export default function TablaProductos({
               <select
                 value={deleteId}
                 onChange={(e) => setDeleteId(e.target.value)}
-                className="w-full p-2 rounded text-xs text-white focus:outline-none cursor-pointer"
-                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
+                className="w-full p-2 rounded text-xs focus:outline-none cursor-pointer"
+                style={{ backgroundColor: THEME.background, color: THEME.text, borderColor: THEME.border, border: '1px solid' }}
               >
-                <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
+                <option value="" style={{ backgroundColor: THEME.background, color: THEME.text }}>-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
                   const pId = getProductoId(p);
                   const pPais = p.pais || p.Pais || 'Sin país';
                   const pNombre = p.nombre || p.producto || 'Sin nombre';
                   const pPrecio = p.precio || p.Precio || 'Sin precio';
                   return (
-                    <option key={pId} value={pId}>
+                    <option key={pId} value={pId} style={{ backgroundColor: THEME.background, color: THEME.text }}>
                       [{pPais}] — {pNombre} — ({pPrecio})
                     </option>
                   );
@@ -405,7 +408,7 @@ export default function TablaProductos({
               </select>
             </div>
 
-            <button type="submit" className="text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors" style={{ backgroundColor: THEME.danger }}>
+            <button type="submit" className="text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors shadow" style={{ backgroundColor: THEME.danger, color: THEME.background }}>
               Eliminar producto definitivamente
             </button>
           </form>
@@ -473,8 +476,8 @@ export default function TablaProductos({
                       }}
                       className="transition-colors cursor-pointer"
                       style={{
-                        backgroundColor: isSelected ? 'rgba(248, 113, 113, 0.15)' : 'transparent',
-                        borderLeft: isSelected ? `4px solid ${THEME.danger}` : '4px solid transparent'
+                        backgroundColor: isSelected ? 'rgba(52, 211, 153, 0.15)' : 'transparent',
+                        borderLeft: isSelected ? `4px solid ${THEME.success}` : '4px solid transparent'
                       }}
                     >
                       <td className="p-3 font-mono" style={{ color: THEME.textSecondary }}>{idVal}</td>
