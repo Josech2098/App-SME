@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { THEME } from '../theme';
+import { THEME } from '../path/to/theme.js'; // Ajusta la ruta según donde tengas tu theme.js
 
 export default function TablaProductos({
   paisDestino,
@@ -67,7 +67,6 @@ export default function TablaProductos({
 
   // 🔍 Lógica de Filtrado Dinámico para la Tabla
   const productosFiltrados = productos.filter((p) => {
-    // 1. Filtro Categoría usando productos_categoria
     if (categoria && categoria !== 'Todos') {
       const palabrasCategoriaActual = keywordsCategoria
         .filter(k => String(k.categoria_codigo) === String(categoria))
@@ -79,7 +78,6 @@ export default function TablaProductos({
       if (!coincideCategoria) return false;
     }
     
-    // 2. Filtro Subcategoría
     if (subcategoria && subcategoria !== 'Todos') {
       const palabrasSubcategoriaActual = keywordsCategoria
         .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
@@ -96,11 +94,9 @@ export default function TablaProductos({
       if (!coincideSubExacto && !coincideSubEmpieza && !coincideKeywordSub) return false;
     }
     
-    // 3. Búsqueda por Nombre (Producto)
     const nombreVal = p.nombre || p.producto || '';
     if (searchNombre && !nombreVal.toLowerCase().includes(searchNombre.toLowerCase())) return false;
     
-    // 4. Búsqueda por Código
     if (searchCodigo) {
       const palabrasCodigo = keywordsCategoria
         .filter(k => String(k.categoria_codigo).startsWith(searchCodigo))
@@ -112,7 +108,6 @@ export default function TablaProductos({
       if (!coincideCodigo) return false;
     }
     
-    // 5. Búsqueda por Subcódigo
     const subcodigoVal = p.subcodigo || p.subcategoria_codigo;
     if (searchSubcodigo && (!subcodigoVal || !subcodigoVal.toString().includes(searchSubcodigo))) return false;
 
@@ -202,11 +197,11 @@ export default function TablaProductos({
   };
 
   return (
-    <div className="space-y-6 text-slate-100">
+    <div className="space-y-6" style={{ color: THEME.text }}>
 
       {/* 🛠️ PANELS DE GESTIÓN DE DATOS */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+        <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: THEME.textSecondary }}>
           <span>🛠️</span> Gestión de Datos (Productos)
         </h3>
 
@@ -215,11 +210,12 @@ export default function TablaProductos({
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'add' ? null : 'add')}
-            className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
-              activeAccordion === 'add'
-                ? '!bg-slate-800 !border-red-500 text-white shadow-md shadow-red-500/10'
-                : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
-            }`}
+            className="p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
+            style={{
+              backgroundColor: activeAccordion === 'add' ? THEME.panel : THEME.card,
+              borderColor: activeAccordion === 'add' ? THEME.danger : THEME.border,
+              color: THEME.text
+            }}
           >
             <span>{activeAccordion === 'add' ? '▼' : '❯'}</span> Añadir producto
           </button>
@@ -228,11 +224,12 @@ export default function TablaProductos({
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
-            className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
-              activeAccordion === 'edit'
-                ? '!bg-slate-800 !border-amber-500 text-white shadow-md shadow-amber-500/10'
-                : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
-            }`}
+            className="p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
+            style={{
+              backgroundColor: activeAccordion === 'edit' ? THEME.panel : THEME.card,
+              borderColor: activeAccordion === 'edit' ? THEME.warning : THEME.border,
+              color: THEME.text
+            }}
           >
             <span>{activeAccordion === 'edit' ? '▼' : '❯'}</span> Editar producto existente
           </button>
@@ -241,11 +238,12 @@ export default function TablaProductos({
           <button
             type="button"
             onClick={() => setActiveAccordion(activeAccordion === 'delete' ? null : 'delete')}
-            className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
-              activeAccordion === 'delete'
-                ? '!bg-slate-800 !border-red-500 text-white shadow-md shadow-red-500/10'
-                : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
-            }`}
+            className="p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer"
+            style={{
+              backgroundColor: activeAccordion === 'delete' ? THEME.panel : THEME.card,
+              borderColor: activeAccordion === 'delete' ? THEME.danger : THEME.border,
+              color: THEME.text
+            }}
           >
             <span>{activeAccordion === 'delete' ? '▼' : '❯'}</span> Eliminar producto existente
           </button>
@@ -253,22 +251,24 @@ export default function TablaProductos({
 
         {/* Formulario: Añadir */}
         {activeAccordion === 'add' && (
-          <form onSubmit={handleGuardarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold text-red-400 uppercase">Añadir Nuevo Producto</h4>
+          <form onSubmit={handleGuardarProducto} className="p-4 rounded-lg border space-y-3" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+            <h4 className="text-xs font-bold uppercase" style={{ color: THEME.danger }}>Añadir Nuevo Producto</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <input
                 type="text"
                 placeholder="País"
                 value={addPais}
                 onChange={(e) => setAddPais(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-red-500"
+                className="p-2 rounded text-white focus:outline-none"
+                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
               />
               <input
                 type="text"
                 placeholder="Nombre del Producto"
                 value={addNombre}
                 onChange={(e) => setAddNombre(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-red-500"
+                className="p-2 rounded text-white focus:outline-none"
+                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
                 required
               />
               <input
@@ -276,10 +276,11 @@ export default function TablaProductos({
                 placeholder="Precio (Ej: 12.50)"
                 value={addPrecio}
                 onChange={(e) => setAddPrecio(e.target.value)}
-                className="bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-red-500"
+                className="p-2 rounded text-white focus:outline-none"
+                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
               />
             </div>
-            <button type="submit" className="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
+            <button type="submit" className="text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors" style={{ backgroundColor: THEME.danger }}>
               Guardar nuevo producto
             </button>
           </form>
@@ -287,11 +288,11 @@ export default function TablaProductos({
 
         {/* Formulario: Editar */}
         {activeAccordion === 'edit' && (
-          <form onSubmit={handleEditarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold text-amber-400 uppercase">Editar Producto Existente</h4>
+          <form onSubmit={handleEditarProducto} className="p-4 rounded-lg border space-y-3" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+            <h4 className="text-xs font-bold uppercase" style={{ color: THEME.warning }}>Editar Producto Existente</h4>
             
             <div className="space-y-1">
-              <label className="text-[11px] text-slate-400 font-medium">Selecciona el registro a modificar:</label>
+              <label className="text-[11px] font-medium" style={{ color: THEME.textSecondary }}>Selecciona el registro a modificar:</label>
               <select
                 value={editId}
                 onChange={(e) => {
@@ -308,7 +309,8 @@ export default function TablaProductos({
                     setEditPrecio('');
                   }
                 }}
-                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-amber-500 cursor-pointer"
+                className="w-full p-2 rounded text-xs text-white focus:outline-none cursor-pointer"
+                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
               >
                 <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
@@ -326,41 +328,44 @@ export default function TablaProductos({
             </div>
 
             {editId && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2 border-t border-slate-800/80">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-2" style={{ borderTop: `1px solid ${THEME.border}` }}>
                 <div>
-                  <label className="block text-[10px] text-slate-400 uppercase mb-1">País</label>
+                  <label className="block text-[10px] uppercase mb-1" style={{ color: THEME.textSecondary }}>País</label>
                   <input
                     type="text"
                     placeholder="País"
                     value={editPais}
                     onChange={(e) => setEditPais(e.target.value)}
-                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-amber-500"
+                    className="w-full p-2 rounded text-white focus:outline-none"
+                    style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-400 uppercase mb-1">Nombre del Producto</label>
+                  <label className="block text-[10px] uppercase mb-1" style={{ color: THEME.textSecondary }}>Nombre del Producto</label>
                   <input
                     type="text"
                     placeholder="Nombre"
                     value={editNombre}
                     onChange={(e) => setEditNombre(e.target.value)}
-                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-amber-500"
+                    className="w-full p-2 rounded text-white focus:outline-none"
+                    style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-400 uppercase mb-1">Precio</label>
+                  <label className="block text-[10px] uppercase mb-1" style={{ color: THEME.textSecondary }}>Precio</label>
                   <input
                     type="text"
                     placeholder="Precio"
                     value={editPrecio}
                     onChange={(e) => setEditPrecio(e.target.value)}
-                    className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-white focus:outline-none focus:border-amber-500"
+                    className="w-full p-2 rounded text-white focus:outline-none"
+                    style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
                   />
                 </div>
               </div>
             )}
             
-            <button type="submit" className="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
+            <button type="submit" className="text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors" style={{ backgroundColor: THEME.warning }}>
               Actualizar producto
             </button>
           </form>
@@ -368,15 +373,16 @@ export default function TablaProductos({
 
         {/* Formulario: Eliminar */}
         {activeAccordion === 'delete' && (
-          <form onSubmit={handleEliminarProducto} className="bg-[#181a20] p-4 rounded-lg border border-slate-800 space-y-3">
-            <h4 className="text-xs font-bold text-red-500 uppercase">Eliminar Producto</h4>
+          <form onSubmit={handleEliminarProducto} className="p-4 rounded-lg border space-y-3" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+            <h4 className="text-xs font-bold uppercase" style={{ color: THEME.danger }}>Eliminar Producto</h4>
             
             <div className="space-y-1">
-              <label className="text-[11px] text-slate-400 font-medium">Selecciona el registro a eliminar:</label>
+              <label className="text-[11px] font-medium" style={{ color: THEME.textSecondary }}>Selecciona el registro a eliminar:</label>
               <select
                 value={deleteId}
                 onChange={(e) => setDeleteId(e.target.value)}
-                className="w-full bg-[#0e1117] border border-slate-700 p-2 rounded text-xs text-white focus:outline-none focus:border-red-500 cursor-pointer"
+                className="w-full p-2 rounded text-xs text-white focus:outline-none cursor-pointer"
+                style={{ backgroundColor: THEME.background, borderColor: THEME.border, border: '1px solid' }}
               >
                 <option value="">-- Selecciona por [País] - Producto - (Precio) --</option>
                 {productos.map((p) => {
@@ -393,7 +399,7 @@ export default function TablaProductos({
               </select>
             </div>
 
-            <button type="submit" className="bg-red-700 hover:bg-red-600 text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors">
+            <button type="submit" className="text-white text-xs px-4 py-2 rounded font-medium cursor-pointer transition-colors" style={{ backgroundColor: THEME.danger }}>
               Eliminar producto definitivamente
             </button>
           </form>
@@ -403,28 +409,26 @@ export default function TablaProductos({
       {/* 📊 TABLA DE RESULTADOS DE BÚSQUEDA */}
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white">
-            Listado de Productos <span className="text-xs font-normal text-slate-400">(Haz clic en una fila para seleccionarla)</span>
+          <h3 className="text-lg font-bold" style={{ color: THEME.text }}>
+            Listado de Productos <span className="text-xs font-normal" style={{ color: THEME.textSecondary }}>(Haz clic en una fila para seleccionarla)</span>
           </h3>
-          <span className="text-xs text-slate-400 bg-[#181a20] px-3 py-1 rounded-full border border-slate-800">
-            Mostrando <strong className="text-white">{productosFiltrados.length}</strong> de {productos.length} registros
+          <span className="text-xs px-3 py-1 rounded-full border" style={{ backgroundColor: THEME.card, borderColor: THEME.border, color: THEME.textSecondary }}>
+            Mostrando <strong style={{ color: THEME.text }}>{productosFiltrados.length}</strong> de {productos.length} registros
           </span>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-[#16181e] shadow-sm">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#1e2028] text-slate-400 border-b border-slate-800">
-              <tr>
-                <th className="p-3 font-semibold">ID</th>
-                <th className="p-3 font-semibold">País</th>
-                <th className="p-3 font-semibold text-right">Precio (€)</th>
-                <th className="p-3 font-semibold">Producto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
+        <div className="overflow-x-auto rounded-lg border shadow-sm" style={{ backgroundColor: THEME.card, borderColor: THEME.border }}>
+          <table className="w-full text-left text-xs" style={{ color: THEME.textSecondary }}>
+            <tr style={{ backgroundColor: THEME.panel, borderBottom: `1px solid ${THEME.border}`, color: THEME.textSecondary }}>
+              <th className="p-3 font-semibold">ID</th>
+              <th className="p-3 font-semibold">País</th>
+              <th className="p-3 font-semibold text-right">Precio (€)</th>
+              <th className="p-3 font-semibold">Producto</th>
+            </tr>
+            <tbody style={{ borderTop: `1px solid ${THEME.border}` }}>
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="p-6 text-center text-slate-500 animate-pulse">
+                  <td colSpan="4" className="p-6 text-center animate-pulse" style={{ color: THEME.textSecondary }}>
                     Cargando productos desde base de datos...
                   </td>
                 </tr>
@@ -459,24 +463,24 @@ export default function TablaProductos({
                           onSeleccionarProducto(item);
                         }
                       }}
-                      className={`transition-colors cursor-pointer ${
-                        isSelected 
-                          ? 'bg-red-900/30 border-l-4 border-red-500' 
-                          : 'hover:bg-[#1f222d]/50'
-                      }`}
+                      className="transition-colors cursor-pointer"
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(248, 113, 113, 0.15)' : 'transparent',
+                        borderLeft: isSelected ? `4px solid ${THEME.danger}` : '4px solid transparent'
+                      }}
                     >
-                      <td className="p-3 font-mono text-slate-400">{idVal}</td>
-                      <td className="p-3 font-medium text-slate-300">{paisVal}</td>
-                      <td className="p-3 text-right font-mono text-emerald-400 font-semibold">
+                      <td className="p-3 font-mono" style={{ color: THEME.textSecondary }}>{idVal}</td>
+                      <td className="p-3 font-medium" style={{ color: THEME.textSecondary }}>{paisVal}</td>
+                      <td className="p-3 text-right font-mono font-semibold" style={{ color: THEME.success }}>
                         {precioFmt}
                       </td>
-                      <td className="p-3 text-white font-medium">{nombre}</td>
+                      <td className="p-3 font-medium" style={{ color: THEME.text }}>{nombre}</td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="4" className="p-6 text-center text-slate-500">
+                  <td colSpan="4" className="p-6 text-center" style={{ color: THEME.textSecondary }}>
                     No se encontraron productos que coincidan con los filtros activos.
                   </td>
                 </tr>
