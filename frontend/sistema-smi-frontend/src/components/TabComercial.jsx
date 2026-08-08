@@ -154,14 +154,10 @@ export default function TabComercial({productoActivo,paisesDestino = [],producto
         const iempVal = item['Índice de penetración en el mercado de exportación (IEMP)'];
         const ioefVal = item['Índice de Libertad Económica (IOEF)'];
 
-        // CTCO (Inverso: menor arancel es mejor)
         const ctcoNorm = (ctcoMax !== ctcoMin) ? Number((A3 * (ctcoMax - ctcoVal) / (ctcoMax - ctcoMin)).toFixed(2)) : A3;
-        
-        // IEMP e IOEF (Directo: mayor índice es mejor)
         const iempNorm = (iempMax !== iempMin) ? Number((A3 * (iempVal - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
         const ioefNorm = (ioefMax !== ioefMin) ? Number((A3 * (ioefVal - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
 
-        // Ponderación interna y escalado directo al 20.50% total del modelo
         const subtotalPonderado = (ctcoNorm * 0.4650 + iempNorm * 0.2500 + ioefNorm * 0.2850);
         const commTotal = Number((subtotalPonderado * PESO_GLOBAL_COMM).toFixed(2));
 
@@ -187,15 +183,19 @@ export default function TabComercial({productoActivo,paisesDestino = [],producto
   }, [dbPaises, effectivePenetracion, effectiveLibertad, commOverrides, paisesDestino]);
 
   return (
-    <div className="space-y-6 text-slate-100 font-sans p-2">
-      <div className="border-b border-slate-800 pb-3">
-        <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
-        <p className="text-xs text-slate-400 mt-1">
-          Cruce y normalización ponderada (46.50% Aranceles, 25.00% Penetración, 28.50% Libertad Económica) con Ponderación Global del 20.50%.
-        </p>
+    <div className="space-y-8 text-slate-100 font-sans">
+      
+      {/* HEADER */}
+      <div className="border-b border-[#1b1f2e] pb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Cruce y normalización ponderada (46.50% Aranceles, 25.00% Penetración, 28.50% Libertad Económica) con Ponderación Global del 20.50%.
+          </p>
+        </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs flex items-center justify-between">
+      <div className="bg-[#12141f] border border-[#1b1f2e] rounded-lg p-3 text-xs flex items-center justify-between shadow-lg">
         <div>
           <span className="text-slate-400">Países procesados:</span> <strong className="text-emerald-400">{datosCommConsolidados.length}</strong>
         </div>
@@ -204,30 +204,33 @@ export default function TabComercial({productoActivo,paisesDestino = [],producto
         </div>
       </div>
 
-      {errorProceso && <div className="bg-red-950 p-3 rounded text-xs text-red-400">{errorProceso}</div>}
+      {errorProceso && <div className="bg-red-950 p-3 rounded text-xs text-red-400 border border-red-800">{errorProceso}</div>}
 
+      {/* TABLA COMERCIAL CONSOLIDADA */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Consolidada (COMM)</h3>
-        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
+        <p className="text-xs text-slate-400">Datos consolidados de aranceles, penetración e índice de libertad económica.</p>
+        
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
+          <table className="w-full text-left text-xs text-slate-300 relative">
+            <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
               <tr>
-                <th className="p-3 w-12">#</th>
-                <th className="p-3">País</th>
-                <th className="p-3">Aranceles (CTCO)</th>
-                <th className="p-3">Penetración (IEMP)</th>
-                <th className="p-3">Libertad Económica (IOEF)</th>
+                <th className="p-3 w-12 bg-[#151824]">#</th>
+                <th className="p-3 bg-[#151824]">País</th>
+                <th className="p-3 bg-[#151824]">Aranceles (CTCO)</th>
+                <th className="p-3 bg-[#151824]">Penetración (IEMP)</th>
+                <th className="p-3 bg-[#151824]">Libertad Económica (IOEF)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+            <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
               {datosCommConsolidados.length > 0 ? (
                 datosCommConsolidados.map((row, index) => (
-                  <tr key={index} className="hover:bg-[#16181d]">
+                  <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
-                    <td className="p-3 font-semibold text-sky-400">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
-                    <td className="p-3 font-semibold text-indigo-400">{row['Índice de Libertad Económica (IOEF)']}</td>
+                    <td className="p-3 font-semibold text-emerald-400">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
+                    <td className="p-3 font-semibold text-emerald-400">{row['Índice de Libertad Económica (IOEF)']}</td>
                   </tr>
                 ))
               ) : (
@@ -240,24 +243,27 @@ export default function TabComercial({productoActivo,paisesDestino = [],producto
         </div>
       </div>
 
+      {/* TABLA COMERCIAL NORMALIZADA */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Normalizada (COMM)</h3>
-        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-slate-800 rounded-lg">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#181a20] text-slate-400 uppercase text-[10px] sticky top-0 border-b border-slate-800">
+        <p className="text-xs text-slate-400">Valores normalizados y costo total ponderado comercial.</p>
+
+        <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
+          <table className="w-full text-left text-xs text-slate-300 relative">
+            <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
               <tr>
-                <th className="p-3 w-12">#</th>
-                <th className="p-3">País</th>
-                <th className="p-3">CTCO Norm (46.50%)</th>
-                <th className="p-3">IEMP Norm (25.00%)</th>
-                <th className="p-3">IOEF Norm (28.50%)</th>
-                <th className="p-3">COMM Total (20.50%)</th>
+                <th className="p-3 w-12 bg-[#151824]">#</th>
+                <th className="p-3 bg-[#151824]">País</th>
+                <th className="p-3 bg-[#151824]">CTCO Norm (46.50%)</th>
+                <th className="p-3 bg-[#151824]">IEMP Norm (25.00%)</th>
+                <th className="p-3 bg-[#151824]">IOEF Norm (28.50%)</th>
+                <th className="p-3 bg-[#151824]">COMM Total (20.50%)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-[#0e1117]">
+            <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
               {datosCommNormalizados.length > 0 ? (
                 datosCommNormalizados.map((row, index) => (
-                  <tr key={index} className="hover:bg-[#16181d]">
+                  <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
                     <td className="p-3 font-medium text-white">{row.Paises}</td>
                     <td className="p-3">{row.CTCO_norm}</td>
@@ -275,6 +281,7 @@ export default function TabComercial({productoActivo,paisesDestino = [],producto
           </table>
         </div>
       </div>
+
     </div>
   );
 }
