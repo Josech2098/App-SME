@@ -227,7 +227,7 @@ export default function TablaProductos({
             onClick={() => setActiveAccordion(activeAccordion === 'edit' ? null : 'edit')}
             className={`p-3 rounded-lg border text-xs font-medium text-left flex items-center gap-2 transition-all cursor-pointer ${
               activeAccordion === 'edit'
-                ? 'bg-slate-800 border-red-500 text-white'
+                ? 'bg-slate-800 border-amber-500 text-white'
                 : 'bg-[#181a20] border-slate-800 text-slate-300 hover:border-slate-700'
             }`}
           >
