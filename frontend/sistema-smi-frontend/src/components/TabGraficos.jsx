@@ -263,7 +263,7 @@ export default function TabGraficos({ datosTotales = [] }) {
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Gráficos Analíticos</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Gráficos Comparativos</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Visualización interactiva implementada en React y Chart.js con soporte en modo oscuro.
+          Visualización interactiva técnica SMIPEM.
         </p>
       </div>
 
