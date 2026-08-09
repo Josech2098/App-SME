@@ -290,7 +290,7 @@ export default function TabGraficos({ datosTotales = [] }) {
       </div>
 
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <h3 className="text-lg font-bold text-white">Comparativo IMSFE — Dimensiones y Puntaje Total</h3>
+        <h3 className="text-lg font-bold text-white">Comparativo SMIPEM  — Dimensiones y Puntaje Total</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
           <Bar id="canvas-grafico-3" data={dataGrafico3} options={optionsGrafico3} />
         </div>
