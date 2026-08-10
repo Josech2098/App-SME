@@ -36,7 +36,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       ]);
 
       if (resPaises.error) throw resPaises.error;
-      
+
       const dbPaises = resPaises.data || [];
       const dbEmisiones = resEmis.data || [];
       const dbRpg = resRpg.data || [];
@@ -63,12 +63,11 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
           edc: edcVal,
           rpg: rpgVal,
           isg: isgVal,
-          // Propiedad para identificar si el país tiene todos los datos necesarios
           tieneDatos: edcVal !== null && rpgVal !== null && isgVal !== null
         };
       });
 
-      // ORDENAR: Los que tienen datos (true) van primero alfabéticamente, los que no (false) al final
+      // Ordenar: primero los que tienen datos, luego alfabéticamente
       datosConsolidados.sort((a, b) => {
         if (a.tieneDatos === b.tieneDatos) return a.pais_nombre.localeCompare(b.pais_nombre);
         return a.tieneDatos ? -1 : 1;
@@ -114,42 +113,68 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     if (onDatosActualizados) onDatosActualizados(datosSustNormalizados);
   }, [datosProductos, onDatosActualizados]);
 
-  const nombreProductoMostrado = (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || busqueda || 'Producto';
+  const nombreProductoMostrado = (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || busqueda || 'Botella de vino (Calidad media)';
 
   return (
     <div className="space-y-6 text-slate-100 font-sans">
-      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-4 flex justify-between items-center">
-        <div>
-          <h2 className="text-sm font-bold text-white">6. SOSTENIBILIDAD (SUST) — ESTANDARIZACIÓN DE CRITERIOS</h2>
-          <p className="text-xs text-slate-400 mt-1">Producto: {nombreProductoMostrado}</p>
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-4">
+        <h2 className="text-sm font-bold text-white tracking-wide">6. SOSTENIBILIDAD (SUST) — ESTANDARIZACIÓN DE CRITERIOS</h2>
+        <p className="text-xs text-slate-400 mt-1">Producto: {nombreProductoMostrado}</p>
+      </div>
+
+      {errorLog && <div className="bg-red-950/40 p-3 rounded text-xs text-red-400">⚠️ {errorLog}</div>}
+
+      {/* TABLA 1: BASE */}
+      <div className="bg-[#121620] border border-[#1b2230] rounded-xl overflow-hidden">
+        <div className="p-4 border-b border-[#1b2230]"><h3 className="text-xs font-bold text-slate-200">Listado de Sostenibilidad Base</h3></div>
+        <div className="max-h-[300px] overflow-y-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="sticky top-0 bg-[#0d1017] text-slate-400 uppercase text-[10px] border-b border-[#1b2230]">
+              <tr><th className="p-3">#</th><th className="p-3">País</th><th className="p-3 text-right">EDC</th><th className="p-3 text-right">RPG</th><th className="p-3 text-right">ISG</th></tr>
+            </thead>
+            <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
+              {datosProductos.map((row, idx) => (
+                <tr key={row.id} className="hover:bg-[#181f2d]">
+                  <td className="p-3 text-slate-500">{idx + 1}</td>
+                  <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
+                  <td className="p-3 text-right text-emerald-400">{row.edc ?? '-'}</td>
+                  <td className="p-3 text-right">{row.rpg ?? '-'}</td>
+                  <td className="p-3 text-right">{row.isg ?? '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {errorLog && <div className="bg-red-950/40 p-3 rounded text-xs text-red-400">⚠️ Error: {errorLog}</div>}
-
+      {/* TABLA 2: NORMALIZADA */}
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl overflow-hidden">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead className="bg-[#0d1017] text-slate-400 uppercase text-[10px] border-b border-[#1b2230]">
-            <tr>
-              <th className="p-3 w-16 text-right">#</th>
-              <th className="p-3">País</th>
-              <th className="p-3 text-right">EDC</th>
-              <th className="p-3 text-right">RPG</th>
-              <th className="p-3 text-right">ISG</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
-            {loading ? <tr><td colSpan="5" className="p-6 text-center">Cargando...</td></tr> : datosProductos.map((row, idx) => (
-              <tr key={row.id} className="hover:bg-[#181f2d]">
-                <td className="p-3 text-right text-slate-500">{idx + 1}</td>
-                <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
-                <td className="p-3 text-right text-emerald-400">{row.edc ?? '-'}</td>
-                <td className="p-3 text-right">{row.rpg ?? '-'}</td>
-                <td className="p-3 text-right">{row.isg ?? '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="p-4 border-b border-[#1b2230]"><h3 className="text-xs font-bold text-slate-200">Normalización y Ponderación Final</h3></div>
+        <div className="max-h-[300px] overflow-y-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="sticky top-0 bg-[#0d1017] text-slate-400 uppercase text-[10px] border-b border-[#1b2230]">
+              <tr><th className="p-3">#</th><th className="p-3">País</th><th className="p-3 text-right">EDC Norm</th><th className="p-3 text-right">RPG Norm</th><th className="p-3 text-right">ISG Norm</th><th className="p-3 text-right">TOTAL</th></tr>
+            </thead>
+            <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
+              {datosProductos.map((row, idx) => {
+                const edcNorm = calcularNormalizadoInverso(row.edc, minEdc);
+                const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
+                const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
+                const total = row.tieneDatos ? Number((((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2)) : '-';
+                return (
+                  <tr key={row.id} className="hover:bg-[#181f2d]">
+                    <td className="p-3 text-slate-500">{idx + 1}</td>
+                    <td className="p-3 text-white">{row.pais_nombre}</td>
+                    <td className="p-3 text-right">{edcNorm ?? '-'}</td>
+                    <td className="p-3 text-right">{rpgNorm ?? '-'}</td>
+                    <td className="p-3 text-right">{isgNorm ?? '-'}</td>
+                    <td className="p-3 text-right font-bold text-sky-400">{total}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
