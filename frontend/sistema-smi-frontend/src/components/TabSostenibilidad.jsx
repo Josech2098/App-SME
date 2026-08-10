@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
+// Función auxiliar para limpiar tildes, espacios y estandarizar nombres de países
+const limpiarTexto = (texto) => 
+  String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
 export default function TabSostenibilidad({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
   const [datosProductos, setDatosProductos] = useState([]);
@@ -20,36 +28,48 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     setErrorLog(null);
 
     try {
-      // Consultamos la tabla principal de países y traemos las métricas relacionadas
-      // Nota: Si tus relaciones en Supabase están por ID (ej: emisiones_carbono.pais_id -> paises.id), 
-      // la consulta trae los objetos directamente.
-      const { data, error } = await supabase
-        .from('paises')
-        .select(`
-          id,
-          nombre,
-          emisiones_carbono (emisionescarbono, edc),
-          riesgo_pais_global (riesgo_pais_global),
-          indice_sostenibilidad_global (indicesostenibilidadglobal)
-        `)
-        .order('nombre');
+      // 1. Consultamos todas las tablas por separado de forma independiente
+      const [resPaises, resEmis, resRpg, resIsg] = await Promise.all([
+        supabase.from('paises').select('*').range(0, 999).order('nombre'),
+        supabase.from('emisiones_carbono').select('*').range(0, 999),
+        supabase.from('riesgo_pais_global').select('*').range(0, 999),
+        supabase.from('indice_sostenibilidad_global').select('*').range(0, 999)
+      ]);
 
-      if (error) throw error;
+      if (resPaises.error) throw resPaises.error;
+      if (resEmis.error) console.warn('Aviso emisiones_carbono:', resEmis.error);
+      if (resRpg.error) throw resRpg.error;
+      if (resIsg.error) throw resIsg.error;
 
-      const datosConsolidados = (data || []).map((p) => {
-        // Extraemos de forma segura el primer elemento de las relaciones (si vienen como array)
-        const emisObj = Array.isArray(p.emisiones_carbono) ? p.emisiones_carbono[0] : p.emisiones_carbono;
-        const rpgObj = Array.isArray(p.riesgo_pais_global) ? p.riesgo_pais_global[0] : p.riesgo_pais_global;
-        const isgObj = Array.isArray(p.indice_sostenibilidad_global) ? p.indice_sostenibilidad_global[0] : p.indice_sostenibilidad_global;
+      const dbPaises = resPaises.data || [];
+      const dbEmisiones = resEmis.data || [];
+      const dbRpg = resRpg.data || [];
+      const dbIsg = resIsg.data || [];
 
-        let edcVal = emisObj ? Number(emisObj.emisionescarbono ?? emisObj.edc ?? 0) : null;
-        if (isNaN(edcVal) || edcVal === 0) edcVal = null;
+      // 2. Consolidamos y cruzamos los datos limpiando los nombres de los países
+      const datosConsolidados = dbPaises.map((p) => {
+        const nombrePaisLimpio = limpiarTexto(p.nombre);
 
-        let rpgVal = rpgObj ? Number(rpgObj.riesgo_pais_global ?? 0) : null;
-        if (isNaN(rpgVal) || rpgVal === 0) rpgVal = null;
+        // Buscar coincidencia en Emisiones (probando campos comunes como 'pais', 'nombre' o 'nombre_pais')
+        const emisMatch = dbEmisiones.find((c) => 
+          limpiarTexto(c.pais ?? c.nombre ?? c.nombre_pais) === nombrePaisLimpio
+        );
+        let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? emisMatch.emisiones ?? 0) : null;
+        if (isNaN(edcVal)) edcVal = null;
 
-        let isgVal = isgObj ? Number(isgObj.indicesostenibilidadglobal ?? 0) : null;
-        if (isNaN(isgVal) || isgVal === 0) isgVal = null;
+        // Buscar coincidencia en Riesgo País Global
+        const rpgMatch = dbRpg.find((c) => 
+          limpiarTexto(c.pais ?? c.nombre ?? c.nombre_pais) === nombrePaisLimpio
+        );
+        let rpgVal = rpgMatch ? Number(rpgMatch.riesgo_pais_global ?? rpgMatch.rpg ?? 0) : null;
+        if (isNaN(rpgVal)) rpgVal = null;
+
+        // Buscar coincidencia en Índice de Sostenibilidad Global
+        const isgMatch = dbIsg.find((c) => 
+          limpiarTexto(c.pais ?? c.nombre ?? c.nombre_pais) === nombrePaisLimpio
+        );
+        let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidadglobal ?? isgMatch.isg ?? 0) : null;
+        if (isNaN(isgVal)) isgVal = null;
 
         return {
           id: p.id,
