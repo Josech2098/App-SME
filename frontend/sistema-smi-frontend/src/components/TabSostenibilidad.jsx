@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
+// Función auxiliar para limpiar tildes, espacios y estandarizar textos
+const limpiarTexto = (texto) => 
+  String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
 export default function TabSostenibilidad({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
   const [datosProductos, setDatosProductos] = useState([]);
@@ -50,19 +58,19 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       if (errIsg) throw errIsg;
 
       const datosConsolidados = (dbPaises || []).map((p) => {
-        const nombrePais = String(p.nombre || '').trim().toLowerCase();
+        const nombrePaisLimpio = limpiarTexto(p.nombre);
 
-        const emisMatch = (dbEmisiones || []).find((c) => String(c.pais || '').trim().toLowerCase() === nombrePais);
+        const emisMatch = (dbEmisiones || []).find((c) => limpiarTexto(c.pais) === nombrePaisLimpio);
         let edcVal = emisMatch ? Number(emisMatch.emisionescarbono ?? emisMatch.edc ?? 0) : null;
-        if (isNaN(edcVal)) edcVal = null;
+        if (isNaN(edcVal) || edcVal === 0) edcVal = null;
 
-        const rpgMatch = (dbRpg || []).find((c) => String(c.pais || '').trim().toLowerCase() === nombrePais);
+        const rpgMatch = (dbRpg || []).find((c) => limpiarTexto(c.pais) === nombrePaisLimpio);
         let rpgVal = rpgMatch ? Number(rpgMatch.riesgo_pais_global ?? 0) : null;
-        if (isNaN(rpgVal)) rpgVal = null;
+        if (isNaN(rpgVal) || rpgVal === 0) rpgVal = null;
 
-        const isgMatch = (dbIsg || []).find((c) => String(c.pais || '').trim().toLowerCase() === nombrePais);
+        const isgMatch = (dbIsg || []).find((c) => limpiarTexto(c.pais) === nombrePaisLimpio);
         let isgVal = isgMatch ? Number(isgMatch.indicesostenibilidadglobal ?? 0) : null;
-        if (isNaN(isgVal)) isgVal = null;
+        if (isNaN(isgVal) || isgVal === 0) isgVal = null;
 
         return {
           id: p.id,
@@ -111,9 +119,10 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
     const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
 
-    const aporteFactorSostenibilidad = Number(
+    const hasAnyMetric = edcNorm !== null || rpgNorm !== null || isgNorm !== null;
+    const aporteFactorSostenibilidad = hasAnyMetric ? Number(
       (((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2)
-    );
+    ) : 0;
 
     return {
       Paises: row.pais_nombre,
@@ -135,7 +144,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   return (
     <div className="space-y-6 text-slate-100 font-sans">
       
-      {/* 1. BARRA SUPERIOR CON TONO AZULADO OSCURO EXACTO */}
+      {/* 1. BARRA SUPERIOR */}
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
         <div>
           <h2 className="text-sm font-bold text-white tracking-wide">
@@ -229,7 +238,8 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                   const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
                   const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
 
-                  const aporteFactorSostenibilidad = Number((((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2));
+                  const hasAnyMetric = edcNorm !== null || rpgNorm !== null || isgNorm !== null;
+                  const aporteFactorSostenibilidad = hasAnyMetric ? Number((((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2)) : '-';
 
                   return (
                     <tr key={row.id} className="hover:bg-[#181f2d] transition-colors">
