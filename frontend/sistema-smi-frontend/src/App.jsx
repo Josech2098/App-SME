@@ -23,9 +23,12 @@ export default function App() {
   const [paisesDestino, setPaisesDestino] = useState([]);
   const [paisOrigen, setPaisOrigen] = useState('España'); // Por defecto
   
-  // Estados para el selector de origen optimizado
+  // Estados para selectores optimizados (Origen y Categoría)
   const [searchPaisOrigen, setSearchPaisOrigen] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const [searchCategoria, setSearchCategoria] = useState('');
+  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
 
   // Estado global compartido para almacenar la información total procesada y pasársela a gráficos si es necesario
   const [datosTablaTotal, setDatosTablaTotal] = useState([]);
@@ -170,7 +173,10 @@ export default function App() {
             
             <div 
               className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-2 py-1.5 text-xs text-slate-200 cursor-pointer flex justify-between items-center hover:border-red-500 transition-colors"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={() => {
+                setIsDropdownOpen(!isDropdownOpen);
+                setIsCatDropdownOpen(false);
+              }}
             >
               <span>{paisOrigen === 'España' ? '🇪🇸 España' : paisOrigen}</span>
               <span>▼</span>
@@ -227,20 +233,74 @@ export default function App() {
         <div className="space-y-4 pt-2">
           <h2 className="text-base font-bold text-slate-100">Filtros de búsqueda</h2>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 relative">
             <label className="block text-xs text-slate-300">Selecciona una categoría</label>
-            <select
-              value={categoria}
-              onChange={(e) => handleCategoriaChange(e.target.value)}
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-red-500 transition-colors"
+            
+            <div 
+              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-3 py-2 text-sm text-slate-200 cursor-pointer flex justify-between items-center hover:border-red-500 transition-colors"
+              onClick={() => {
+                setIsCatDropdownOpen(!isCatDropdownOpen);
+                setIsDropdownOpen(false);
+              }}
             >
-              <option value="Todos">Todos</option>
-              {listaCategorias.map((cat) => (
-                <option key={cat.id || cat.codigo} value={cat.codigo}>
-                  {cat.codigo} - {cat.nombre && cat.nombre.length > 35 ? `${cat.nombre.substring(0, 35)}...` : cat.nombre}
-                </option>
-              ))}
-            </select>
+              <span className="truncate">
+                {categoria === 'Todos' 
+                  ? 'Todos' 
+                  : `${categoria} - ${listaCategorias.find(c => c.codigo === categoria)?.nombre || ''}`}
+              </span>
+              <span>▼</span>
+            </div>
+
+            {isCatDropdownOpen && (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-[#0e1117] border border-slate-700 rounded shadow-xl overflow-hidden">
+                <input
+                  type="text"
+                  placeholder="Buscar categoría..."
+                  value={searchCategoria}
+                  onChange={(e) => setSearchCategoria(e.target.value)}
+                  className="w-full bg-[#1e2028] border-b border-slate-700 px-3 py-2 text-xs text-slate-200 focus:outline-none"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <div className="max-h-48 overflow-y-auto py-1">
+                  <div
+                    onClick={() => {
+                      handleCategoriaChange('Todos');
+                      setIsCatDropdownOpen(false);
+                      setSearchCategoria('');
+                    }}
+                    className="px-3 py-2 hover:bg-red-500/20 cursor-pointer text-sm text-slate-200 transition-colors"
+                  >
+                    Todos
+                  </div>
+                  {listaCategorias
+                    .filter(cat => 
+                      cat.codigo.toLowerCase().includes(searchCategoria.toLowerCase()) || 
+                      (cat.nombre && cat.nombre.toLowerCase().includes(searchCategoria.toLowerCase()))
+                    )
+                    .map((cat) => (
+                      <div
+                        key={cat.id || cat.codigo}
+                        onClick={() => {
+                          handleCategoriaChange(cat.codigo);
+                          setIsCatDropdownOpen(false);
+                          setSearchCategoria('');
+                        }}
+                        className="px-3 py-2 hover:bg-red-500/20 cursor-pointer text-sm text-slate-200 transition-colors truncate"
+                      >
+                        {cat.codigo} - {cat.nombre}
+                      </div>
+                    ))}
+                  {listaCategorias.filter(cat => 
+                    cat.codigo.toLowerCase().includes(searchCategoria.toLowerCase()) || 
+                    (cat.nombre && cat.nombre.toLowerCase().includes(searchCategoria.toLowerCase()))
+                  ).length === 0 && (
+                    <div className="px-3 py-2 text-slate-500 italic text-center text-xs">
+                      No se encontraron categorías
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -312,7 +372,7 @@ export default function App() {
       </aside>
 
       {/* ---------------- ÁREA PRINCIPAL ---------------- */}
-      <main className="flex-1 p-8 overflow-y-auto" onClick={() => setIsDropdownOpen(false)}>
+      <main className="flex-1 p-8 overflow-y-auto" onClick={() => { setIsDropdownOpen(false); setIsCatDropdownOpen(false); }}>
         
         <h1 className="text-3xl font-bold text-white mb-6 tracking-tight">
           Aplicativo Selección de Mercados Internacionales
