@@ -11,6 +11,7 @@ import TabSostenibilidad from './components/TabSostenibilidad';
 import TabTablaTotal from './components/TabTablaTotal';
 import TabGraficosComparativos from './components/TabGraficos';
 import SplashScreen from "./components/SplashScreen";
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -400,6 +401,7 @@ export default function App() {
           </div>
         </div>
       </main>
+      <SpeedInsights />
     </div>
   );
 }
