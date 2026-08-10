@@ -4,21 +4,12 @@ import { supabase } from '../supabaseClient.js';
 export default function TabSostenibilidad({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
   const [datosProductos, setDatosProductos] = useState([]);
-  const [listaPaises, setListaPaises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
 
   useEffect(() => {
     if (paisOrigen) setPaisBase(paisOrigen);
   }, [paisOrigen]);
-
-  useEffect(() => {
-    async function fetchPaises() {
-      const { data } = await supabase.from('paises').select('*').order('nombre');
-      if (data) setListaPaises(data);
-    }
-    fetchPaises();
-  }, []);
 
   useEffect(() => {
     cargarYCalcularMatriz();
@@ -153,21 +144,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
           <p className="text-xs text-slate-400 mt-1">
             Ponderación del Factor: <span className="text-sky-400 font-semibold">5.50%</span> | Producto: <span className="text-slate-200 font-medium">{nombreProductoMostrado}</span>
           </p>
-        </div>
-        
-        <div className="w-full md:w-72">
-          <label className="block text-[11px] text-slate-400 mb-1 uppercase font-semibold">
-            SELECCIONA EL PAÍS BASE
-          </label>
-          <select 
-            value={paisBase} 
-            onChange={(e) => setPaisBase(e.target.value)}
-            className="w-full bg-[#0d1017] border border-[#1b2230] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500 shadow-inner"
-          >
-            {listaPaises.map(p => (
-              <option key={p.id} value={p.nombre}>{p.nombre}</option>
-            ))}
-          </select>
         </div>
       </div>
 

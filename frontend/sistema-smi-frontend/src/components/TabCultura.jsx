@@ -179,19 +179,6 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
     datosHofstede
   ]);
 
-  const descargarCSV = () => {
-    const headers = ["Paises", "GLIN_norm", "CPCI_norm", "CUDI_norm", "Puntaje_CULT_Normalizado"];
-    const rows = datosCulturaNormalizados.map(d => [d.Paises, d.GLIN_norm ?? '', d.CPCI_norm ?? '', d.CUDI_norm ?? '', d.Puntaje_CULT_Normalizado]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "CULT_actualizado.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
@@ -204,12 +191,6 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
             Origen actual: <span className="text-white font-medium">{paisOrigen}</span> | Datos integrados desde <code className="text-slate-200">paises</code>, <code className="text-slate-200">indiceglobalizacion</code> e <code className="text-slate-200">indiceCorrupcion</code>.
           </p>
         </div>
-        <button
-          onClick={descargarCSV}
-          className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg shadow transition-colors flex items-center gap-2 cursor-pointer"
-        >
-          📥 Descargar CSV / Excel Actualizado
-        </button>
       </div>
 
       {errorNotif && (
