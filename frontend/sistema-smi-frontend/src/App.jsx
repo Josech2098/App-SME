@@ -22,6 +22,10 @@ export default function App() {
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [paisesDestino, setPaisesDestino] = useState([]);
   const [paisOrigen, setPaisOrigen] = useState('España'); // Por defecto
+  
+  // Estados para el selector de origen optimizado
+  const [searchPaisOrigen, setSearchPaisOrigen] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Estado global compartido para almacenar la información total procesada y pasársela a gráficos si es necesario
   const [datosTablaTotal, setDatosTablaTotal] = useState([]);
@@ -158,23 +162,64 @@ export default function App() {
         
         {/* Banner de Usuario y Selector de Origen */}
         <div className="space-y-2">
-          {/* SELECTOR DINÁMICO DE PAÍS DE ORIGEN */}
-          <div className="bg-[#1e2028] border border-red-500/30 p-2.5 rounded-lg text-xs space-y-1">
+          {/* SELECTOR DINÁMICO DE PAÍS DE ORIGEN OPTIMIZADO */}
+          <div className="bg-[#1e2028] border border-red-500/30 p-2.5 rounded-lg text-xs space-y-1 relative">
             <label className="text-red-400 font-semibold block">
               🌐 Origen de Exportación:
             </label>
-            <select
-              value={paisOrigen}
-              onChange={(e) => setPaisOrigen(e.target.value)}
-              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-red-500"
+            
+            <div 
+              className="w-full bg-[#0e1117] border border-slate-700/80 rounded px-2 py-1.5 text-xs text-slate-200 cursor-pointer flex justify-between items-center hover:border-red-500 transition-colors"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <option value="España">🇪🇸 España</option>
-              {listaPaisesOrigen.filter(p => p.nombre !== 'España').map((p) => (
-                <option key={p.id || p.nombre} value={p.nombre}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
+              <span>{paisOrigen === 'España' ? '🇪🇸 España' : paisOrigen}</span>
+              <span>▼</span>
+            </div>
+
+            {isDropdownOpen && (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1 mx-2.5 bg-[#0e1117] border border-slate-700 rounded shadow-xl overflow-hidden">
+                <input
+                  type="text"
+                  placeholder="Buscar país..."
+                  value={searchPaisOrigen}
+                  onChange={(e) => setSearchPaisOrigen(e.target.value)}
+                  className="w-full bg-[#1e2028] border-b border-slate-700 px-2 py-2 text-xs text-slate-200 focus:outline-none"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <div className="max-h-48 overflow-y-auto py-1">
+                  <div
+                    onClick={() => {
+                      setPaisOrigen('España');
+                      setIsDropdownOpen(false);
+                      setSearchPaisOrigen('');
+                    }}
+                    className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors"
+                  >
+                    🇪🇸 España
+                  </div>
+                  {listaPaisesOrigen
+                    .filter(p => p.nombre !== 'España' && p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase()))
+                    .map((p) => (
+                      <div
+                        key={p.id || p.nombre}
+                        onClick={() => {
+                          setPaisOrigen(p.nombre);
+                          setIsDropdownOpen(false);
+                          setSearchPaisOrigen('');
+                        }}
+                        className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors"
+                      >
+                        {p.nombre}
+                      </div>
+                    ))}
+                  {listaPaisesOrigen.filter(p => p.nombre !== 'España' && p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase())).length === 0 && (
+                    <div className="px-3 py-2 text-slate-500 italic text-center">
+                      No se encontraron resultados
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -267,7 +312,7 @@ export default function App() {
       </aside>
 
       {/* ---------------- ÁREA PRINCIPAL ---------------- */}
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-8 overflow-y-auto" onClick={() => setIsDropdownOpen(false)}>
         
         <h1 className="text-3xl font-bold text-white mb-6 tracking-tight">
           Aplicativo Selección de Mercados Internacionales
