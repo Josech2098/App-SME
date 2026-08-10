@@ -6,20 +6,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const [puertosData, setPuertosData] = useState([]);
   const [cargando, setCargando] = useState(true);
 
-  const [openAdd, setOpenAdd] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [openDel, setOpenDel] = useState(false);
-
-  const [paisSeleccionadoEdit, setPaisSeleccionadoEdit] = useState('');
-  const [paisSeleccionadoDel, setPaisSeleccionadoDel] = useState('');
-
-  const [nuevoPais, setNuevoPais] = useState('');
-  const [nuevoIdl, setNuevoIdl] = useState('');
-  const [nuevoCcp, setNuevoCcp] = useState('');
-
-  const [editIdl, setEditIdl] = useState('');
-  const [editCcp, setEditCcp] = useState('');
-
   // Estados para el calculador de TTI
   const [paisesDisponibles, setPaisesDisponibles] = useState([]);
   
@@ -44,14 +30,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       .toLowerCase()
       .trim()
       .replace(/\s+/g, ' ');
-  };
-
-  const formatearNombrePropio = (texto) => {
-    if (!texto) return '';
-    return texto
-      .trim()
-      .toLowerCase()
-      .replace(/(^\w{1})|(\s+\w{1})/g, letra => letra.toUpperCase());
   };
 
   // Sincronizar si cambia el paisOrigen desde las props globales de la app
@@ -262,13 +240,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
   }, [paisLlegadaCalc, puertosData]);
 
-  useEffect(() => {
-    if (tablaLogi.length > 0) {
-      if (!paisSeleccionadoEdit) setPaisSeleccionadoEdit(tablaLogi[0].Paises);
-      if (!paisSeleccionadoDel) setPaisSeleccionadoDel(tablaLogi[0].Paises);
-    }
-  }, [tablaLogi]);
-
   const handleCalcularTtiManual = (e) => {
     e.preventDefault();
     if (!paisLlegadaCalc) return;
@@ -313,40 +284,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     setResultadoManualFijado(null);
   };
 
-  const handleAddPais = async (e) => {
-    e.preventDefault();
-    if (!nuevoPais.trim()) return;
-    try {
-      const paisLimpio = formatearNombrePropio(nuevoPais);
-      const { error } = await supabase.from('tabLogi').insert([
-        { pais: paisLimpio, lpi: Number(nuevoIdl) || 0, cfr: Number(nuevoCcp) || 0 }
-      ]);
-      if (error) throw error;
-      setNuevoPais(''); setNuevoIdl(''); setNuevoCcp(''); setOpenAdd(false);
-      await cargarDatos();
-    } catch (err) { console.error(err); }
-  };
-
-  const handleUpdatePais = async (e) => {
-    e.preventDefault();
-    try {
-      const { error } = await supabase.from('tabLogi').update({ lpi: Number(editIdl), cfr: Number(editCcp) }).eq('pais', paisSeleccionadoEdit);
-      if (error) throw error;
-      setOpenEdit(false);
-      await cargarDatos();
-    } catch (err) { console.error(err); }
-  };
-
-  const handleDeletePais = async (e) => {
-    e.preventDefault();
-    try {
-      const { error } = await supabase.from('tabLogi').delete().eq('pais', paisSeleccionadoDel);
-      if (error) throw error;
-      setOpenDel(false);
-      await cargarDatos();
-    } catch (err) { console.error(err); }
-  };
-
   // Cálculos para la tabla normalizada en tiempo real
   const idkValsCalc = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
   const ccpValsCalc = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
@@ -365,80 +302,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           <p className="text-xs text-slate-400 mt-1">
             Producto activo: <strong className="text-white">{productoActivo ? productoActivo.nombre : 'Ninguno'}</strong>
           </p>
-        </div>
-      </div>
-
-      {/* CRUD ACORDEONES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* AÑADIR */}
-        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
-          <button type="button" onClick={() => setOpenAdd(!openAdd)} className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1a1d2b] cursor-pointer">
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openAdd ? 'rotate-90' : ''}`}>❯</span>
-            Añadir país y métricas
-          </button>
-          {openAdd && (
-            <form onSubmit={handleAddPais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#0c0e17]">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Nombre del País:</label>
-                <input type="text" value={nuevoPais} onChange={(e) => setNuevoPais(e.target.value)} required className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100" />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">IDL:</label>
-                <input type="number" step="0.01" value={nuevoIdl} onChange={(e) => setNuevoIdl(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100" />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">CCP:</label>
-                <input type="number" value={nuevoCcp} onChange={(e) => setNuevoCcp(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100" />
-              </div>
-              <button type="submit" className="w-full py-1.5 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded cursor-pointer">Guardar en BD</button>
-            </form>
-          )}
-        </div>
-
-        {/* EDITAR */}
-        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
-          <button type="button" onClick={() => setOpenEdit(!openEdit)} className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1a1d2b] cursor-pointer">
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openEdit ? 'rotate-90' : ''}`}>❯</span>
-            Editar país existente
-          </button>
-          {openEdit && (
-            <form onSubmit={handleUpdatePais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#0c0e17]">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Seleccionar País:</label>
-                <select value={paisSeleccionadoEdit} onChange={(e) => { setPaisSeleccionadoEdit(e.target.value); const f = tablaLogi.find(i => i.Paises === e.target.value); if(f){ setEditIdl(f['Índice de Desempeño Logístico (IDL)']); setEditCcp(f['Calidad de las carreteras por país (CCP)']); } }} className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100">
-                  {tablaLogi.map((item, idx) => (<option key={idx} value={item.Paises}>{item.Paises}</option>))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Nuevo IDL:</label>
-                <input type="number" step="0.01" value={editIdl} onChange={(e) => setEditIdl(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100" />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Nuevo CCP:</label>
-                <input type="number" value={editCcp} onChange={(e) => setEditCcp(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100" />
-              </div>
-              <button type="submit" className="w-full py-1.5 mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded cursor-pointer">Actualizar</button>
-            </form>
-          )}
-        </div>
-
-        {/* ELIMINAR */}
-        <div className="border border-[#1b1f2e] bg-[#12141f] rounded-lg overflow-hidden transition-all shadow-lg">
-          <button type="button" onClick={() => setOpenDel(!openDel)} className="w-full px-4 py-3 text-left text-sm font-semibold text-slate-200 flex items-center gap-2 hover:bg-[#1a1d2b] cursor-pointer">
-            <span className={`text-slate-400 text-xs transition-transform duration-200 ${openDel ? 'rotate-90' : ''}`}>❯</span>
-            Eliminar país
-          </button>
-          {openDel && (
-            <form onSubmit={handleDeletePais} className="p-4 border-t border-[#1b1f2e] space-y-3 bg-[#0c0e17]">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Seleccionar País a Eliminar:</label>
-                <select value={paisSeleccionadoDel} onChange={(e) => setPaisSeleccionadoDel(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-2.5 py-1.5 text-xs text-slate-100">
-                  {tablaLogi.map((item, idx) => (<option key={idx} value={item.Paises}>{item.Paises}</option>))}
-                </select>
-              </div>
-              <button type="submit" className="w-full py-1.5 mt-4 bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs rounded cursor-pointer">Confirmar</button>
-            </form>
-          )}
         </div>
       </div>
 

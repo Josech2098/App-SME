@@ -210,7 +210,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
           );
           
-          // MODIFICACIÓN: Si no hay registro o es nulo, se asume 0 en lugar de null para evitar vacíos
           let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : 0;
           if (isNaN(cicVal)) cicVal = 0;
 
@@ -226,8 +225,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             cti: ctiVal,
             cic: cicVal
           };
-        })
-        .filter(item => item.ppd > 0);
+        });
 
       setDatosProductos(datosConsolidados);
     } catch (err) {
@@ -251,13 +249,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const { maxPpd, minCti, minCic } = useMemo(() => {
     const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && v > 0);
     const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && v > 0);
-    // Considerar también los ceros válidos para el mínimo de cumplimiento
     const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined);
 
     return {
       maxPpd: ppdVals.length > 0 ? Math.max(...ppdVals) : null,
       minCti: ctiVals.length > 0 ? Math.min(...ctiVals) : null,
-      // Si hay costos 0, el mínimo absoluto para el cumplimiento será 0
       minCic: cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0
     };
   }, [datosProductos]);
@@ -270,10 +266,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   const calcularNormalizadoInverso = (val, minVal) => {
     if (val === null || val === undefined) return null;
-    // Si el valor es exactamente 0, se le otorga la máxima puntuación (10)
     if (val === 0) return PUNTAJE_MAXIMO;
     if (minVal === null || minVal <= 0) {
-      // Si el mínimo guardado es 0, buscamos el siguiente valor mayor que 0 para aplicar la fórmula inversa proporcional
       const valoresValidos = datosProductos.map(d => d.cic).filter(v => v > 0);
       minVal = valoresValidos.length > 0 ? Math.min(...valoresValidos) : val;
     }
@@ -297,6 +291,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       const aporteFactorCosto = Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
       const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
+      const noTieneDatos = valPpd === 0;
 
       return {
         ...row,
@@ -304,11 +299,15 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         ctiNorm,
         cicNorm,
         aporteFactorCosto,
-        __faltantes: faltantes
+        __faltantes: faltantes,
+        __noTieneDatos: noTieneDatos
       };
     });
 
     calculada.sort((a, b) => {
+      if (a.__noTieneDatos !== b.__noTieneDatos) {
+        return a.__noTieneDatos ? 1 : -1;
+      }
       if (a.__faltantes !== b.__faltantes) {
         return a.__faltantes - b.__faltantes;
       }
@@ -681,7 +680,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     <tr key={row.id} className="hover:bg-[#161c29]/50 transition-colors">
                       <td className="py-3 px-4 text-slate-400">{row.id}</td>
                       <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
-                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">${row.ppd.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
                       <td className="py-3 px-4 text-right pr-6">
                         {row.cic !== null ? `$${row.cic.toFixed(2)}` : '$0.00'}
@@ -691,7 +690,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                 ) : (
                   <tr>
                     <td colSpan="5" className="py-8 text-center text-slate-500 font-sans">
-                      No hay registros con datos de precios válidos para este filtro.
+                      No hay registros disponibles.
                     </td>
                   </tr>
                 )}
@@ -734,7 +733,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     <tr key={row.id} className="hover:bg-[#161c29]/50 transition-colors">
                       <td className="py-3 px-4 text-slate-400">{row.id}</td>
                       <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
-                      <td className="py-3 px-4 text-right">{row.ppdNorm !== null ? row.ppdNorm : '-'}</td>
+                      <td className="py-3 px-4 text-right">{row.ppdNorm !== null ? row.ppdNorm : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
                       <td className="py-3 px-4 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
                       <td className="py-3 px-4 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
@@ -743,7 +742,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                 ) : (
                   <tr>
                     <td colSpan="6" className="py-8 text-center text-slate-500 font-sans">
-                      No hay datos normalizados para este filtro.
+                      No hay datos normalizados disponibles.
                     </td>
                   </tr>
                 )}

@@ -70,6 +70,7 @@ export default function TabComercial({
   const effectivePenetracion = (datosIndicePenetracion && datosIndicePenetracion.length > 0) ? datosIndicePenetracion : dbPenetracion;
   const effectiveLibertad = (datosLibertadEconomica && datosLibertadEconomica.length > 0) ? datosLibertadEconomica : dbLibertad;
 
+  const [commOverrides, setCommOverrides] = useState([]);
   const [datosCommConsolidados, setDatosCommConsolidados] = useState([]);
   const [datosCommNormalizados, setDatosCommNormalizados] = useState([]);
   const [errorProceso, setErrorProceso] = useState(null);
@@ -115,6 +116,8 @@ export default function TabComercial({
           return typeof valPais === 'string' && normalizarTexto(valPais) === paisNorm;
         });
 
+        const overrideMatch = commOverrides.find(ovr => normalizarTexto(ovr.Paises) === paisNorm);
+
         const extraerValorFlexible = (obj) => {
           if (!obj) return null;
           for (const key of Object.keys(obj)) {
@@ -130,9 +133,17 @@ export default function TabComercial({
 
         const calculoArancelCTCO = Number((2.0 + (idx * 0.1)).toFixed(2));
 
-        const valCtco = itemPais.ctco !== undefined ? itemPais.ctco : calculoArancelCTCO;
-        const valIemp = matchIemp ? extraerValorFlexible(matchIemp) ?? 4.0 : 4.0;
-        const valIoef = matchIoef ? extraerValorFlexible(matchIoef) ?? 60.0 : 60.0;
+        const valCtco = overrideMatch && overrideMatch['Aranceles aduaneros por país de origen (CTCO)'] !== undefined
+          ? overrideMatch['Aranceles aduaneros por país de origen (CTCO)']
+          : (itemPais.ctco !== undefined ? itemPais.ctco : calculoArancelCTCO);
+
+        const valIemp = overrideMatch && overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] !== undefined
+          ? overrideMatch['Índice de penetración en el mercado de exportación (IEMP)'] 
+          : (matchIemp ? extraerValorFlexible(matchIemp) ?? 4.0 : 4.0);
+
+        const valIoef = overrideMatch && overrideMatch['Índice de Libertad Económica (IOEF)'] !== undefined
+          ? overrideMatch['Índice de Libertad Económica (IOEF)'] 
+          : (matchIoef ? extraerValorFlexible(matchIoef) ?? 60.0 : 60.0);
 
         return {
           Paises: nombreOriginal,
@@ -187,7 +198,7 @@ export default function TabComercial({
       console.error("Error al procesar la sincronización:", err);
       setErrorProceso(err.message);
     }
-  }, [dbPaises, effectivePenetracion, effectiveLibertad, paisesDestino]);
+  }, [dbPaises, effectivePenetracion, effectiveLibertad, commOverrides, paisesDestino]);
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">

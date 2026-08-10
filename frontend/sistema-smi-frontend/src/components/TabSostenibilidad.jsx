@@ -8,20 +8,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
 
-  const [activeAccordion, setActiveAccordion] = useState(null);
-
-  // Estados Formulario Añadir
-  const [nuevoPaisNombre, setNuevoPaisNombre] = useState('');
-  const [nuevoEdc, setNuevoEdc] = useState('');
-  const [nuevoRpg, setNuevoRpg] = useState('');
-  const [nuevoIsg, setNuevoIsg] = useState('');
-
-  // Estados Formulario Editar
-  const [selectedPaisId, setSelectedPaisId] = useState('');
-  const [editEdc, setEditEdc] = useState('');
-  const [editRpg, setEditRpg] = useState('');
-  const [editIsg, setEditIsg] = useState('');
-
   useEffect(() => {
     if (paisOrigen) setPaisBase(paisOrigen);
   }, [paisOrigen]);
@@ -150,48 +136,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     }
   }, [datosSustNormalizados, onDatosActualizados]);
 
-  const toggleAccordion = (tab) => {
-    setActiveAccordion(activeAccordion === tab ? null : tab);
-  };
-
-  const handleSelectEdit = (id) => {
-    setSelectedPaisId(id);
-    const target = datosProductos.find(p => String(p.id) === String(id));
-    if (target) {
-      setEditEdc(target.edc ?? '');
-      setEditRpg(target.rpg ?? '');
-      setEditIsg(target.isg ?? '');
-    }
-  };
-
-  async function handleAgregarPais() {
-    if (!nuevoPaisNombre) return alert("Por favor selecciona el nombre del país.");
-    try {
-      await supabase.from('emisiones_carbono').upsert({ pais: nuevoPaisNombre.trim(), emisionescarbono: parseFloat(nuevoEdc) || 0 }, { onConflict: 'pais' });
-      await supabase.from('indice_sostenibilidad_global').upsert({ pais: nuevoPaisNombre.trim(), indicesostenibilidadglobal: parseFloat(nuevoIsg) || 0 }, { onConflict: 'pais' });
-      setNuevoPaisNombre(''); setNuevoEdc(''); setNuevoRpg(''); setNuevoIsg('');
-      setActiveAccordion(null);
-      cargarYCalcularMatriz();
-    } catch (err) {
-      alert("Error al agregar registro: " + err.message);
-    }
-  }
-
-  async function handleGuardarCambios() {
-    if (!selectedPaisId) return alert("Selecciona un país para editar.");
-    const target = datosProductos.find(p => String(p.id) === String(selectedPaisId));
-    if (!target) return;
-    try {
-      await supabase.from('emisiones_carbono').upsert({ pais: target.pais_nombre, emisionescarbono: parseFloat(editEdc) || 0 }, { onConflict: 'pais' });
-      await supabase.from('indice_sostenibilidad_global').upsert({ pais: target.pais_nombre, indicesostenibilidadglobal: parseFloat(editIsg) || 0 }, { onConflict: 'pais' });
-      setSelectedPaisId(''); setEditEdc(''); setEditRpg(''); setEditIsg('');
-      setActiveAccordion(null);
-      cargarYCalcularMatriz();
-    } catch (err) {
-      alert("Error al actualizar: " + err.message);
-    }
-  }
-
   const nombreProductoMostrado = 
     (typeof productoActivo === 'string' ? productoActivo : (productoActivo?.nombre ?? productoActivo?.producto ?? productoActivo?.titulo)) || 
     busqueda || 
@@ -227,146 +171,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         </div>
       </div>
 
-      {/* 2. GESTIÓN DE DATOS (ACORDEONES) */}
-      <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-5 space-y-4">
-        <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-          <span>⚙️</span> Gestión de Datos (Tabla SUST)
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          <div className="bg-[#0d1017] border border-[#1b2230] rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleAccordion('add')}
-              className="w-full px-4 py-3 text-left text-xs font-bold text-slate-200 hover:bg-[#121620] transition-colors flex items-center justify-between cursor-pointer"
-            >
-              <span>+ Asignar / Añadir valores a Países</span>
-              <span className="text-slate-400">{activeAccordion === 'add' ? '▼' : '❯'}</span>
-            </button>
-            {activeAccordion === 'add' && (
-              <div className="p-4 border-t border-[#1b2230] space-y-3 bg-[#0d1017] text-xs">
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Nombre del País</label>
-                  <select
-                    value={nuevoPaisNombre}
-                    onChange={(e) => setNuevoPaisNombre(e.target.value)}
-                    className="w-full bg-[#121620] border border-[#1b2230] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
-                  >
-                    <option value="">-- Selecciona un país --</option>
-                    {listaPaises.map(p => (
-                      <option key={p.id} value={p.nombre}>{p.nombre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">EDC</label>
-                    <input
-                      type="number"
-                      value={nuevoEdc}
-                      onChange={(e) => setNuevoEdc(e.target.value)}
-                      placeholder="12.5"
-                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">RPG</label>
-                    <input
-                      type="number"
-                      value={nuevoRpg}
-                      disabled
-                      placeholder="N/A"
-                      className="w-full bg-[#121620]/50 border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">ISG</label>
-                    <input
-                      type="number"
-                      value={nuevoIsg}
-                      onChange={(e) => setNuevoIsg(e.target.value)}
-                      placeholder="75.4"
-                      className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
-                    />
-                  </div>
-                </div>
-                <button
-                  onClick={handleAgregarPais}
-                  className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
-                >
-                  Guardar / Actualizar
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-[#0d1017] border border-[#1b2230] rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleAccordion('edit')}
-              className="w-full px-4 py-3 text-left text-xs font-bold text-slate-200 hover:bg-[#121620] transition-colors flex items-center justify-between cursor-pointer"
-            >
-              <span>Editar sostenibilidad existente</span>
-              <span className="text-slate-400">{activeAccordion === 'edit' ? '▼' : '❯'}</span>
-            </button>
-            {activeAccordion === 'edit' && (
-              <div className="p-4 border-t border-[#1b2230] space-y-3 bg-[#0d1017] text-xs">
-                <select
-                  onChange={(e) => handleSelectEdit(e.target.value)}
-                  value={selectedPaisId}
-                  className="w-full bg-[#121620] border border-[#1b2230] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
-                >
-                  <option value="">-- Selecciona un país --</option>
-                  {datosProductos.map(p => (
-                    <option key={p.id} value={p.id}>{p.pais_nombre}</option>
-                  ))}
-                </select>
-
-                {selectedPaisId && (
-                  <>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">EDC</label>
-                        <input
-                          type="number"
-                          value={editEdc}
-                          onChange={(e) => setEditEdc(e.target.value)}
-                          className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">RPG</label>
-                        <input
-                          type="number"
-                          value={editRpg}
-                          disabled
-                          className="w-full bg-[#121620]/50 border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-500 cursor-not-allowed"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">ISG</label>
-                        <input
-                          type="number"
-                          value={editIsg}
-                          onChange={(e) => setEditIsg(e.target.value)}
-                          className="w-full bg-[#121620] border border-[#1b2230] rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500"
-                        />
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleGuardarCambios}
-                      className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded transition-colors cursor-pointer"
-                    >
-                      Actualizar Cambios
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-        </div>
-      </div>
-
       {errorLog && (
         <div className="bg-red-950/40 border border-red-900/50 p-3 rounded text-xs text-red-400">
           ⚠️ <strong>Error BD:</strong> {errorLog}
@@ -377,7 +181,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl overflow-hidden shadow-sm">
         <div className="p-4 border-b border-[#1b2230] flex justify-between items-center">
           <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wide">
-            Listado de Sostenibilidad Base <span className="text-slate-500 font-normal normal-case">(Haz clic en una fila para seleccionarla)</span>
+            Listado de Sostenibilidad Base
           </h3>
           <span className="text-xs text-slate-400">Mostrando {datosProductos.length} de {datosProductos.length} registros</span>
         </div>
