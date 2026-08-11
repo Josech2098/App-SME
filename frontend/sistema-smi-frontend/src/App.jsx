@@ -354,7 +354,7 @@ export default function App() {
             <img 
               src={logoSmipem} 
               alt="SMIPEM Logo" 
-              className="h-20 w-auto object-contain mb-1" 
+              className="h-28 w-auto object-contain mb-1" 
             />
             <p className="text-sm">
               Creador: Jose Jaime Baena Rojas
