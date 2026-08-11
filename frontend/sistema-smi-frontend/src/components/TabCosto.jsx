@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { renderPaisConBandera } from './banderas.jsx'; 
 
 // --- Helper: Cálculo de distancia geográfica mediante Haversine ---
 function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
@@ -62,6 +61,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const [listaPaises, setListaPaises] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
+  
+  // NUEVO: Estado para manejar la selección de filas
+  const [filaSeleccionada, setFilaSeleccionada] = useState(null);
 
   // Referencia para evitar bucles infinitos con onDatosActualizados
   const prevDatosRef = useRef('');
@@ -328,14 +330,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     busqueda || 
     (categoria && extraerNombreLegible(categoria) !== 'Todos' ? `Categoría: ${extraerNombreLegible(categoria)}` : 'Todos los productos');
 
-  // --- REEMPLAZO EN LA TABLA ---
-  // AQUI DEBES BUSCAR DONDE USAS {row.pais_nombre} EN TU RENDERIZADO Y CAMBIARLO POR:
-  // {renderPaisConBandera(row.pais_nombre)}
-
   return (
     <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
       
-      {/* Selector de país base y descripción */}
+      {/* SELECTOR DE PAÍS BASE Y DESCRIPCIÓN */}
       <div className="bg-[#121620] border border-[#1e2536] rounded-xl p-4 space-y-3">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div>
@@ -359,43 +357,130 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               className="w-full bg-[#0b0e14] border border-[#1e2536] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
             >
               {listaPaises.map((p) => (
-                <option key={p.id || p.nombre} value={p.nombre}>{p.nombre}</option>
+                <option key={p.id || p.nombre} value={p.nombre}>
+                  {p.nombre}
+                </option>
               ))}
             </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
+              ▼
+            </div>
           </div>
         </div>
       </div>
 
-      {/* TABLA PRINCIPAL */}
-      <div className="overflow-x-auto border border-[#1e2536] rounded-xl bg-[#0b0e14]">
-        <table className="w-full text-xs text-left">
-          <thead className="bg-[#121620] text-slate-300">
-            <tr>
-              <th className="px-4 py-3 uppercase">País</th>
-              <th className="px-4 py-3 uppercase text-center">PPD</th>
-              <th className="px-4 py-3 uppercase text-center">CTI</th>
-              <th className="px-4 py-3 uppercase text-center">CIC</th>
-              <th className="px-4 py-3 uppercase text-center">Aporte Final</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#1e2536]">
-            {matrizFiltrada.map((row) => (
-              <tr key={row.id} className="hover:bg-[#161c28]">
-                <td className="px-4 py-3 text-white font-medium">
-                  {renderPaisConBandera(row.pais_nombre)}
-                </td>
-                <td className="px-4 py-3 text-center text-slate-400">{row.ppd?.toFixed(2) || '0.00'}</td>
-                <td className="px-4 py-3 text-center text-slate-400">{row.cti?.toFixed(2) || '0.00'}</td>
-                <td className="px-4 py-3 text-center text-slate-400">{row.cic?.toFixed(2) || '0.00'}</td>
-                <td className="px-4 py-3 text-center font-bold text-emerald-400">{row.aporteFactorCosto}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {errorLog && (
+        <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs">
+          ⚠️ <strong>Error BD:</strong> {errorLog}
+        </div>
+      )}
+
+      {/* 2. TABLA DE COSTOS BASE */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-sm font-bold text-white">
+            Listado de Costos Base <span className="text-xs font-normal text-slate-500">(Haz clic en una fila para seleccionarla)</span>
+          </h3>
+          <span className="text-xs text-slate-400 font-mono">
+            Mostrando <strong className="text-slate-200">{matrizFiltrada.length}</strong> registros
+          </span>
+        </div>
+
+        <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
+          <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="sticky top-0 bg-[#161c29] z-10 border-b border-[#1e2536]">
+                <tr className="text-slate-400">
+                  <th className="py-3 px-4 w-20 font-medium">ID</th>
+                  <th className="py-3 px-4 font-medium">País</th>
+                  <th className="py-3 px-4 text-right font-medium">Precio (PPD)</th>
+                  <th className="py-3 px-4 text-right font-medium">Transporte (CTI)</th>
+                  <th className="py-3 px-4 text-right font-medium pr-6">Cumplimiento (CIC)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
+                {loading ? (
+                  <tr>
+                    <td colSpan="5" className="py-6 text-center text-slate-500 font-sans">Cargando datos...</td>
+                  </tr>
+                ) : matrizFiltrada.length > 0 ? (
+                  matrizFiltrada.map((row) => (
+                    <tr 
+                      key={row.id} 
+                      onClick={() => setFilaSeleccionada(row.id)}
+                      className={`cursor-pointer transition-colors ${filaSeleccionada === row.id ? 'bg-[#1e293b]' : 'hover:bg-[#161c29]/50'}`}
+                    >
+                      <td className="py-3 px-4 text-slate-400">{row.id}</td>
+                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
+                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
+                      <td className="py-3 px-4 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
+                      <td className="py-3 px-4 text-right pr-6">
+                        {row.cic !== null ? `$${row.cic.toFixed(2)}` : '$0.00'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-slate-500 font-sans">No hay registros disponibles.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      {/* Aquí continúa el resto de tu estructura original hasta la línea 484 */}
-      
+      {/* 3. TABLA DE NORMALIZACIÓN Y PONDERACIÓN FINAL */}
+      <div className="space-y-2 pt-2">
+        <div className="flex justify-between items-center px-1">
+          <h3 className="text-sm font-bold text-white">
+            Normalización y Ponderación Final (Factor Costo)
+          </h3>
+        </div>
+
+        <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
+          <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="sticky top-0 bg-[#161c29] z-10 border-b border-[#1e2536]">
+                <tr className="text-slate-400">
+                  <th className="py-3 px-4 w-20 font-medium">ID</th>
+                  <th className="py-3 px-4 font-medium">País</th>
+                  <th className="py-3 px-4 text-right font-medium">PPD Norm (44%)</th>
+                  <th className="py-3 px-4 text-right font-medium">CTI Norm (34%)</th>
+                  <th className="py-3 px-4 text-right font-medium">CIC Norm (22%)</th>
+                  <th className="py-3 px-4 text-right font-bold text-emerald-400 pr-6">Total Factor (21.5%)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="py-6 text-center text-slate-500 font-sans">Calculando...</td>
+                  </tr>
+                ) : matrizFiltrada.length > 0 ? (
+                  matrizFiltrada.map((row) => (
+                    <tr 
+                      key={row.id} 
+                      onClick={() => setFilaSeleccionada(row.id)}
+                      className={`cursor-pointer transition-colors ${filaSeleccionada === row.id ? 'bg-[#1e293b]' : 'hover:bg-[#161c29]/50'}`}
+                    >
+                      <td className="py-3 px-4 text-slate-400">{row.id}</td>
+                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
+                      <td className="py-3 px-4 text-right">{row.ppdNorm !== null ? row.ppdNorm : 'Sin datos'}</td>
+                      <td className="py-3 px-4 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
+                      <td className="py-3 px-4 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
+                      <td className="py-3 px-4 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="py-8 text-center text-slate-500 font-sans">No hay datos normalizados disponibles.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
