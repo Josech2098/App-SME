@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient.js';
 import { renderPaisConBandera } from './banderas.jsx';
 
@@ -36,7 +36,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       .replace(/\s+/g, ' ');
   };
 
-  // Sincronizar si cambia el paisOrigen desde las props globales de la app
+  // 🔹 Sincronizar si cambia el paisOrigen desde las props globales de la app
   useEffect(() => {
     if (paisOrigen) {
       setPaisSalidaCalc(paisOrigen);
@@ -44,8 +44,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     }
   }, [paisOrigen]);
 
-  const puertosSalidaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
-  const puertosLlegadaLista = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
+  const puertosSalidaLista = useMemo(() => {
+    return puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
+  }, [puertosData, paisSalidaCalc]);
+
+  const puertosLlegadaLista = useMemo(() => {
+    return puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
+  }, [puertosData, paisLlegadaCalc]);
 
   const calcularDistanciaNautica = (lat1, lon1, lat2, lon2) => {
     if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return 0;
@@ -74,7 +79,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     };
   };
 
-  const calcularTtiParaFila = (nombrePaisFila) => {
+  const calcularTtiParaFila = useCallback((nombrePaisFila) => {
     const normFila = normalizarTexto(nombrePaisFila);
 
     if (resultadoManualFijado) {
@@ -99,93 +104,102 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     if (!resultado) return '-';
 
     return `${resultado.dias.toFixed(1)} días`;
-  };
+  }, [paisSalidaCalc, puertoSalidaCalc, puertosData, velocidadBuque, resultadoManualFijado]);
 
-  const cargarDatos = async () => {
-    try {
-      setCargando(true);
-      const { data: puertosRes, error: errPuertos } = await supabase.from('puertos').select('*');
-      if (errPuertos) throw errPuertos;
-      const listaPuertos = puertosRes || [];
-      setPuertosData(listaPuertos);
+  // Manejar el cambio automático del puerto de salida al cambiar el país de salida
+  useEffect(() => {
+    if (puertosSalidaLista.length > 0) {
+      const principal = puertosSalidaLista.find(p => p.principal === 'Y') || puertosSalidaLista[0];
+      setPuertoSalidaCalc(principal.puerto);
+    } else {
+      setPuertoSalidaCalc('');
+    }
+  }, [paisSalidaCalc, puertosSalidaLista]);
 
-      const unicosPaises = [...new Set(listaPuertos.map(p => p.pais))].sort();
-      setPaisesDisponibles(unicosPaises);
+  // Manejar el cambio automático del puerto de llegada
+  useEffect(() => {
+    if (puertosLlegadaLista.length > 0) {
+      const principal = puertosLlegadaLista.find(p => p.principal === 'Y') || puertosLlegadaLista[0];
+      setPuertoLlegadaCalc(principal.puerto);
+    } else {
+      setPuertoLlegadaCalc('');
+    }
+  }, [paisLlegadaCalc, puertosLlegadaLista]);
 
-      if (unicosPaises.length > 1 && !paisLlegadaCalc) {
-        setPaisLlegadaCalc(unicosPaises[1]);
-      }
+  // Carga inicial de datos desde Supabase
+  useEffect(() => {
+    async function cargarDatos() {
+      try {
+        setCargando(true);
+        const { data: puertosRes, error: errPuertos } = await supabase.from('puertos').select('*');
+        if (errPuertos) throw errPuertos;
+        const listaPuertos = puertosRes || [];
+        setPuertosData(listaPuertos);
 
-      const { data: logiData, error: errLogi } = await supabase
-        .from('tabLogi')
-        .select('*');
+        const unicosPaises = [...new Set(listaPuertos.map(p => p.pais))].sort();
+        setPaisesDisponibles(unicosPaises);
 
-      if (errLogi) throw errLogi;
-
-      if (logiData) {
-        const formateados = logiData.map(item => {
-          const nombrePais = item.pais || 'Desconocido';
-          return {
-            id: item.id,
-            Paises: nombrePais,
-            'Índice de Desempeño Logístico (IDL)': item.lpi !== null ? item.lpi : 0,
-            'Calidad de las carreteras por país (CCP)': item.cfr !== null ? item.cfr : 0,
-            'Tiempo de tránsito del Transporte Internacional (TTI)': calcularTtiParaFila(nombrePais)
-          };
-        });
-
-        let datosFinales = formateados;
-        if (paisesDestino && paisesDestino.length > 0) {
-          const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
-          const filtradosPorDestino = formateados.filter(item => 
-            nombresDestino.some(nd => normalizarTexto(nd) === normalizarTexto(item.Paises))
-          );
-          if (filtradosPorDestino.length > 0) {
-            datosFinales = filtradosPorDestino;
-          }
+        if (unicosPaises.length > 1 && !paisLlegadaCalc) {
+          setPaisLlegadaCalc(unicosPaises[1]);
         }
 
-        datosFinales.sort((a, b) => {
-          const ttiA = calcularTtiParaFila(a.Paises);
-          const ttiB = calcularTtiParaFila(b.Paises);
-          const idlA = Number(a['Índice de Desempeño Logístico (IDL)']) || 0;
-          const idlB = Number(b['Índice de Desempeño Logístico (IDL)']) || 0;
-          const ccpA = Number(a['Calidad de las carreteras por país (CCP)']) || 0;
-          const ccpB = Number(b['Calidad de las carreteras por país (CCP)']) || 0;
+        const { data: logiData, error: errLogi } = await supabase
+          .from('tabLogi')
+          .select('*');
 
-          const tieneDatosA = ttiA !== '-' && idlA > 0 && ccpA > 0;
-          const tieneDatosB = ttiB !== '-' && idlB > 0 && ccpB > 0;
+        if (errLogi) throw errLogi;
 
-          if (tieneDatosA && !tieneDatosB) return -1;
-          if (!tieneDatosA && tieneDatosB) return 1;
-          return a.Paises.localeCompare(b.Paises);
-        });
+        if (logiData) {
+          const formateados = logiData.map(item => {
+            const nombrePais = item.pais || 'Desconocido';
+            return {
+              id: item.id,
+              Paises: nombrePais,
+              'Índice de Desempeño Logístico (IDL)': item.lpi !== null ? item.lpi : 0,
+              'Calidad de las carreteras por país (CCP)': item.cfr !== null ? item.cfr : 0,
+              'Tiempo de tránsito del Transporte Internacional (TTI)': '-'
+            };
+          });
 
-        setTablaLogi(datosFinales);
+          let datosFinales = formateados;
+          if (paisesDestino && paisesDestino.length > 0) {
+            const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
+            const filtradosPorDestino = formateados.filter(item => 
+              nombresDestino.some(nd => normalizarTexto(nd) === normalizarTexto(item.Paises))
+            );
+            if (filtradosPorDestino.length > 0) {
+              datosFinales = filtradosPorDestino;
+            }
+          }
+
+          setTablaLogi(datosFinales);
+        }
+      } catch (err) {
+        console.error("Error al cargar datos logísticos:", err);
+      } finally {
+        setCargando(false);
       }
-    } catch (err) {
-      console.error("Error al cargar datos:", err);
-    } finally {
-      setCargando(false);
     }
-  };
-  
-  useEffect(() => {
     cargarDatos();
-  }, [paisesDestino, paisSalidaCalc, puertoSalidaCalc, velocidadBuque, resultadoManualFijado]);
+  }, [paisesDestino]);
 
-  const ttiValoresValidos = tablaLogi
-    .map(d => {
-      const ttiStr = String(calcularTtiParaFila(d.Paises) || '0').replace(/días|dias|-/gi, '').trim();
-      const num = Number(ttiStr);
-      return isNaN(num) || num <= 0 ? null : num;
-    })
-    .filter(v => v !== null);
+  // Valores válidos y normalización general para la tabla inferior
+  const ttiValoresValidos = useMemo(() => {
+    return tablaLogi
+      .map(d => {
+        const ttiStr = String(calcularTtiParaFila(d.Paises) || '0').replace(/días|dias|-/gi, '').trim();
+        const num = Number(ttiStr);
+        return isNaN(num) || num <= 0 ? null : num;
+      })
+      .filter(v => v !== null);
+  }, [tablaLogi, calcularTtiParaFila]);
 
-  const MIN_TTI = ttiValoresValidos.length > 0 ? Math.min(...ttiValoresValidos) : 1.0;
+  const MIN_TTI = useMemo(() => {
+    return ttiValoresValidos.length > 0 ? Math.min(...ttiValoresValidos) : 1.0;
+  }, [ttiValoresValidos]);
 
-  useEffect(() => {
-    if (tablaLogi.length === 0) return;
+  const tablaProcesadaFinal = useMemo(() => {
+    if (tablaLogi.length === 0) return [];
 
     const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
     const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
@@ -194,7 +208,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : 300000000;
     const A3 = 10;
 
-    const tablaProcesada = tablaLogi.map(row => {
+    const procesada = tablaLogi.map(row => {
       const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
       const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
       
@@ -208,33 +222,40 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
 
-      return { ...row, idlNorm, ccpNorm, ttiNorm, costoTotal };
+      return { 
+        ...row, 
+        'Tiempo de tránsito del Transporte Internacional (TTI)': calcularTtiParaFila(row.Paises),
+        idlNorm, 
+        ccpNorm, 
+        ttiNorm, 
+        costoTotal 
+      };
     });
 
-    if (onDatosActualizados) {
-      onDatosActualizados(tablaProcesada);
-    }
-  }, [tablaLogi, resultadoManualFijado, paisSalidaCalc, puertoSalidaCalc, velocidadBuque]);
+    // Ordenamiento por completitud de datos y nombre
+    procesada.sort((a, b) => {
+      const ttiA = calcularTtiParaFila(a.Paises);
+      const ttiB = calcularTtiParaFila(b.Paises);
+      const idlA = Number(a['Índice de Desempeño Logístico (IDL)']) || 0;
+      const idlB = Number(b['Índice de Desempeño Logístico (IDL)']) || 0;
 
-  useEffect(() => {
-    const pSalida = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
-    if (pSalida.length > 0) {
-      const principal = pSalida.find(p => p.principal === 'Y') || pSalida[0];
-      setPuertoSalidaCalc(principal.puerto);
-    } else {
-      setPuertoSalidaCalc('');
-    }
-  }, [paisSalidaCalc, puertosData]);
+      const tieneDatosA = ttiA !== '-' && idlA > 0;
+      const tieneDatosB = ttiB !== '-' && idlB > 0;
 
+      if (tieneDatosA && !tieneDatosB) return -1;
+      if (!tieneDatosA && tieneDatosB) return 1;
+      return a.Paises.localeCompare(b.Paises);
+    });
+
+    return procesada;
+  }, [tablaLogi, calcularTtiParaFila, MIN_TTI]);
+
+  // Emitir datos actualizados al componente principal
   useEffect(() => {
-    const pLlegada = puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
-    if (pLlegada.length > 0) {
-      const principal = pLlegada.find(p => p.principal === 'Y') || pLlegada[0];
-      setPuertoLlegadaCalc(principal.puerto);
-    } else {
-      setPuertoLlegadaCalc('');
+    if (onDatosActualizados && tablaProcesadaFinal.length > 0) {
+      onDatosActualizados(tablaProcesadaFinal);
     }
-  }, [paisLlegadaCalc, puertosData]);
+  }, [tablaProcesadaFinal, onDatosActualizados]);
 
   const handleCalcularTtiManual = (e) => {
     e.preventDefault();
@@ -280,13 +301,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     setResultadoManualFijado(null);
   };
 
-  const idkValsCalc = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
-  const ccpValsCalc = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
-
-  const MAX_IDL = idkValsCalc.length > 0 ? Math.max(...idkValsCalc) : 5.0;
-  const MAX_CCP = ccpValsCalc.length > 0 ? Math.max(...ccpValsCalc) : 300000000;
-  const A3 = 10;
-
   return (
     <div className="space-y-8 text-slate-100 font-sans">
       
@@ -295,14 +309,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         <div>
           <h2 className="text-xl font-bold text-white">2. Logística (LOGI)</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Producto activo: <strong className="text-white">{productoActivo ? productoActivo.nombre : 'Ninguno'}</strong>
+            Producto activo: <strong className="text-white">{productoActivo ? (productoActivo.nombre || productoActivo) : 'Ninguno'}</strong> | País Origen Actual: <strong className="text-indigo-400">{paisSalidaCalc}</strong>
           </p>
         </div>
       </div>
 
       {/* ================= CÁLCULO TTI (DESPLEGABLE) ================= */}
       <div className="bg-[#12141f] border border-[#1b1f2e] rounded-lg shadow-lg overflow-hidden">
-        {/* Botón de cabecera para desplegar / ocultar */}
         <button
           type="button"
           onClick={() => setMostrarCalculador(!mostrarCalculador)}
@@ -324,7 +337,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           </div>
         </button>
 
-        {/* Contenido colapsable */}
         {mostrarCalculador && (
           <div className="p-5 space-y-4 border-t border-[#1b1f2e]">
             <div className="flex justify-end">
@@ -338,7 +350,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             <form onSubmit={handleCalcularTtiManual} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">País de salida</label>
+                  <label className="block text-xs text-slate-400 mb-1">País de salida (Sincronizado con Origen)</label>
                   <select value={paisSalidaCalc} onChange={(e) => { setPaisSalidaCalc(e.target.value); setResultadoManualFijado(null); }} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
                     {paisesDisponibles.map((pais, idx) => (<option key={idx} value={pais}>{pais}</option>))}
                   </select>
@@ -385,7 +397,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       {/* ================= TABLA LOGÍSTICA PRINCIPAL ================= */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Logística (LOGI)</h3>
-        <p className="text-xs text-slate-400">Indicadores logísticos registrados (IDL, CCP) y TTI calculado.</p>
+        <p className="text-xs text-slate-400">Indicadores logísticos registrados (IDL, CCP) y TTI calculado desde <span className="text-indigo-400">{paisSalidaCalc}</span>.</p>
         
         {cargando ? (
           <div className="p-4 text-xs text-slate-400 italic">Cargando datos...</div>
@@ -402,10 +414,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
-                {tablaLogi.map((row, index) => {
-                  const ttiMostrado = calcularTtiParaFila(row.Paises);
+                {tablaProcesadaFinal.map((row, index) => {
+                  const ttiMostrado = row['Tiempo de tránsito del Transporte Internacional (TTI)'];
                   return (
-                    <tr key={index} className="hover:bg-[#151824] transition-colors">
+                    <tr key={row.id || index} className="hover:bg-[#151824] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
                       <td className="p-3 font-medium text-white flex items-center gap-2">
                         {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
@@ -445,30 +457,18 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
-                {tablaLogi.map((row, index) => {
-                  const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
-                  const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
-                  
-                  const ttiStr = String(calcularTtiParaFila(row.Paises) || '0').replace(/días|dias|-/gi, '').trim();
-                  const ttiVal = Number(ttiStr);
-                  const tieneTtiValido = !isNaN(ttiVal) && ttiVal > 0;
-
-                  const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
-                  const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-                  const ttiNorm = tieneTtiValido ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : 0;
-
-                  const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
-
+                {tablaProcesadaFinal.map((row, index) => {
+                  const tieneTtiValido = row.ttiNorm > 0;
                   return (
-                    <tr key={index} className="hover:bg-[#151824] transition-colors">
+                    <tr key={row.id || index} className="hover:bg-[#151824] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
                       <td className="p-3 font-medium text-white flex items-center gap-2">
                         {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
                       </td>
-                      <td className="p-3 text-slate-300">{idlNorm}</td>
-                      <td className="p-3 text-slate-300">{ccpNorm}</td>
-                      <td className="p-3 text-slate-300">{tieneTtiValido ? ttiNorm : '-'}</td>
-                      <td className="p-3 font-bold text-indigo-400">{costoTotal}</td>
+                      <td className="p-3 text-slate-300">{row.idlNorm}</td>
+                      <td className="p-3 text-slate-300">{row.ccpNorm}</td>
+                      <td className="p-3 text-slate-300">{tieneTtiValido ? row.ttiNorm : '-'}</td>
+                      <td className="p-3 font-bold text-indigo-400">{row.costoTotal}</td>
                     </tr>
                   );
                 })}

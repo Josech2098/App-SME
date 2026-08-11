@@ -69,8 +69,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   // Referencia para evitar bucles infinitos con onDatosActualizados
   const prevDatosRef = useRef('');
 
+  // 🔹 Sincronizar el estado local cuando la propiedad paisOrigen cambie desde App.jsx
   useEffect(() => {
-    if (paisOrigen) setPaisBase(paisOrigen);
+    if (paisOrigen) {
+      setPaisBase(paisOrigen);
+    }
   }, [paisOrigen]);
 
   useEffect(() => {

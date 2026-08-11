@@ -203,7 +203,9 @@ export default function App() {
                           setIsDropdownOpen(false);
                           setSearchPaisOrigen('');
                         }}
-                        className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors"
+                        className={`px-3 py-1.5 cursor-pointer text-slate-200 transition-colors ${
+                          paisOrigen === p.nombre ? 'bg-red-500/30 font-semibold' : 'hover:bg-red-500/20'
+                        }`}
                       >
                         {p.nombre}
                       </div>
@@ -388,7 +390,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* Contenido Dinámico (Montados permanentemente mediante display CSS para precargar los datos) */}
+        {/* Contenido Dinámico */}
         <div>
           <div className={activeTab === 0 ? 'block' : 'hidden'}>
             <TablaProductos 
