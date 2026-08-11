@@ -349,7 +349,12 @@ export default function App() {
             />
           </div>
 
-          <div className="mt-6 pt-4 border-t border-slate-700/50 text-slate-400">
+          <div className="mt-6 pt-4 border-t border-slate-700/50 text-slate-400 flex flex-col items-start space-y-2">
+            <img 
+              src="/SMIPEM.png" 
+              alt="SMIPEM Logo" 
+              className="h-10 w-auto object-contain mb-1" 
+            />
             <p className="text-sm">
               Creador: Jose Jaime Baena Rojas
             </p>
