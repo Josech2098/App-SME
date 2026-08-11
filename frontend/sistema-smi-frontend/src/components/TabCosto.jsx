@@ -328,95 +328,100 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     (categoria && extraerNombreLegible(categoria) !== 'Todos' ? `Categoría: ${extraerNombreLegible(categoria)}` : 'Todos los productos');
 
   return (
-    <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
+    <div className="space-y-6 text-slate-300 font-sans antialiased p-1 md:p-2">
       
       {/* SELECTOR DE PAÍS BASE Y DESCRIPCIÓN */}
-      <div className="bg-[#121620] border border-[#1e2536] rounded-xl p-4 space-y-3">
+      <div className="bg-[#121620]/90 backdrop-blur-xl border border-[#1f2937] rounded-2xl p-5 shadow-xl space-y-4 transition-all duration-300">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div>
-            <h2 className="text-sm font-bold text-white tracking-wide uppercase">
+            <h2 className="text-sm font-semibold text-white tracking-wider uppercase flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
               1. Costo (COSTO) — Estandarización de Criterios
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Ponderación del Factor: <span className="text-emerald-400 font-bold">21.50%</span> | Filtro Activo: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
+            <p className="text-xs text-slate-400 mt-1">
+              Ponderación del Factor: <span className="text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">21.50%</span> | Filtro Activo: <strong className="text-sky-400">{nombreProductoMostrado}</strong>
             </p>
           </div>
         </div>
 
-        <div className="pt-2">
-          <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase">
+        <div className="pt-1">
+          <label className="block text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wider">
             Selecciona el país base (Origen para transporte CTI)
           </label>
           <div className="relative">
             <select
               value={paisBase}
               onChange={(e) => setPaisBase(e.target.value)}
-              className="w-full bg-[#0b0e14] border border-[#1e2536] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
+              className="w-full bg-[#090a0f] border border-[#1f2937] rounded-xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 appearance-none cursor-pointer transition-all shadow-inner"
             >
               {listaPaises.map((p) => (
-                <option key={p.id || p.nombre} value={p.nombre}>
+                <option key={p.id || p.nombre} value={p.nombre} className="bg-[#121620] text-slate-200">
                   {p.nombre}
                 </option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
-              ▼
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400 text-xs">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
             </div>
           </div>
         </div>
       </div>
 
       {errorLog && (
-        <div className="bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-lg text-xs">
-          ⚠️ <strong>Error BD:</strong> {errorLog}
+        <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl text-xs flex items-center gap-3 backdrop-blur-md shadow-lg">
+          <span className="text-base">⚠️</span> 
+          <div><strong>Error BD:</strong> {errorLog}</div>
         </div>
       )}
 
       {/* 2. TABLA DE COSTOS BASE */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex justify-between items-center px-1">
-          <h3 className="text-sm font-bold text-white">
-            Listado de Costos Base <span className="text-xs font-normal text-slate-500">(Haz clic en una fila para seleccionarla)</span>
+          <h3 className="text-sm font-semibold text-white tracking-wide">
+            Listado de Costos Base <span className="text-xs font-normal text-slate-400">(Haz clic en una fila para seleccionarla)</span>
           </h3>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-slate-400 font-mono bg-[#121620] px-3 py-1 rounded-lg border border-[#1f2937] shadow-sm">
             Mostrando <strong className="text-slate-200">{matrizFiltrada.length}</strong> de <strong className="text-slate-200">{matrizFiltrada.length}</strong> registros
           </span>
         </div>
 
-        <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-[#121620]/90 backdrop-blur-xl border border-[#1f2937] rounded-2xl overflow-hidden shadow-xl transition-all">
           <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-[#161c29] z-10 border-b border-[#1e2536]">
-                <tr className="text-slate-400">
-                  <th className="py-3 px-4 w-20 font-medium">ID</th>
-                  <th className="py-3 px-4 font-medium">País</th>
-                  <th className="py-3 px-4 text-right font-medium">Precio (PPD)</th>
-                  <th className="py-3 px-4 text-right font-medium">Transporte (CTI)</th>
-                  <th className="py-3 px-4 text-right font-medium pr-6">Cumplimiento (CIC)</th>
+              <thead className="sticky top-0 bg-[#161c29]/95 backdrop-blur-md z-10 border-b border-[#1f2937] shadow-sm">
+                <tr className="text-slate-400 font-medium">
+                  <th className="py-3.5 px-5 w-20 tracking-wider">ID</th>
+                  <th className="py-3.5 px-5 tracking-wider">País</th>
+                  <th className="py-3.5 px-5 text-right tracking-wider">Precio (PPD)</th>
+                  <th className="py-3.5 px-5 text-right tracking-wider">Transporte (CTI)</th>
+                  <th className="py-3.5 px-5 text-right tracking-wider pr-6">Cumplimiento (CIC)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
+              <tbody className="divide-y divide-[#1b2230]/60 font-mono text-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan="5" className="py-6 text-center text-slate-500 font-sans">
-                      Cargando datos...
+                    <td colSpan="5" className="py-12 text-center text-slate-400 font-sans">
+                      <div className="flex justify-center items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                        Cargando datos...
+                      </div>
                     </td>
                   </tr>
                 ) : matrizFiltrada.length > 0 ? (
                   matrizFiltrada.map((row) => (
-                    <tr key={row.id} className="hover:bg-[#161c29]/50 transition-colors">
-                      <td className="py-3 px-4 text-slate-400">{row.id}</td>
-                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
-                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
-                      <td className="py-3 px-4 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
-                      <td className="py-3 px-4 text-right pr-6">
+                    <tr key={row.id} className="hover:bg-slate-800/40 transition-colors group cursor-pointer">
+                      <td className="py-3 px-5 text-slate-500 group-hover:text-slate-300 transition-colors">{row.id}</td>
+                      <td className="py-3 px-5 font-sans font-medium text-slate-200 group-hover:text-white transition-colors">{row.pais_nombre}</td>
+                      <td className="py-3 px-5 text-right text-emerald-400 font-semibold">{row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : <span className="text-slate-500 font-normal">Sin datos</span>}</td>
+                      <td className="py-3 px-5 text-right text-slate-300">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
+                      <td className="py-3 px-5 text-right pr-6 text-slate-300">
                         {row.cic !== null ? `$${row.cic.toFixed(2)}` : '$0.00'}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="py-8 text-center text-slate-500 font-sans">
+                    <td colSpan="5" className="py-12 text-center text-slate-500 font-sans">
                       No hay registros disponibles.
                     </td>
                   </tr>
@@ -428,47 +433,50 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       </div>
 
       {/* 3. TABLA DE NORMALIZACIÓN Y PONDERACIÓN FINAL */}
-      <div className="space-y-2 pt-2">
+      <div className="space-y-3 pt-2">
         <div className="flex justify-between items-center px-1">
-          <h3 className="text-sm font-bold text-white">
+          <h3 className="text-sm font-semibold text-white tracking-wide">
             Normalización y Ponderación Final (Factor Costo)
           </h3>
         </div>
 
-        <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-[#121620]/90 backdrop-blur-xl border border-[#1f2937] rounded-2xl overflow-hidden shadow-xl transition-all">
           <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-[#161c29] z-10 border-b border-[#1e2536]">
-                <tr className="text-slate-400">
-                  <th className="py-3 px-4 w-20 font-medium">ID</th>
-                  <th className="py-3 px-4 font-medium">País</th>
-                  <th className="py-3 px-4 text-right font-medium">PPD Norm (44%)</th>
-                  <th className="py-3 px-4 text-right font-medium">CTI Norm (34%)</th>
-                  <th className="py-3 px-4 text-right font-medium">CIC Norm (22%)</th>
-                  <th className="py-3 px-4 text-right font-bold text-emerald-400 pr-6">Total Factor (21.5%)</th>
+              <thead className="sticky top-0 bg-[#161c29]/95 backdrop-blur-md z-10 border-b border-[#1f2937] shadow-sm">
+                <tr className="text-slate-400 font-medium">
+                  <th className="py-3.5 px-5 w-20 tracking-wider">ID</th>
+                  <th className="py-3.5 px-5 tracking-wider">País</th>
+                  <th className="py-3.5 px-5 text-right tracking-wider">PPD Norm (44%)</th>
+                  <th className="py-3.5 px-5 text-right tracking-wider">CTI Norm (34%)</th>
+                  <th className="py-3.5 px-5 text-right tracking-wider">CIC Norm (22%)</th>
+                  <th className="py-3.5 px-5 text-right font-bold text-emerald-400 pr-6 tracking-wider">Total Factor (21.5%)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
+              <tbody className="divide-y divide-[#1b2230]/60 font-mono text-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="py-6 text-center text-slate-500 font-sans">
-                      Calculando...
+                    <td colSpan="6" className="py-12 text-center text-slate-400 font-sans">
+                      <div className="flex justify-center items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                        Calculando...
+                      </div>
                     </td>
                   </tr>
                 ) : matrizFiltrada.length > 0 ? (
                   matrizFiltrada.map((row) => (
-                    <tr key={row.id} className="hover:bg-[#161c29]/50 transition-colors">
-                      <td className="py-3 px-4 text-slate-400">{row.id}</td>
-                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
-                      <td className="py-3 px-4 text-right">{row.ppdNorm !== null ? row.ppdNorm : 'Sin datos'}</td>
-                      <td className="py-3 px-4 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
-                      <td className="py-3 px-4 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
-                      <td className="py-3 px-4 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
+                    <tr key={row.id} className="hover:bg-slate-800/40 transition-colors group cursor-pointer">
+                      <td className="py-3 px-5 text-slate-500 group-hover:text-slate-300 transition-colors">{row.id}</td>
+                      <td className="py-3 px-5 font-sans font-medium text-slate-200 group-hover:text-white transition-colors">{row.pais_nombre}</td>
+                      <td className="py-3 px-5 text-right">{row.ppdNorm !== null ? row.ppdNorm : <span className="text-slate-500">Sin datos</span>}</td>
+                      <td className="py-3 px-5 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
+                      <td className="py-3 px-5 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
+                      <td className="py-3 px-5 text-right pr-6 font-bold text-emerald-400 text-sm bg-emerald-500/5 group-hover:bg-emerald-500/10 transition-colors">{row.aporteFactorCosto}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="py-8 text-center text-slate-500 font-sans">
+                    <td colSpan="6" className="py-12 text-center text-slate-500 font-sans">
                       No hay datos normalizados disponibles.
                     </td>
                   </tr>
