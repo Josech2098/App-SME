@@ -145,9 +145,15 @@ export default function TabGraficos({ datosTotales = [] }) {
     }))
   };
 
+  // Opciones con animación fluida en cascada (delay basado en el índice del elemento)
   const optionsGrafico1 = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 1500,
+      easing: 'easeInOutQuart',
+      delay: (context) => context.dataIndex * 80, // Efecto cascada por barra
+    },
     plugins: {
       legend: { position: 'top', labels: { color: 'white', font: { size: 12 } } },
       title: { display: true, text: 'Comparación de Puntajes (Top 10 Países)', color: 'white', font: { size: 16 } }
@@ -172,6 +178,11 @@ export default function TabGraficos({ datosTotales = [] }) {
   const optionsGrafico2 = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 1800,
+      easing: 'easeOutBounce', // Efecto rebote moderno al cargar
+      delay: (context) => context.dataIndex * 40,
+    },
     plugins: {
       legend: { display: false },
       title: { display: true, text: 'Ranking — Puntaje Total (Top 30 países)', color: 'white', font: { size: 16 } }
@@ -232,6 +243,11 @@ export default function TabGraficos({ datosTotales = [] }) {
   const optionsGrafico3 = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 2000,
+      easing: 'easeInOutExpo', // Animación fluida combinada para barras y líneas
+      delay: (context) => context.dataIndex * 50,
+    },
     plugins: {
       legend: { position: 'top', labels: { color: 'white', font: { size: 11 } } },
       title: { display: true, text: 'Comparativo IMSFE — Puntaje Total + Dimensiones', color: 'white', font: { size: 16 } }
@@ -263,7 +279,7 @@ export default function TabGraficos({ datosTotales = [] }) {
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Gráficos Analíticos</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Gráficos Comparativos</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Visualización interactiva técnica SMIPEM.
+          Visualización interactiva técnica SMIPEM con animaciones avanzadas.
         </p>
       </div>
 
@@ -290,7 +306,7 @@ export default function TabGraficos({ datosTotales = [] }) {
       </div>
 
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <h3 className="text-lg font-bold text-white">Comparativo SMIPEM  — Dimensiones y Puntaje Total</h3>
+        <h3 className="text-lg font-bold text-white">Comparativo SMIPEM — Dimensiones y Puntaje Total</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
           <Bar id="canvas-grafico-3" data={dataGrafico3} options={optionsGrafico3} />
         </div>
