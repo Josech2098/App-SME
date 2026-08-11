@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient.js';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 // --- Helper: Cálculo de distancia geográfica mediante Haversine ---
 function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
@@ -62,7 +63,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
   
-  // NUEVO: Estado para manejar la selección de filas
+  // Estado para manejar la selección de filas
   const [filaSeleccionada, setFilaSeleccionada] = useState(null);
 
   // Referencia para evitar bucles infinitos con onDatosActualizados
@@ -411,7 +412,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       className={`cursor-pointer transition-colors ${filaSeleccionada === row.id ? 'bg-[#1e293b]' : 'hover:bg-[#161c29]/50'}`}
                     >
                       <td className="py-3 px-4 text-slate-400">{row.id}</td>
-                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
+                      <td className="py-3 px-4 font-sans font-medium text-slate-200 flex items-center gap-2">
+                        {renderPaisConBandera ? renderPaisConBandera(row.pais_nombre) : row.pais_nombre}
+                      </td>
                       <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
                       <td className="py-3 px-4 text-right pr-6">
@@ -464,7 +467,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       className={`cursor-pointer transition-colors ${filaSeleccionada === row.id ? 'bg-[#1e293b]' : 'hover:bg-[#161c29]/50'}`}
                     >
                       <td className="py-3 px-4 text-slate-400">{row.id}</td>
-                      <td className="py-3 px-4 font-sans font-medium text-slate-200">{row.pais_nombre}</td>
+                      <td className="py-3 px-4 font-sans font-medium text-slate-200 flex items-center gap-2">
+                        {renderPaisConBandera ? renderPaisConBandera(row.pais_nombre) : row.pais_nombre}
+                      </td>
                       <td className="py-3 px-4 text-right">{row.ppdNorm !== null ? row.ppdNorm : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
                       <td className="py-3 px-4 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
