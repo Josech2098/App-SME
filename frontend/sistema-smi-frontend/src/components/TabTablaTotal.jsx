@@ -11,44 +11,47 @@ export default function TabTablaTotal({
   onDatosActualizados
 }) {
 
-  const [pesosCat, setPesosCat] = useState({
-    COST: 21.5,
-    LOGI: 18.5,
-    COMM: 20.5,
-    ECON: 16,
-    POLI: 13,
-    CULT: 5,
-    SUST: 5.5
-  });
+const [pesosCat, setPesosCat] = useState({
+  COST: 21.5,
+  LOGI: 18.5,
+  COMM: 20.5,
+  ECON: 16,
+  POLI: 13,
+  CULT: 5,
+  SUST: 5.5
+});
 
-  const [pesosAplicados, setPesosAplicados] = useState({
-    COST: 21.5,
-    LOGI: 18.5,
-    COMM: 20.5,
-    ECON: 16,
-    POLI: 13,
-    CULT: 5,
-    SUST: 5.5
-  });
+const [pesosAplicados, setPesosAplicados] = useState({
+  COST: 21.5,
+  LOGI: 18.5,
+  COMM: 20.5,
+  ECON: 16,
+  POLI: 13,
+  CULT: 5,
+  SUST: 5.5
+});
 
-  // Estado para controlar si el módulo de ponderación está abierto o cerrado
-  const [isOpen, setIsOpen] = useState(true);
+// Nuevo estado para controlar si el módulo está abierto o cerrado
+const [esVisible, setEsVisible] = useState(false);
 
-  const handlePesoChange = (cat, valor) => {
-    setPesosCat(prev => ({
-      ...prev,
-      [cat]: parseFloat(valor) || 0
-    }));
-  };
+const handlePesoChange = (cat, valor) => {
+  setPesosCat(prev => ({
+    ...prev,
+    [cat]: parseFloat(valor) || 0
+  }));
+};
 
-  const sumaPesos = Object.values(pesosCat)
-    .reduce((acc, val) => acc + val, 0);
+const sumaPesos = Object.values(pesosCat)
+  .reduce((acc, val) => acc + val, 0);
 
   const datosFinales = useMemo(() => {
+
     const mapa = {};
 
     const asegurarPais = (pais) => {
+
       if (!pais) return null;
+
       if (!mapa[pais]) {
         mapa[pais] = {
           pais,
@@ -61,74 +64,132 @@ export default function TabTablaTotal({
           SUST: 0
         };
       }
+
       return mapa[pais];
     };
 
     // COST
     datosCosto.forEach(row => {
-      const pais = row.pais_nombre || row.Paises || row.pais;
+
+      const pais =
+        row.pais_nombre ||
+        row.Paises ||
+        row.pais;
+
       const item = asegurarPais(pais);
+
       if (item) {
-        item.COST = Number(row.aporteFactorCosto || 0);
+        item.COST =
+          Number(row.aporteFactorCosto || 0);
       }
+
     });
 
     // LOGI
     datosLogi.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
+
       if (item) {
-        item.LOGI = Number(row.costoTotal || 0);
+        item.LOGI =
+          Number(row.costoTotal || 0);
       }
+
     });
 
     // COMM
     datosComm.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
+
       if (item) {
-        item.COMM = Number(row.COMM_total || 0);
+        item.COMM =
+          Number(row.COMM_total || 0);
       }
+
     });
 
     // ECON
     datosEcon.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
+
       if (item) {
-        item.ECON = Number(row.Puntaje_ECON_Normalizado || 0);
+        item.ECON =
+          Number(row.Puntaje_ECON_Normalizado || 0);
       }
+
     });
 
     // POLI
     datosPoli.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
+
       if (item) {
-        item.POLI = Number(row.Puntaje_POLI_Normalizado || 0);
+        item.POLI =
+          Number(row.Puntaje_POLI_Normalizado || 0);
       }
+
     });
 
     // CULT
     datosCult.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
+
       if (item) {
-        item.CULT = Number(row.Puntaje_CULT_Normalizado || 0);
+        item.CULT =
+          Number(row.Puntaje_CULT_Normalizado || 0);
       }
+
     });
 
     // SUST
     datosSust.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
+
       if (item) {
-        item.SUST = Number(row.aporteFactorSostenibilidad || 0);
+        item.SUST =
+          Number(row.aporteFactorSostenibilidad || 0);
       }
+
     });
 
     return Object.values(mapa)
       .map(row => {
+
         const total = Number(
           (
             row.COST * (pesosAplicados.COST / 100) +
@@ -142,64 +203,74 @@ export default function TabTablaTotal({
         );
 
         return {
+
           ...row,
+
           TOTAL: total,
+
           Paises: row.pais,
+
           "1. Cost (COST)": row.COST,
+
           "2. Logistical (LOGI)": row.LOGI,
+
           "3. Commercial (COMM)": row.COMM,
+
           "4. Economic (ECON)": row.ECON,
+
           "5. Political (POLI)": row.POLI,
+
           "6. Cultura (CULT)": row.CULT,
+
           "7. Sostenibilidad (SUST)": row.SUST,
+
           "Puntaje Total": total,
+
           "Puntaje Global – TOTAL": total
+
         };
+
       })
       .sort((a, b) => b.TOTAL - a.TOTAL);
 
   }, [
-    datosCosto,
-    datosLogi,
-    datosComm,
-    datosEcon,
-    datosPoli,
-    datosCult,
-    datosSust,
-    pesosAplicados
-  ]);
+  datosCosto,
+  datosLogi,
+  datosComm,
+  datosEcon,
+  datosPoli,
+  datosCult,
+  datosSust,
+  pesosAplicados
+]);
 
   useEffect(() => {
+
     if (onDatosActualizados) {
       onDatosActualizados(datosFinales);
     }
+
   }, [datosFinales, onDatosActualizados]);
 
   return (
+
     <div className="space-y-10 text-slate-100 font-sans">
-      
-      {/* MÓDULO DE PONDERACIÓN PLEGABLE */}
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
-        
-        <div className="flex items-center justify-between cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <div className="flex justify-between items-center cursor-pointer" onClick={() => setEsVisible(!esVisible)}>
           <div>
             <span className="text-xs uppercase tracking-wider text-sky-400 font-semibold">Módulo de Ponderación</span>
             <h3 className="text-xl font-bold text-white mt-1">
               Ajuste manual de ponderaciones (IMSFE)
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              Puedes modificar los pesos de cada categoría. El total debe sumar exactamente 100%.
+              {esVisible ? "Haz clic para ocultar el ajuste de pesos." : "Haz clic para ajustar los pesos de cada categoría."}
             </p>
           </div>
-          <button className="text-slate-400 hover:text-white transition-transform duration-200 p-2">
-            <span className={`transform inline-block transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
-              ▼
-            </span>
-          </button>
+          <button className="text-sky-400 font-bold">{esVisible ? "▲" : "▼"}</button>
         </div>
 
-        {isOpen && (
-          <div className="space-y-4 pt-2">
+        {esVisible && (
+          <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[
                 { label: "COST (%)", cat: "COST" },
@@ -210,6 +281,7 @@ export default function TabTablaTotal({
                 { label: "CULT (%)", cat: "CULT" },
                 { label: "SUST (%)", cat: "SUST" }
               ].map(({ label, cat }) => (
+
                 <div
                   key={cat}
                   className="bg-[#0d1017] border border-[#1b2230] rounded-lg p-3"
@@ -256,7 +328,8 @@ export default function TabTablaTotal({
 
             {sumaPesos !== 100 ? (
               <div className="bg-red-950/40 border border-red-900/50 rounded p-3 text-red-400 text-xs">
-                La suma actual es {sumaPesos.toFixed(1)}%. Debe ser exactamente 100%.
+                La suma actual es {sumaPesos.toFixed(1)}%.
+                Debe ser exactamente 100%.
               </div>
             ) : (
               <div className="bg-emerald-950/40 border border-emerald-900/50 rounded p-3 text-emerald-400 text-xs">
@@ -268,7 +341,9 @@ export default function TabTablaTotal({
               <button
                 onClick={() => {
                   if (sumaPesos !== 100) {
-                    alert("Las ponderaciones deben sumar exactamente 100%");
+                    alert(
+                      "Las ponderaciones deben sumar exactamente 100%"
+                    );
                     return;
                   }
                   setPesosAplicados({ ...pesosCat });
@@ -277,7 +352,6 @@ export default function TabTablaTotal({
               >
                 Calcular
               </button>
-
               <button
                 onClick={() => {
                   const pesosOriginales = {
@@ -297,7 +371,7 @@ export default function TabTablaTotal({
                 Reiniciar
               </button>
             </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -308,10 +382,10 @@ export default function TabTablaTotal({
             Tabla General de Evaluación de Países
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Consolidación automática de COST, LOGI, COMM, ECON, POLI, CULT y SUST
+            Consolidación automática de COST,
+            LOGI, COMM, ECON, POLI, CULT y SUST
           </p>
         </div>
-
         <div className="overflow-y-auto h-[450px] border border-[#1b2230] rounded-xl">
           <table className="w-full text-xs text-slate-300 border-collapse">
             <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
@@ -359,7 +433,6 @@ export default function TabTablaTotal({
           </h2>
           <p className="text-xs text-slate-400 mt-1">Ranking consolidado final por país</p>
         </div>
-
         <div className="overflow-y-auto h-[450px] border border-[#1b2230] rounded-xl">
           <table className="w-full text-xs text-slate-300 border-collapse">
             <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
@@ -384,7 +457,6 @@ export default function TabTablaTotal({
           </table>
         </div>
       </div>
-
     </div>
   );
 }
