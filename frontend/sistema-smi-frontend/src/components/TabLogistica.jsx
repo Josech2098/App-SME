@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
+import { renderPaisConBandera } from './banderas.jsx';
 
 export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen, onDatosActualizados }) {
   const [tablaLogi, setTablaLogi] = useState([]);
   const [puertosData, setPuertosData] = useState([]);
   const [cargando, setCargando] = useState(true);
+
+  // Estado para desplegar u ocultar el calculador TTI
+  const [mostrarCalculador, setMostrarCalculador] = useState(false);
 
   // Estados para el calculador de TTI
   const [paisesDisponibles, setPaisesDisponibles] = useState([]);
@@ -37,7 +40,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   useEffect(() => {
     if (paisOrigen) {
       setPaisSalidaCalc(paisOrigen);
-      setResultadoManualFijado(null); // Si cambia el origen global, volvemos al modo masivo automático
+      setResultadoManualFijado(null);
     }
   }, [paisOrigen]);
 
@@ -71,11 +74,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     };
   };
 
-  // Lógica principal para decidir qué mostrar en la celda de TTI de cada fila de la tabla
   const calcularTtiParaFila = (nombrePaisFila) => {
     const normFila = normalizarTexto(nombrePaisFila);
 
-    // 1. Si el usuario realizó un cálculo manual específico, SOLO ese país muestra el dato, los demás quedan en '-'
     if (resultadoManualFijado) {
       if (normalizarTexto(resultadoManualFijado.pais) === normFila) {
         return resultadoManualFijado.ttiFormateado;
@@ -83,7 +84,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       return '-';
     }
 
-    // 2. Modo Automático Masivo (calcula para todos basado en el país de salida global/seleccionado)
     if (!paisSalidaCalc || puertosData.length === 0) return '-';
 
     const puertoO = puertosData.find(p => normalizarTexto(p.puerto) === normalizarTexto(puertoSalidaCalc))
@@ -145,7 +145,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           }
         }
 
-        // ORDENAMIENTO: Los países con datos incompletos o vacíos quedan al final
         datosFinales.sort((a, b) => {
           const ttiA = calcularTtiParaFila(a.Paises);
           const ttiB = calcularTtiParaFila(b.Paises);
@@ -175,7 +174,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     cargarDatos();
   }, [paisesDestino, paisSalidaCalc, puertoSalidaCalc, velocidadBuque, resultadoManualFijado]);
 
-  // Extracción unificada y segura de valores numéricos de TTI para evitar que se queden en 10 por defecto cuando hay guiones '-'
   const ttiValoresValidos = tablaLogi
     .map(d => {
       const ttiStr = String(calcularTtiParaFila(d.Paises) || '0').replace(/días|dias|-/gi, '').trim();
@@ -186,7 +184,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   const MIN_TTI = ttiValoresValidos.length > 0 ? Math.min(...ttiValoresValidos) : 1.0;
 
-  // Actualización y normalización de variables para enviar al componente padre / matriz de costos
   useEffect(() => {
     if (tablaLogi.length === 0) return;
 
@@ -207,8 +204,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
       const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-      
-      // Si el TTI no está disponible (ej. muestra '-'), su valor normalizado debe ser 0 para no distorsionar la ponderación
       const ttiNorm = tieneTtiValido ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : 0;
 
       const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
@@ -285,7 +280,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     setResultadoManualFijado(null);
   };
 
-  // Cálculos para la tabla normalizada en tiempo real
   const idkValsCalc = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
   const ccpValsCalc = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
 
@@ -306,60 +300,86 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         </div>
       </div>
 
-      {/* ================= CÁLCULO TTI ================= */}
-      <div className="bg-[#12141f] border border-[#1b1f2e] p-5 rounded-lg space-y-4 shadow-lg">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-bold text-white">Calcular Tiempo de Tránsito del Transporte Internacional (TTI)</h3>
-          {resultadoManualFijado && (
-            <button onClick={limpiarCalculoManual} className="text-[11px] text-indigo-400 hover:underline cursor-pointer">
-              ↺ Regresar a cálculo masivo automático
-            </button>
-          )}
-        </div>
-        
-        <form onSubmit={handleCalcularTtiManual} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">País de salida</label>
-              <select value={paisSalidaCalc} onChange={(e) => { setPaisSalidaCalc(e.target.value); setResultadoManualFijado(null); }} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
-                {paisesDisponibles.map((pais, idx) => (<option key={idx} value={pais}>{pais}</option>))}
-              </select>
+      {/* ================= CÁLCULO TTI (DESPLEGABLE) ================= */}
+      <div className="bg-[#12141f] border border-[#1b1f2e] rounded-lg shadow-lg overflow-hidden">
+        {/* Botón de cabecera para desplegar / ocultar */}
+        <button
+          type="button"
+          onClick={() => setMostrarCalculador(!mostrarCalculador)}
+          className="w-full flex justify-between items-center p-4 bg-[#151824] hover:bg-[#1a1e2e] transition-colors text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-white">Calcular Tiempo de Tránsito del Transporte Internacional (TTI)</span>
+            {resultadoManualFijado && (
+              <span className="text-[10px] bg-indigo-900/60 text-indigo-300 px-2 py-0.5 rounded border border-indigo-700/50">
+                Manual activo
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400">{mostrarCalculador ? 'Ocultar' : 'Mostrar'}</span>
+            <span className={`transform transition-transform duration-200 text-slate-400 text-xs ${mostrarCalculador ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </div>
+        </button>
+
+        {/* Contenido colapsable */}
+        {mostrarCalculador && (
+          <div className="p-5 space-y-4 border-t border-[#1b1f2e]">
+            <div className="flex justify-end">
+              {resultadoManualFijado && (
+                <button onClick={limpiarCalculoManual} className="text-[11px] text-indigo-400 hover:underline cursor-pointer">
+                  ↺ Regresar a cálculo masivo automático
+                </button>
+              )}
             </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">País de llegada</label>
-              <select value={paisLlegadaCalc} onChange={(e) => setPaisLlegadaCalc(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
-                {paisesDisponibles.map((pais, idx) => (<option key={idx} value={pais}>{pais}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Puerto de salida</label>
-              <select value={puertoSalidaCalc} onChange={(e) => { setPuertoSalidaCalc(e.target.value); setResultadoManualFijado(null); }} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
-                {puertosSalidaLista.map((p, idx) => (<option key={idx} value={p.puerto}>{p.puerto}</option>))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Puerto de llegada</label>
-              <select value={puertoLlegadaCalc} onChange={(e) => setPuertoLlegadaCalc(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
-                {puertosLlegadaLista.map((p, idx) => (<option key={idx} value={p.puerto}>{p.puerto}</option>))}
-              </select>
+
+            <form onSubmit={handleCalcularTtiManual} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">País de salida</label>
+                  <select value={paisSalidaCalc} onChange={(e) => { setPaisSalidaCalc(e.target.value); setResultadoManualFijado(null); }} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
+                    {paisesDisponibles.map((pais, idx) => (<option key={idx} value={pais}>{pais}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">País de llegada</label>
+                  <select value={paisLlegadaCalc} onChange={(e) => setPaisLlegadaCalc(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
+                    {paisesDisponibles.map((pais, idx) => (<option key={idx} value={pais}>{pais}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Puerto de salida</label>
+                  <select value={puertoSalidaCalc} onChange={(e) => { setPuertoSalidaCalc(e.target.value); setResultadoManualFijado(null); }} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
+                    {puertosSalidaLista.map((p, idx) => (<option key={idx} value={p.puerto}>{p.puerto}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Puerto de llegada</label>
+                  <select value={puertoLlegadaCalc} onChange={(e) => setPuertoLlegadaCalc(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200">
+                    {puertosLlegadaLista.map((p, idx) => (<option key={idx} value={p.puerto}>{p.puerto}</option>))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row items-end gap-4 pt-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-slate-400 mb-1">Velocidad del buque (nudos)</label>
+                  <input type="number" step="0.01" value={velocidadBuque} onChange={(e) => setVelocidadBuque(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200" />
+                </div>
+                <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white rounded cursor-pointer transition-colors">
+                  Calcular TTI
+                </button>
+              </div>
+            </form>
+
+            <div className="bg-[#101b1e] border border-[#1b353a] px-4 py-2.5 rounded text-xs text-[#7ee787] mt-3">
+              Distancia calculada: <strong className="text-white">{resultadoTti.distancia}</strong> | Tiempo de tránsito (TTI): <strong className="text-white">{resultadoTti.tiempo}</strong>
+              <span className="text-slate-400 ml-2">({resultadoManualFijado ? 'Modo Específico Manual Activo' : 'Modo Automático Masivo'})</span>
             </div>
           </div>
-
-          <div className="flex flex-col md:flex-row items-end gap-4 pt-2">
-            <div className="flex-1">
-              <label className="block text-xs text-slate-400 mb-1">Velocidad del buque (nudos)</label>
-              <input type="number" step="0.01" value={velocidadBuque} onChange={(e) => setVelocidadBuque(e.target.value)} className="w-full bg-[#151824] border border-[#232738] rounded px-3 py-2 text-xs text-slate-200" />
-            </div>
-            <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white rounded cursor-pointer transition-colors">
-              Calcular TTI
-            </button>
-          </div>
-        </form>
-
-        <div className="bg-[#101b1e] border border-[#1b353a] px-4 py-2.5 rounded text-xs text-[#7ee787] mt-3">
-          Distancia calculada: <strong className="text-white">{resultadoTti.distancia}</strong> | Tiempo de tránsito (TTI): <strong className="text-white">{resultadoTti.tiempo}</strong>
-          <span className="text-slate-400 ml-2">({resultadoManualFijado ? 'Modo Específico Manual Activo' : 'Modo Automático Masivo'})</span>
-        </div>
+        )}
       </div>
 
       {/* ================= TABLA LOGÍSTICA PRINCIPAL ================= */}
@@ -435,8 +455,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
                   const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
                   const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-                  
-                  // Si no hay TTI válido (aparece como '-'), se asigna 0 en lugar de forzar un 10 incorrecto
                   const ttiNorm = tieneTtiValido ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : 0;
 
                   const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
