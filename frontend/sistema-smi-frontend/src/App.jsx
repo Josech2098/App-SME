@@ -178,7 +178,7 @@ export default function App() {
                 setIsCatDropdownOpen(false);
               }}
             >
-              <span>{paisOrigen === 'España' ? '🇪🇸 España' : paisOrigen}</span>
+              <span>{paisOrigen}</span>
               <span>▼</span>
             </div>
 
@@ -193,18 +193,8 @@ export default function App() {
                   onClick={(e) => e.stopPropagation()}
                 />
                 <div className="max-h-48 overflow-y-auto py-1">
-                  <div
-                    onClick={() => {
-                      setPaisOrigen('España');
-                      setIsDropdownOpen(false);
-                      setSearchPaisOrigen('');
-                    }}
-                    className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors"
-                  >
-                    🇪🇸 España
-                  </div>
                   {listaPaisesOrigen
-                    .filter(p => p.nombre !== 'España' && p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase()))
+                    .filter(p => p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase()))
                     .map((p) => (
                       <div
                         key={p.id || p.nombre}
@@ -218,7 +208,7 @@ export default function App() {
                         {p.nombre}
                       </div>
                     ))}
-                  {listaPaisesOrigen.filter(p => p.nombre !== 'España' && p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase())).length === 0 && (
+                  {listaPaisesOrigen.filter(p => p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase())).length === 0 && (
                     <div className="px-3 py-2 text-slate-500 italic text-center">
                       No se encontraron resultados
                     </div>
