@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación agregada
 
 export default function TabTablaTotal({
   datosCosto = [],
@@ -409,7 +410,9 @@ const sumaPesos = Object.values(pesosCat)
                   className="hover:bg-[#181f2d] transition-colors"
                 >
                   <td className="p-3 text-slate-500">{index + 1}</td>
-                  <td className="p-3 font-semibold text-white">{row.pais}</td>
+                  <td className="p-3 font-semibold text-white flex items-center gap-2">
+                    {renderPaisConBandera(row.pais)}
+                  </td>
                   <td className="p-3">{row.COST.toFixed(2)}</td>
                   <td className="p-3">{row.LOGI.toFixed(2)}</td>
                   <td className="p-3">{row.COMM.toFixed(2)}</td>
@@ -449,7 +452,9 @@ const sumaPesos = Object.values(pesosCat)
                   className="hover:bg-[#181f2d] transition-colors"
                 >
                   <td className="p-3 font-bold text-slate-400">{index + 1}</td>
-                  <td className="p-3 font-medium text-white">{row.pais}</td>
+                  <td className="p-3 font-medium text-white flex items-center gap-2">
+                    {renderPaisConBandera(row.pais)}
+                  </td>
                   <td className="p-3 font-bold text-sky-400">{row.TOTAL.toFixed(2)}</td>
                 </tr>
               ))}

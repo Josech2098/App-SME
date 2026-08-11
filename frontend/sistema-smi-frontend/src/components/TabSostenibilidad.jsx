@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 // Función auxiliar para limpiar tildes, espacios y estandarizar nombres de países
 const limpiarTexto = (texto) => 
@@ -67,7 +68,6 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         };
       });
 
-      // Ordenar: primero los que tienen datos, luego alfabéticamente
       datosConsolidados.sort((a, b) => {
         if (a.tieneDatos === b.tieneDatos) return a.pais_nombre.localeCompare(b.pais_nombre);
         return a.tieneDatos ? -1 : 1;
@@ -136,7 +136,9 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
               {datosProductos.map((row, idx) => (
                 <tr key={row.id} className="hover:bg-[#181f2d]">
                   <td className="p-3 text-slate-500">{idx + 1}</td>
-                  <td className="p-3 font-medium text-white">{row.pais_nombre}</td>
+                  <td className="p-3 font-medium text-white flex items-center gap-2">
+                    {renderPaisConBandera ? renderPaisConBandera(row.pais_nombre) : row.pais_nombre}
+                  </td>
                   <td className="p-3 text-right text-emerald-400">{row.edc ?? '-'}</td>
                   <td className="p-3 text-right">{row.rpg ?? '-'}</td>
                   <td className="p-3 text-right">{row.isg ?? '-'}</td>
@@ -164,7 +166,9 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
                 return (
                   <tr key={row.id} className="hover:bg-[#181f2d]">
                     <td className="p-3 text-slate-500">{idx + 1}</td>
-                    <td className="p-3 text-white">{row.pais_nombre}</td>
+                    <td className="p-3 text-white flex items-center gap-2">
+                        {renderPaisConBandera ? renderPaisConBandera(row.pais_nombre) : row.pais_nombre}
+                    </td>
                     <td className="p-3 text-right">{edcNorm ?? '-'}</td>
                     <td className="p-3 text-right">{rpgNorm ?? '-'}</td>
                     <td className="p-3 text-right">{isgNorm ?? '-'}</td>

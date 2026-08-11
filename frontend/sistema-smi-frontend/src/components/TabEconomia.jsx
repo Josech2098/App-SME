@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [], onDatosActualizados}) {
   const [econOverrides, setEconOverrides] = useState([]);
@@ -122,8 +123,10 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       // Filtrar por paisesDestino opcionalmente si se encuentra definido
       if (paisesDestino && paisesDestino.length > 0) {
-        const paisesDestinoLimpios = paisesDestino.map(p => limpiarTexto(p));
-        dfEcon = dfEcon.filter(item => paisesDestinoLimpios.includes(limpiarTexto(item.Paises)));
+        const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
+        dfEcon = dfEcon.filter(item => 
+          nombresDestino.some(nd => limpiarTexto(nd) === limpiarTexto(item.Paises))
+        );
       }
 
       // Aplicar Overrides del usuario
@@ -252,7 +255,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 {datosEconConsolidados.map((row, index) => (
                   <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{row.Paises}</td>
+                    <td className="p-3 font-medium text-white flex items-center gap-2">
+                      {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
+                    </td>
                     <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : '-'}</td>
                     <td className="p-3">{row.INAN !== null ? row.INAN : <span className="text-slate-600 italic">sin datos</span>}</td>
                     <td className="p-3 text-emerald-400 font-semibold">{row.TAD !== null ? row.TAD : <span className="text-slate-600 italic">sin datos</span>}</td>
@@ -285,7 +290,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
               {datosEconNormalizados.map((row, index) => (
                 <tr key={index} className="hover:bg-[#151824] transition-colors">
                   <td className="p-3 text-slate-500">{index + 1}</td>
-                  <td className="p-3 font-medium text-white">{row.Paises}</td>
+                  <td className="p-3 font-medium text-white flex items-center gap-2">
+                    {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
+                  </td>
                   <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : '-'}</td>
                   <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : '-'}</td>
                   <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : '-'}</td>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen, onDatosActualizados }) {
   const [poliOverrides, setPoliOverrides] = useState([]);
@@ -54,8 +55,11 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
 
     setCargando(true);
     try {
-      const listaPaisesBase = paisesDestino.length > 0
-        ? paisesDestino
+      // Normalizar paisesDestino independientemente de si vienen objetos o cadenas simples
+      const nombresDestino = (paisesDestino || []).map(p => typeof p === 'string' ? p : p.nombre);
+
+      const listaPaisesBase = nombresDestino.length > 0
+        ? nombresDestino
         : listaPaises.map(p => p.nombre);
 
       const dfPoli = listaPaisesBase.map((pais) => {
@@ -192,7 +196,9 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                 {datosPoliConsolidados.map((row, index) => (
                   <tr key={index} className="hover:bg-[#141824]/60 transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{row.Paises}</td>
+                    <td className="p-3 font-medium text-white flex items-center gap-2">
+                      {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
+                    </td>
                     <td className="p-3">{row.FSI !== null ? row.FSI : '-'}</td>
                     <td className="p-3">{row.INRI !== null ? row.INRI : '-'}</td>
                     <td className="p-3">{row.DEIN !== null ? row.DEIN : '-'}</td>
@@ -225,7 +231,9 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
               {datosPoliNormalizados.map((row, index) => (
                 <tr key={index} className="hover:bg-[#141824]/60 transition-colors">
                   <td className="p-3 text-slate-500">{index + 1}</td>
-                  <td className="p-3 font-medium text-white">{row.Paises}</td>
+                  <td className="p-3 font-medium text-white flex items-center gap-2">
+                    {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
+                  </td>
                   <td className="p-3">{row.FSI_norm !== null ? row.FSI_norm : '-'}</td>
                   <td className="p-3">{row.INRI_norm !== null ? row.INRI_norm : '-'}</td>
                   <td className="p-3">{row.DEIN_norm !== null ? row.DEIN_norm : '-'}</td>

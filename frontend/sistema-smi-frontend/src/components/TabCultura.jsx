@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, onDatosActualizados }) {
   const [listaPaises, setListaPaises] = useState([]);
@@ -54,8 +55,11 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
 
     setCargando(true);
     try {
-      const listaPaisesBase = paisesDestino && paisesDestino.length > 0
-        ? paisesDestino
+      // Normalizar paisesDestino independientemente de si vienen objetos o cadenas simples
+      const nombresDestino = (paisesDestino || []).map(p => typeof p === 'string' ? p : p.nombre);
+
+      const listaPaisesBase = nombresDestino.length > 0
+        ? nombresDestino
         : listaPaises.map(p => p.nombre);
 
       const dfCultura = listaPaisesBase.map((pais) => {
@@ -220,7 +224,9 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                 {datosCulturaConsolidados.map((item, index) => (
                   <tr key={index} className="hover:bg-[#181f2d] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{item.Paises}</td>
+                    <td className="p-3 font-medium text-white flex items-center gap-2">
+                      {renderPaisConBandera ? renderPaisConBandera(item.Paises) : item.Paises}
+                    </td>
                     <td className="p-3">{item.GLIN !== null ? item.GLIN : '-'}</td>
                     <td className="p-3">{item.CPCI !== null ? item.CPCI : '-'}</td>
                     <td className="p-3">{item.CUDI !== null ? item.CUDI : '-'}</td>
@@ -255,7 +261,9 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
               {datosCulturaNormalizados.map((item, index) => (
                 <tr key={index} className="hover:bg-[#181f2d] transition-colors">
                   <td className="p-3 text-slate-500">{index + 1}</td>
-                  <td className="p-3 font-medium text-white">{item.Paises}</td>
+                  <td className="p-3 font-medium text-white flex items-center gap-2">
+                    {renderPaisConBandera ? renderPaisConBandera(item.Paises) : item.Paises}
+                  </td>
                   <td className="p-3">{item.GLIN_norm !== null ? item.GLIN_norm : '-'}</td>
                   <td className="p-3">{item.CPCI_norm !== null ? item.CPCI_norm : '-'}</td>
                   <td className="p-3">{item.CUDI_norm !== null ? item.CUDI_norm : '-'}</td>
