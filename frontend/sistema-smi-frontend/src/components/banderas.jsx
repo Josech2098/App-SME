@@ -1,11 +1,11 @@
-// Diccionario completo de países en español a sus códigos ISO (minúsculas)
+// Diccionario completo con todos los países presentes en el CSV y el mundo
 const codigosISO = {
   // A
   'afganistán': 'af', 'albania': 'al', 'alemania': 'de', 'andorra': 'ad', 'angola': 'ao',
   'antigua y barbuda': 'ag', 'arabia saudita': 'sa', 'argelia': 'dz', 'argentina': 'ar',
   'armenia': 'am', 'australia': 'au', 'austria': 'at', 'azerbaiyán': 'az',
   // B
-  'bahamas': 'bs', 'bangladés': 'bd', 'barbados': 'bb', 'barréin': 'bh', 'bélgica': 'be',
+  'bahamas': 'bs', 'bangladés': 'bd', 'barbados': 'bb', 'baréin': 'bh', 'bélgica': 'be',
   'belice': 'bz', 'benín': 'bj', 'bielorrusia': 'by', 'birmania': 'mm', 'bolivia': 'bo',
   'bosnia y herzegovina': 'ba', 'botsuana': 'bw', 'brasil': 'br', 'Brunéi': 'bn',
   'bulgaria': 'bg', 'burkina faso': 'bf', 'burundi': 'bi', 'bután': 'bt',
@@ -13,9 +13,9 @@ const codigosISO = {
   'cabo verde': 'cv', 'camboya': 'kh', 'camerún': 'cm', 'canadá': 'ca', 'catar': 'qa',
   'chad': 'td', 'chile': 'cl', 'china': 'cn', 'chipre': 'cy', 'ciudad del vaticano': 'va',
   'colombia': 'co', 'comoras': 'km', 'corea del norte': 'kp', 'corea del sur': 'kr',
-  'cota de marfil': 'ci', 'costa rica': 'cr', 'croacia': 'hr', 'cuba': 'cu',
+  'costa de marfil': 'ci', 'costa rica': 'cr', 'croacia': 'hr', 'cuba': 'cu',
   // D
-  'dinamarca': 'dk', 'dominica': 'dm', 'republica dominicana': 'do',
+  'dinamarca': 'dk', 'dominica': 'dm', 'republica dominicana': 'do', 'república dominicana': 'do',
   // E
   'ecuador': 'ec', 'egipto': 'eg', 'el salvador': 'sv', 'emiratos árabes unidos': 'ae',
   'eritrea': 'er', 'eslovaquia': 'sk', 'eslovenia': 'si', 'españa': 'es',
@@ -27,11 +27,10 @@ const codigosISO = {
   'grecia': 'gr', 'guatemala': 'gt', 'guinea': 'gn', 'guinea ecuatorial': 'gq',
   'guinea-bissau': 'gw', 'guyana': 'gy',
   // H
-  'haití': 'ht', 'honduras': 'hn', 'hungría': 'hu',
+  'haití': 'ht', 'honduras': 'hn', 'hong kong': 'hk', 'hungría': 'hu',
   // I
   'india': 'in', 'indonesia': 'id', 'irak': 'iq', 'irán': 'ir', 'irlanda': 'ie',
-  'islandia': 'is', 'isillas marshall': 'mh', 'islas salomón': 'sb', 'israel': 'il',
-  'italia': 'it',
+  'islandia': 'is', 'israel': 'il', 'italia': 'it',
   // J
   'jamaica': 'jm', 'japón': 'jp', 'jordania': 'jo',
   // K
@@ -52,11 +51,11 @@ const codigosISO = {
   // P
   'países bajos': 'nl', 'pakistán': 'pk', 'palaos': 'pw', 'panamá': 'pa',
   'papúa nueva guinea': 'pg', 'paraguay': 'py', 'perú': 'pe', 'polonia': 'pl',
-  'portugal': 'pt', 'reino unido': 'gb',
+  'portugal': 'pt', 'puerto rico': 'pr', 'reino unido': 'gb',
   // R
   'república centroafricana': 'cf', 'república checa': 'cz',
   'república del congo': 'cg', 'república democrática del congo': 'cd',
-  'ruanda': 'rw', 'rumania': 'ro', 'rusia': 'ru',
+  'ruanda': 'rw', 'rumanía': 'ro', 'rumania': 'ro', 'rusia': 'ru',
   // S
   'samoa': 'ws', 'san cristóbal y nieves': 'kn', 'san marino': 'sm',
   'san vicente y las granadinas': 'vc', 'santa lucía': 'lc', 'santo tomé y príncipe': 'st',
@@ -65,7 +64,7 @@ const codigosISO = {
   'suazilandia': 'sz', 'sudáfrica': 'za', 'sudán': 'sd', 'sudán del sur': 'ss',
   'suecia': 'se', 'suiza': 'ch', 'surinam': 'sr',
   // T
-  'tailandia': 'th', 'tanzania': 'tz', 'tayikistán': 'tj', 'timor oriental': 'tl',
+  'tailandia': 'th', 'taiwán': 'tw', 'tanzania': 'tz', 'tayikistán': 'tj', 'timor oriental': 'tl',
   'togo': 'tg', 'tonga': 'to', 'trinidad y tobago': 'tt', 'túnez': 'tn',
   'turkmenistán': 'tm', 'turquía': 'tr', 'tuvalu': 'tv',
   // U
@@ -80,7 +79,7 @@ const codigosISO = {
 
 export const obtenerCodigoISO = (nombrePais) => {
   if (!nombrePais) return null;
-  const normalizado = nombrePais.trim().toLowerCase();
+  const normalizado = nombrePais.toString().trim().toLowerCase();
   return codigosISO[normalizado] || null;
 };
 
@@ -102,7 +101,7 @@ export const renderPaisConBandera = (nombrePais) => {
       <img 
         src={`https://flagcdn.com/20x15/${codigo}.png`} 
         alt={nombrePais} 
-        className="w-5 h-3.5 object-cover rounded-[2px] shadow-sm inline-block"
+        className="w-5 h-3.5 object-cover rounded-[2px] shadow-sm inline-block shrink-0"
       />
       <span>{nombrePais}</span>
     </span>
