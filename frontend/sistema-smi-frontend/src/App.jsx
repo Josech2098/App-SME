@@ -373,7 +373,7 @@ export default function App() {
       <main className="flex-1 p-8 overflow-y-auto" onClick={() => { setIsDropdownOpen(false); setIsCatDropdownOpen(false); }}>
         
         <h1 className="text-3xl font-bold text-white mb-6 tracking-tight">
-          Aplicativo selección de mercados internacionales para la exportación de mercancías
+          Aplicativo Selección de Mercados Internacionales Para La Exportación De Mercancías
         </h1>
 
         {/* Pestañas (Tabs) */}
