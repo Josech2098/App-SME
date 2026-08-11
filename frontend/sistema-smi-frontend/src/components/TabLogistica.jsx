@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen, onDatosActualizados }) {
   const [tablaLogi, setTablaLogi] = useState([]);
@@ -386,7 +387,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   return (
                     <tr key={index} className="hover:bg-[#151824] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
-                      <td className="p-3 font-medium text-white">{row.Paises}</td>
+                      <td className="p-3 font-medium text-white flex items-center gap-2">
+                        {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
+                      </td>
                       <td className="p-3">{row['Índice de Desempeño Logístico (IDL)']}</td>
                       <td className="p-3">{row['Calidad de las carreteras por país (CCP)']}</td>
                       <td className={`p-3 font-medium ${ttiMostrado === '-' ? 'text-slate-500' : 'text-emerald-400'}`}>
@@ -441,7 +444,9 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   return (
                     <tr key={index} className="hover:bg-[#151824] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
-                      <td className="p-3 font-medium text-white">{row.Paises}</td>
+                      <td className="p-3 font-medium text-white flex items-center gap-2">
+                        {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
+                      </td>
                       <td className="p-3 text-slate-300">{idlNorm}</td>
                       <td className="p-3 text-slate-300">{ccpNorm}</td>
                       <td className="p-3 text-slate-300">{tieneTtiValido ? ttiNorm : '-'}</td>
