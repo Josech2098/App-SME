@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 export default function TablaProductos({
   paisDestino,
@@ -174,7 +175,9 @@ export default function TablaProductos({
                         }`}
                       >
                         <td className="py-3 px-4 text-slate-400">{idVal}</td>
-                        <td className="py-3 px-4 font-sans font-medium text-slate-200">{paisVal}</td>
+                        <td className="py-3 px-4 font-sans font-medium text-slate-200 flex items-center gap-2">
+                          {renderPaisConBandera ? renderPaisConBandera(paisVal) : paisVal}
+                        </td>
                         <td className="py-3 px-4 font-sans text-slate-200">{nombre}</td>
                         <td className="py-3 px-4 text-right text-emerald-400 font-semibold pr-6">{precioFmt}</td>
                       </tr>
