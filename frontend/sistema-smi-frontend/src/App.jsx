@@ -11,7 +11,7 @@ import TabSostenibilidad from './components/TabSostenibilidad';
 import TabTablaTotal from './components/TabTablaTotal';
 import TabGraficosComparativos from './components/TabGraficos';
 import SplashScreen from "./components/SplashScreen";
-import logoSmipem from "./SMIPEM.png"; // 📌 Alternativa si la imagen está en la carpeta src
+import logoSmipem from "./assets/SMIPEM.png";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
