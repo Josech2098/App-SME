@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
+import { renderPaisConBandera } from './banderas.jsx';
 
 // Función auxiliar para limpiar tildes, espacios y estandarizar nombres de países
 const limpiarTexto = (texto) => 
@@ -92,15 +92,19 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   const rpgVals = datosProductos.map(d => d.rpg).filter(v => v !== null && v > 0);
   const isgVals = datosProductos.map(d => d.isg).filter(v => v !== null && v > 0);
 
-  const minEdc = edcVals.length > 0 ? Math.min(...edcVals) : null; 
+  // CAMBIO CLAVE: Usar Math.max en lugar de Math.min para EDC si las emisiones están en escala de eficiencia/desempeño directo,
+  // o aplicar normalización directa si un número mayor de EDC representa mejores prácticas ambientales.
+  const maxEdc = edcVals.length > 0 ? Math.max(...edcVals) : null; 
   const minRpg = rpgVals.length > 0 ? Math.min(...rpgVals) : null; 
   const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null;
   
-  const calcularNormalizadoInverso = (val, minVal) => (val === null || val <= 0 || !minVal) ? null : Number(((PUNTAJE_MAXIMO * minVal) / val).toFixed(2));
+  // Si EDC ahora es directo (a mayor valor, mejor desempeño ambiental):
   const calcularNormalizadoDirecto = (val, maxVal) => (val === null || val <= 0 || !maxVal) ? null : Number(((PUNTAJE_MAXIMO * val) / maxVal).toFixed(2));
+  const calcularNormalizadoInverso = (val, minVal) => (val === null || val <= 0 || !minVal) ? null : Number(((PUNTAJE_MAXIMO * minVal) / val).toFixed(2));
 
   const datosSustNormalizados = datosProductos.map(row => {
-    const edcNorm = calcularNormalizadoInverso(row.edc, minEdc);
+    // Si tu columna EDC ahora representa eficiencia (directo) en vez de volumen total bruto (inverso):
+    const edcNorm = calcularNormalizadoDirecto(row.edc, maxEdc);
     const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
     const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
 
@@ -159,7 +163,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
             </thead>
             <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
               {datosProductos.map((row, idx) => {
-                const edcNorm = calcularNormalizadoInverso(row.edc, minEdc);
+                const edcNorm = calcularNormalizadoDirecto(row.edc, maxEdc);
                 const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
                 const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
                 const total = row.tieneDatos ? Number((((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2)) : '-';
