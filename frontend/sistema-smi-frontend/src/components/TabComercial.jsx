@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { renderPaisConBandera } from './banderas'; // <--- Importamos el helper de banderas
 
 export default function TabComercial({
   productoActivo,
@@ -245,7 +246,7 @@ export default function TabComercial({
                 datosCommConsolidados.map((row, index) => (
                   <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{row.Paises}</td>
+                    <td className="p-3 font-medium text-white">{renderPaisConBandera(row.Paises)}</td> {/* <--- Aplicado aquí */}
                     <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
                     <td className="p-3 font-semibold text-emerald-400">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
                     <td className="p-3 font-semibold text-emerald-400">{row['Índice de Libertad Económica (IOEF)']}</td>
@@ -283,7 +284,7 @@ export default function TabComercial({
                 datosCommNormalizados.map((row, index) => (
                   <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{row.Paises}</td>
+                    <td className="p-3 font-medium text-white">{renderPaisConBandera(row.Paises)}</td> {/* <--- Aplicado aquí */}
                     <td className="p-3">{row.CTCO_norm}</td>
                     <td className="p-3">{row.IEMP_norm}</td>
                     <td className="p-3">{row.IOEF_norm}</td>

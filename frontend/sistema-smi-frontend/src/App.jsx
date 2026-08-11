@@ -12,30 +12,6 @@ import TabTablaTotal from './components/TabTablaTotal';
 import TabGraficosComparativos from './components/TabGraficos';
 import SplashScreen from "./components/SplashScreen";
 
-// Helper opcional para asignar emojis de bandera por nombre de país (o puedes adaptarlo si tienes el código ISO en Supabase)
-const obtenerBandera = (nombrePais) => {
-  const banderas = {
-    'España': '🇪🇸',
-    'Colombia': '🇨🇴',
-    'México': '🇲🇽',
-    'Argentina': '🇦🇷',
-    'Chile': '🇨🇱',
-    'Perú': '🇵🇪',
-    'Estados Unidos': '🇺🇸',
-    'Francia': '🇫🇷',
-    'Alemania': '🇩🇪',
-    'Italia': '🇮🇹',
-    'China': '🇨🇳',
-    'Japón': '🇯🇵',
-    'Brasil': '🇧🇷',
-    'Ecuador': '🇪🇨',
-    'Costa Rica': '🇨🇷',
-    'Panamá': '🇵🇦',
-    // Puedes agregar más países según los que tengas en tu base de datos
-  };
-  return banderas[nombrePais] || '🏳️'; // Bandera genérica por defecto si no se encuentra
-};
-
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [mostrarSplash, setMostrarSplash] = useState(true);
@@ -202,7 +178,7 @@ export default function App() {
                 setIsCatDropdownOpen(false);
               }}
             >
-              <span>{obtenerBandera(paisOrigen)} {paisOrigen}</span>
+              <span>{paisOrigen === 'España' ? '🇪🇸 España' : paisOrigen}</span>
               <span>▼</span>
             </div>
 
@@ -223,9 +199,9 @@ export default function App() {
                       setIsDropdownOpen(false);
                       setSearchPaisOrigen('');
                     }}
-                    className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors flex items-center gap-2"
+                    className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors"
                   >
-                    <span>🇪🇸</span> España
+                    🇪🇸 España
                   </div>
                   {listaPaisesOrigen
                     .filter(p => p.nombre !== 'España' && p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase()))
@@ -237,9 +213,9 @@ export default function App() {
                           setIsDropdownOpen(false);
                           setSearchPaisOrigen('');
                         }}
-                        className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors flex items-center gap-2"
+                        className="px-3 py-1.5 hover:bg-red-500/20 cursor-pointer text-slate-200 transition-colors"
                       >
-                        <span>{obtenerBandera(p.nombre)}</span> {p.nombre}
+                        {p.nombre}
                       </div>
                     ))}
                   {listaPaisesOrigen.filter(p => p.nombre !== 'España' && p.nombre.toLowerCase().includes(searchPaisOrigen.toLowerCase())).length === 0 && (
@@ -422,7 +398,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* Contenido Dinámico */}
+        {/* Contenido Dinámico (Montados permanentemente mediante display CSS para precargar los datos) */}
         <div>
           <div className={activeTab === 0 ? 'block' : 'hidden'}>
             <TablaProductos 
