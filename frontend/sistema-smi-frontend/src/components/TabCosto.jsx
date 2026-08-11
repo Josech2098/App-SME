@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { renderPaisConBandera } from './banderas.jsx';
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
 // --- Helper: Cálculo de distancia geográfica mediante Haversine ---
 function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
@@ -191,7 +191,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = objetoPaisBase?.latitud;
       const lonBase = objetoPaisBase?.longitud;
 
-      // Consolidación estricta filtrando solo países con PPD > 0 (simulando filas completas de Excel)
       const datosConsolidados = dbPaises
         .map((p) => {
           const nombreKey = p.nombre.trim().toLowerCase();
@@ -216,8 +215,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
             cti: ctiVal,
             cic: cicVal
           };
-        })
-        .filter(d => d.ppd > 0);
+        });
 
       setDatosProductos(datosConsolidados);
     } catch (err) {
