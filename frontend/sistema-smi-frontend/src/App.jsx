@@ -11,6 +11,7 @@ import TabSostenibilidad from './components/TabSostenibilidad';
 import TabTablaTotal from './components/TabTablaTotal';
 import TabGraficosComparativos from './components/TabGraficos';
 import SplashScreen from "./components/SplashScreen";
+import logoSmipem from "./SMIPEM.png"; // 📌 Alternativa si la imagen está en la carpeta src
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -351,7 +352,7 @@ export default function App() {
 
           <div className="mt-6 pt-4 border-t border-slate-700/50 text-slate-400 flex flex-col items-start space-y-2">
             <img 
-              src="/SMIPEM.png" 
+              src={logoSmipem} 
               alt="SMIPEM Logo" 
               className="h-10 w-auto object-contain mb-1" 
             />
