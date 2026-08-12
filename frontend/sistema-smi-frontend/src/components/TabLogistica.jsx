@@ -201,7 +201,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   const tablaProcesadaFinal = useMemo(() => {
     if (tablaLogi.length === 0) return [];
 
-    // Filtrar únicamente valores estrictamente mayores a 0 y no nulos para calcular los máximos de normalización
     const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v !== null && !isNaN(v) && v > 0);
     const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v !== null && !isNaN(v) && v > 0);
 
@@ -220,9 +219,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       const ttiVal = Number(ttiStr);
       const tieneTtiValido = !isNaN(ttiVal) && ttiVal > 0;
 
-      // Si algún parámetro principal es null, nulo o 0, el valor normalizado y el total se marcan como inválidos/null
       const idlNorm = (idl !== null && idl > 0 && MAX_IDL) ? Number((A3 * idl / MAX_IDL).toFixed(2)) : null;
-      const ccpNorm = (ccp !== null && ccp > 0 && MAX_CCP) ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : null;
+      
+      // Aplicamos normalización logarítmica para CCP si los datos son kilómetros kilométricos extensos
+      const ccpNorm = (ccp !== null && ccp > 0 && MAX_CCP) 
+        ? Number((A3 * (Math.log(ccp + 1) / Math.log(MAX_CCP + 1))).toFixed(2)) 
+        : null;
+
       const ttiNorm = (tieneTtiValido && MIN_TTI) ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : null;
 
       const tieneNulosOIncompletos = idlNorm === null || ccpNorm === null || ttiNorm === null;
@@ -242,7 +245,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       };
     });
 
-    // Ordenamiento estricto: Primero los que NO tienen nulos y mayor puntaje, al final los que tienen datos incompletos
     procesada.sort((a, b) => {
       if (a.__tieneNulos !== b.__tieneNulos) {
         return a.__tieneNulos ? 1 : -1;
@@ -459,7 +461,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                   <th className="p-3 w-12 bg-[#151824]">#</th>
                   <th className="p-3 bg-[#151824]">País</th>
                   <th className="p-3 bg-[#151824]">IDL Normalizado (A3*IDL/Max)</th>
-                  <th className="p-3 bg-[#151824]">CCP Normalizado (A3*CCP/Max)</th>
+                  <th className="p-3 bg-[#151824]">CCP Normalizado (Logarítmico)</th>
                   <th className="p-3 bg-[#151824]">TTI Normalizado (A3*Min/TTI)</th>
                   <th className="p-3 bg-[#151824] text-indigo-400">Ponderación Total</th>
                 </tr>
