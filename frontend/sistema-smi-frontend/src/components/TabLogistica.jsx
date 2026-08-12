@@ -55,6 +55,10 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   // Cálculo de distancia náutica con factor de corrección marítima internacional básico 
   const calcularDistanciaNautica = (lat1, lon1, lat2, lon2) => {
     if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return 0;
+    
+    // Evitar cálculos si las coordenadas son idénticas
+    if (lat1 === lat2 && lon1 === lon2) return 0;
+
     const R = 3440.06; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -72,8 +76,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
   const calcularTtiEntrePuertos = (pO, pD, vel = 18.50) => {
     if (!pO || !pD) return null;
+    
+    // Validar que no estemos calculando contra el mismo puerto exacto
+    if (normalizarTexto(pO.puerto) === normalizarTexto(pD.puerto)) return null;
+
     const distNm = calcularDistanciaNautica(pO.latitud, pO.longitud, pD.latitud, pD.longitud);
-    if (distNm === 0) return null;
+    if (distNm <= 0) return null;
+
     const horasNavegacion = distNm / vel;
     const diasNavegacion = horasNavegacion / 24;
     const manejoDias = (Number(pD.manejo_dias) || 0) + (Number(pO.manejo_dias) || 0);
@@ -83,7 +92,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     };
   };
 
-  // 🔹 CORRECCIÓN: Cálculo por fila optimizado e independiente
+  // 🔹 CORRECCIÓN: Cálculo por fila optimizado e independiente por país
   const calcularTtiParaFila = useCallback((nombrePaisFila) => {
     const normFila = normalizarTexto(nombrePaisFila);
 
@@ -97,10 +106,13 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
                    || puertosData.find(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc) && p.principal === 'Y')
                    || puertosData.find(p => normalizarTexto(p.pais) === normalizarTexto(paisSalidaCalc));
 
-    const puertoD = puertosData.find(p => normalizarTexto(p.pais) === normFila && p.principal === 'Y')
-                   || puertosData.find(p => normalizarTexto(p.pais) === normFila);
+    // Búsqueda estricta y aislada para el país de destino de la fila actual
+    const puertosDelPaisDestino = puertosData.filter(p => normalizarTexto(p.pais) === normFila);
+    const puertoD = puertosDelPaisDestino.find(p => p.principal === 'Y') || puertosDelPaisDestino[0];
 
     if (!puertoO || !puertoD) return '-';
+
+    if (normalizarTexto(puertoO.puerto) === normalizarTexto(puertoD.puerto)) return '-';
 
     const resultado = calcularTtiEntrePuertos(puertoO, puertoD, Number(velocidadBuque) || 18.50);
     if (!resultado) return '-';
