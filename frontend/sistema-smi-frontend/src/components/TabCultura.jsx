@@ -137,15 +137,25 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       const P_CUDI = 0.20;
 
       const dfNorm = dfCultura.map(item => {
-        const glinNorm = item.GLIN !== null && maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
-        const cpciNorm = item.CPCI !== null && maxCPCI > 0 ? Number(((A3 * item.CPCI) / maxCPCI).toFixed(2)) : null;
-        const cudiNorm = item.CUDI !== null && item.CUDI > 0 && minCUDI > 0 ? Number(((A3 * minCUDI) / item.CUDI).toFixed(2)) : null;
+        // Validar estrictamente si posee datos en todas las columnas requeridas
+        const tieneTodosLosDatos = item.GLIN !== null && item.CPCI !== null && item.CUDI !== null;
 
-        const puntajeCult = Number((
-          (glinNorm !== null ? glinNorm : 0) * P_GLIN +
-          (cpciNorm !== null ? cpciNorm : 0) * P_CPCI +
-          (cudiNorm !== null ? cudiNorm : 0) * P_CUDI
-        ).toFixed(2));
+        let glinNorm = null;
+        let cpciNorm = null;
+        let cudiNorm = null;
+        let puntajeCult = 0;
+
+        if (tieneTodosLosDatos) {
+          glinNorm = maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
+          cpciNorm = maxCPCI > 0 ? Number(((A3 * item.CPCI) / maxCPCI).toFixed(2)) : null;
+          cudiNorm = item.CUDI > 0 && minCUDI > 0 ? Number(((A3 * minCUDI) / item.CUDI).toFixed(2)) : null;
+
+          puntajeCult = Number((
+            (glinNorm !== null ? glinNorm : 0) * P_GLIN +
+            (cpciNorm !== null ? cpciNorm : 0) * P_CPCI +
+            (cudiNorm !== null ? cudiNorm : 0) * P_CUDI
+          ).toFixed(2));
+        }
 
         const faltantesNorm = [glinNorm, cpciNorm, cudiNorm].filter(v => v === null).length;
 
@@ -154,7 +164,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
           GLIN_norm: glinNorm,
           CPCI_norm: cpciNorm,
           CUDI_norm: cudiNorm,
-          Puntaje_CULT_Normalizado: puntajeCult,
+          Puntaje_CULT_Normalizado: tieneTodosLosDatos ? puntajeCult : 0,
           _faltantes: faltantesNorm
         };
       });
