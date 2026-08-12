@@ -103,7 +103,8 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const resultado = calcularTtiEntrePuertos(puertoO, puertoD, Number(velocidadBuque) || 18.50);
     if (!resultado) return '-';
 
-    return `${resultado.dias.toFixed(1)} días`;
+    // Se cambió a 2 decimales para evitar colisiones idénticas en el redondeo
+    return `${resultado.dias.toFixed(2)} días`;
   }, [paisSalidaCalc, puertoSalidaCalc, puertosData, velocidadBuque, resultadoManualFijado]);
 
   // Manejar el cambio automático del puerto de salida al cambiar el país de salida
@@ -221,12 +222,15 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       const idlNorm = (idl !== null && idl > 0 && MAX_IDL) ? Number((A3 * idl / MAX_IDL).toFixed(2)) : null;
       
-      // Aplicamos normalización logarítmica para CCP si los datos son kilómetros kilométricos extensos
+      // Normalización logarítmica para CCP
       const ccpNorm = (ccp !== null && ccp > 0 && MAX_CCP) 
         ? Number((A3 * (Math.log(ccp + 1) / Math.log(MAX_CCP + 1))).toFixed(2)) 
         : null;
 
-      const ttiNorm = (tieneTtiValido && MIN_TTI) ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : null;
+      // Normalización robusta de TTI (Minimizante)
+      const ttiNorm = (tieneTtiValido && MIN_TTI) 
+        ? Number((A3 * (MIN_TTI / ttiVal)).toFixed(2)) 
+        : null;
 
       const tieneNulosOIncompletos = idlNorm === null || ccpNorm === null || ttiNorm === null;
 
@@ -289,7 +293,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
       return;
     }
 
-    const formatoDias = `${resultado.dias.toFixed(1)} días`;
+    const formatoDias = `${resultado.dias.toFixed(2)} días`;
 
     setResultadoTti({
       distancia: `${Math.round(resultado.distancia).toLocaleString()} nm`,
@@ -305,7 +309,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     });
   };
 
-  const limpiarCalculoManual = () => {
+  const limpiarCalcularManual = () => {
     setResultadoManualFijado(null);
   };
 
@@ -349,7 +353,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
           <div className="p-5 space-y-4 border-t border-[#1b1f2e]">
             <div className="flex justify-end">
               {resultadoManualFijado && (
-                <button onClick={limpiarCalculoManual} className="text-[11px] text-indigo-400 hover:underline cursor-pointer">
+                <button onClick={limpiarCalcularManual} className="text-[11px] text-indigo-400 hover:underline cursor-pointer">
                   ↺ Regresar a cálculo masivo automático
                 </button>
               )}
