@@ -198,27 +198,26 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const datosConsolidados = dbPaises
         .map((p) => {
           const nombreKey = p.nombre.trim().toLowerCase();
-          const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : 0;
+          // Si no hay precio registrado, asignar null en lugar de 0 para evitar falsos positivos
+          const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : null;
 
           const cicMatch = (dbCostoImportacion || []).find(
             (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
           );
           
-          let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : 0;
-          if (isNaN(cicVal)) cicVal = 0;
+          let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
+          if (cicVal !== null && isNaN(cicVal)) cicVal = null;
 
           // 🔹 Buscar el puerto correspondiente al país de destino actual en el bucle
           const puertoDestinoObj = (dbPuertos || []).find(
             (pt) => String(pt.pais).trim().toLowerCase() === nombreKey
           );
 
-          let ctiVal = 0;
+          let ctiVal = null;
           if (latBase && lonBase && puertoDestinoObj?.latitud && puertoDestinoObj?.longitud) {
-            // Calcular distancia lineal entre puertos
             const distKm = calcularDistanciaKm(latBase, lonBase, puertoDestinoObj.latitud, puertoDestinoObj.longitud);
-            // Aplicar factor de corrección de ruta marítima real (1.6)
             const distanciaMaritima = distKm * 1.6;
-            ctiVal = distanciaMaritima > 0 ? Number((distanciaMaritima * 0.38).toFixed(2)) : 0;
+            ctiVal = distanciaMaritima > 0 ? Number((distanciaMaritima * 0.38).toFixed(2)) : null;
           }
 
           return {
@@ -254,12 +253,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const { maxPpd, minCti, minCic } = useMemo(() => {
     const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && v > 0);
     const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && v > 0);
-    const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined);
+    const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && v > 0);
 
     return {
       maxPpd: ppdVals.length > 0 ? Math.max(...ppdVals) : null,
       minCti: ctiVals.length > 0 ? Math.min(...ctiVals) : null,
-      minCic: cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : 0
+      minCic: cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : null
     };
   }, [datosProductos]);
 
@@ -270,33 +269,30 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   };
 
   const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined) return null;
-    if (val === 0) return PUNTAJE_MAXIMO;
-    if (minVal === null || minVal <= 0) {
-      const valoresValidos = datosProductos.map(d => d.cic).filter(v => v > 0);
-      minVal = valoresValidos.length > 0 ? Math.min(...valoresValidos) : val;
-    }
+    if (val === null || val === undefined || val <= 0 || !minVal || minVal <= 0) return null;
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
     return Number(resultado.toFixed(2));
   };
 
   const matrizCalculadaCompleta = useMemo(() => {
     const calculada = datosProductos.map(row => {
-      const valPpd = row.ppd ?? row.PPD ?? 0;
-      const valCti = row.cti ?? row.CTI ?? row.transport_cost ?? 0; 
-      const valCic = row.cic ?? row.CIC ?? row.cumplimiento ?? 0;
+      const valPpd = row.ppd ?? null;
+      const valCti = row.cti ?? null; 
+      const valCic = row.cic ?? null;
 
       const ppdNorm = calcularNormalizadoDirecto(valPpd, maxPpd);
       const ctiNorm = calcularNormalizadoInverso(valCti, minCti);
       const cicNorm = calcularNormalizadoInverso(valCic, minCic);
 
+      // Si alguna métrica clave es null, determinamos que tiene datos incompletos
+      const tieneNulos = ppdNorm === null || ctiNorm === null || cicNorm === null;
+
       const p1 = ppdNorm ?? 0;
       const p2 = ctiNorm ?? 0;
       const p3 = cicNorm ?? 0;
 
-      const aporteFactorCosto = Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
+      const aporteFactorCosto = tieneNulos ? 0 : Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
       const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
-      const noTieneDatos = valPpd === 0;
 
       return {
         ...row,
@@ -305,13 +301,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         cicNorm,
         aporteFactorCosto,
         __faltantes: faltantes,
-        __noTieneDatos: noTieneDatos
+        __tieneNulos: tieneNulos
       };
     });
 
+    // 🔹 Ordenamiento estricto: Primero los que NO tienen nulos y mayor puntaje
     calculada.sort((a, b) => {
-      if (a.__noTieneDatos !== b.__noTieneDatos) {
-        return a.__noTieneDatos ? 1 : -1;
+      if (a.__tieneNulos !== b.__tieneNulos) {
+        return a.__tieneNulos ? 1 : -1; // Los que tienen nulos van al final
       }
       if (a.__faltantes !== b.__faltantes) {
         return a.__faltantes - b.__faltantes;
@@ -430,10 +427,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       <td className="py-3 px-4 font-sans font-medium text-slate-200 flex items-center gap-2">
                         {renderPaisConBandera ? renderPaisConBandera(row.pais_nombre) : row.pais_nombre}
                       </td>
-                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
-                      <td className="py-3 px-4 text-right">{row.cti > 0 ? `$${row.cti.toFixed(2)}` : '$0.00'}</td>
+                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd !== null && row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
+                      <td className="py-3 px-4 text-right">{row.cti !== null ? `$${row.cti.toFixed(2)}` : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right pr-6">
-                        {row.cic !== null ? `$${row.cic.toFixed(2)}` : '$0.00'}
+                        {row.cic !== null ? `$${row.cic.toFixed(2)}` : 'Sin datos'}
                       </td>
                     </tr>
                   ))
@@ -488,7 +485,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       <td className="py-3 px-4 text-right">{row.ppdNorm !== null ? row.ppdNorm : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right">{row.ctiNorm !== null ? row.ctiNorm : '-'}</td>
                       <td className="py-3 px-4 text-right">{row.cicNorm !== null ? row.cicNorm : '-'}</td>
-                      <td className="py-3 px-4 text-right pr-6 font-bold text-emerald-400">{row.aporteFactorCosto}</td>
+                      <td className="py-3 px-4 text-right pr-6 font-bold text-emerald-400">{row.__tieneNulos ? '-' : row.aporteFactorCosto}</td>
                     </tr>
                   ))
                 ) : (
