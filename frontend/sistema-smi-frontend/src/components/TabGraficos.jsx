@@ -159,7 +159,13 @@ export default function TabGraficos({ datosTotales = [] }) {
     },
     scales: {
       x: { ticks: { color: 'white', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-      y: { ticks: { color: 'white', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.1)' }, title: { display: true, text: 'Puntaje Real', color: 'white' } }
+      y: { 
+        min: 0, 
+        max: 10, 
+        ticks: { color: 'white', font: { size: 12 } }, 
+        grid: { color: 'rgba(255,255,255,0.1)' }, 
+        title: { display: true, text: 'Puntaje Real (0-10)', color: 'white' } 
+      }
     }
   };
 
@@ -289,9 +295,17 @@ export default function TabGraficos({ datosTotales = [] }) {
       </div>
 
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <h3 className="text-lg font-bold text-white">Comparativo de países mejor posicionados</h3>
+        <h3 className="text-lg font-bold text-white">Comparativo de países mejor posicionados (Top 10)</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[500px]">
           <Bar id="canvas-grafico-1" data={dataGrafico1} options={optionsGrafico1} />
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={() => handleDescargarGraficoCanvas('canvas-grafico-1', 'Grafico_Top10.png')}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded border border-slate-700 transition-colors cursor-pointer"
+          >
+            Descargar Gráfico 1 (PNG)
+          </button>
         </div>
       </div>
 
