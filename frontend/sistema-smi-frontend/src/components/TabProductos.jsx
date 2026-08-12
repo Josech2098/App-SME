@@ -58,19 +58,29 @@ export default function TablaProductos({
     return isNaN(num) ? 0 : num;
   };
 
-  // 🔍 Lógica de Filtrado Dinámico para la Tabla
+  // 🔍 Lógica de Filtrado Dinámico Corregida y Flexible
   const productosFiltrados = productos.filter((p) => {
+    
+    // 1. Filtro por categoría
     if (categoria && categoria !== 'Todos') {
+      const catProducto = String(p.categoria_codigo || p.categoria || '').trim();
+      const coincideCodigoDirecto = catProducto === String(categoria);
+
       const palabrasCategoriaActual = keywordsCategoria
         .filter(k => String(k.categoria_codigo) === String(categoria))
         .map(k => String(k.palabra_clave || '').toLowerCase());
 
       const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
-      const coincideCategoria = palabrasCategoriaActual.some(palabra => nombreProducto.includes(palabra));
+      const coincideKeyword = palabrasCategoriaActual.some(palabra => nombreProducto.includes(palabra));
 
-      if (!coincideCategoria) return false;
+      // Si hay keywords para esta categoría, exigimos que coincida por código directo o por palabra clave.
+      // Si no hay keywords registradas aún, no bloqueamos el producto para que se muestre.
+      if (palabrasCategoriaActual.length > 0) {
+        if (!coincideCodigoDirecto && !coincideKeyword) return false;
+      }
     }
     
+    // 2. Filtro por subcategoría
     if (subcategoria && subcategoria !== 'Todos') {
       const palabrasSubcategoriaActual = keywordsCategoria
         .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
@@ -84,12 +94,18 @@ export default function TablaProductos({
       const coincideSubEmpieza = subcatFiltro.startsWith(subcatProducto) || subcatProducto.startsWith(subcatFiltro);
       const coincideKeywordSub = palabrasSubcategoriaActual.some(palabra => nombreProducto.includes(palabra));
 
-      if (!coincideSubExacto && !coincideSubEmpieza && !coincideKeywordSub) return false;
+      if (palabrasSubcategoriaActual.length > 0 || subcatFiltro) {
+        if (!coincideSubExacto && !coincideSubEmpieza && !coincideKeywordSub && palabrasSubcategoriaActual.length > 0) {
+          return false;
+        }
+      }
     }
     
+    // 3. Filtro por nombre escrito manualmente
     const nombreVal = p.nombre || p.producto || '';
     if (searchNombre && !nombreVal.toLowerCase().includes(searchNombre.toLowerCase())) return false;
     
+    // 4. Filtro por código de categoría
     if (searchCodigo) {
       const palabrasCodigo = keywordsCategoria
         .filter(k => String(k.categoria_codigo).startsWith(searchCodigo))
@@ -98,9 +114,10 @@ export default function TablaProductos({
       const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
       const coincideCodigo = palabrasCodigo.some(palabra => nombreProducto.includes(palabra));
 
-      if (!coincideCodigo) return false;
+      if (palabrasCodigo.length > 0 && !coincideCodigo) return false;
     }
     
+    // 5. Filtro por subcódigo
     const subcodigoVal = p.subcodigo || p.subcategoria_codigo;
     if (searchSubcodigo && (!subcodigoVal || !subcodigoVal.toString().includes(searchSubcodigo))) return false;
 
