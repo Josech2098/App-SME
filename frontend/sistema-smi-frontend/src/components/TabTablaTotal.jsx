@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
+import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación agregada
 
 export default function TabTablaTotal({
   datosCosto = [],
@@ -12,211 +12,266 @@ export default function TabTablaTotal({
   onDatosActualizados
 }) {
 
-  // ================= ESTADOS DE PONDERACIÓN =================
-  const [pesosCat, setPesosCat] = useState({
-    COST: 21.5,
-    LOGI: 18.5,
-    COMM: 20.5,
-    ECON: 16,
-    POLI: 13,
-    CULT: 5,
-    SUST: 5.5
-  });
+const [pesosCat, setPesosCat] = useState({
+  COST: 21.5,
+  LOGI: 18.5,
+  COMM: 20.5,
+  ECON: 16,
+  POLI: 13,
+  CULT: 5,
+  SUST: 5.5
+});
 
-  const [pesosAplicados, setPesosAplicados] = useState({
-    COST: 21.5,
-    LOGI: 18.5,
-    COMM: 20.5,
-    ECON: 16,
-    POLI: 13,
-    CULT: 5,
-    SUST: 5.5
-  });
+const [pesosAplicados, setPesosAplicados] = useState({
+  COST: 21.5,
+  LOGI: 18.5,
+  COMM: 20.5,
+  ECON: 16,
+  POLI: 13,
+  CULT: 5,
+  SUST: 5.5
+});
 
-  // Estado para controlar si el módulo de ponderaciones está abierto o cerrado
-  const [esVisible, setEsVisible] = useState(false);
+// Nuevo estado para controlar si el módulo está abierto o cerrado
+const [esVisible, setEsVisible] = useState(false);
 
-  // Manejador para actualizar el valor individual de cada peso
-  const handlePesoChange = (cat, valor) => {
-    setPesosCat(prev => ({
-      ...prev,
-      [cat]: parseFloat(valor) || 0
-    }));
-  };
+const handlePesoChange = (cat, valor) => {
+  setPesosCat(prev => ({
+    ...prev,
+    [cat]: parseFloat(valor) || 0
+  }));
+};
 
-  // Validación de la sumatoria de pesos (debe ser estrictamente 100%)
-  const sumaPesos = Object.values(pesosCat)
-    .reduce((acc, val) => acc + val, 0);
+const sumaPesos = Object.values(pesosCat)
+  .reduce((acc, val) => acc + val, 0);
 
-  // ================= CONSOLIDACIÓN Y CÁLCULO GENERAL =================
   const datosFinales = useMemo(() => {
+
     const mapa = {};
 
     const asegurarPais = (pais) => {
+
       if (!pais) return null;
-      const key = pais.toLowerCase().trim();
-      if (!mapa[key]) {
-        mapa[key] = {
+
+      if (!mapa[pais]) {
+        mapa[pais] = {
           pais,
-          COST: null,
-          LOGI: null,
-          COMM: null,
-          ECON: null,
-          POLI: null,
-          CULT: null,
-          SUST: null
+          COST: 0,
+          LOGI: 0,
+          COMM: 0,
+          ECON: 0,
+          POLI: 0,
+          CULT: 0,
+          SUST: 0
         };
       }
-      return mapa[key];
+
+      return mapa[pais];
     };
 
-    // 1. COST
+    // COST
     datosCosto.forEach(row => {
-      const pais = row.pais_nombre || row.Paises || row.pais;
+
+      const pais =
+        row.pais_nombre ||
+        row.Paises ||
+        row.pais;
+
       const item = asegurarPais(pais);
-      if (item && row.aporteFactorCosto !== null && row.aporteFactorCosto !== undefined) {
-        item.COST = Number(row.aporteFactorCosto);
+
+      if (item) {
+        item.COST =
+          Number(row.aporteFactorCosto || 0);
       }
+
     });
 
-    // 2. LOGI
+    // LOGI
     datosLogi.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
-      if (item && row.costoTotal !== null && row.costoTotal !== undefined) {
-        item.LOGI = Number(row.costoTotal);
+
+      if (item) {
+        item.LOGI =
+          Number(row.costoTotal || 0);
       }
+
     });
 
-    // 3. COMM
+    // COMM
     datosComm.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
-      if (item && row.COMM_total !== null && row.COMM_total !== undefined) {
-        item.COMM = Number(row.COMM_total);
+
+      if (item) {
+        item.COMM =
+          Number(row.COMM_total || 0);
       }
+
     });
 
-    // 4. ECON
+    // ECON
     datosEcon.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
-      if (item && row.Puntaje_ECON_Normalizado !== null && row.Puntaje_ECON_Normalizado !== undefined) {
-        item.ECON = Number(row.Puntaje_ECON_Normalizado);
+
+      if (item) {
+        item.ECON =
+          Number(row.Puntaje_ECON_Normalizado || 0);
       }
+
     });
 
-    // 5. POLI
+    // POLI
     datosPoli.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
-      if (item && row.Puntaje_POLI_Normalizado !== null && row.Puntaje_POLI_Normalizado !== undefined) {
-        item.POLI = Number(row.Puntaje_POLI_Normalizado);
+
+      if (item) {
+        item.POLI =
+          Number(row.Puntaje_POLI_Normalizado || 0);
       }
+
     });
 
-    // 6. CULT
+    // CULT
     datosCult.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
-      if (item && row.Puntaje_CULT_Normalizado !== null && row.Puntaje_CULT_Normalizado !== undefined) {
-        item.CULT = Number(row.Puntaje_CULT_Normalizado);
+
+      if (item) {
+        item.CULT =
+          Number(row.Puntaje_CULT_Normalizado || 0);
       }
+
     });
 
-    // 7. SUST
+    // SUST
     datosSust.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
+
+      const pais =
+        row.Paises ||
+        row.pais_nombre ||
+        row.pais;
+
       const item = asegurarPais(pais);
-      if (item && row.aporteFactorSostenibilidad !== null && row.aporteFactorSostenibilidad !== undefined) {
-        item.SUST = Number(row.aporteFactorSostenibilidad);
+
+      if (item) {
+        item.SUST =
+          Number(row.aporteFactorSostenibilidad || 0);
       }
+
     });
 
-    // Procesar y calcular totales finales
     return Object.values(mapa)
       .map(row => {
-        // Para evitar NaN en la fórmula matemática si falta un campo, tratamos el null como 0 operativo
-        const cCost = row.COST ?? 0;
-        const cLogi = row.LOGI ?? 0;
-        const cComm = row.COMM ?? 0;
-        const cEcon = row.ECON ?? 0;
-        const cPoli = row.POLI ?? 0;
-        const cCult = row.CULT ?? 0;
-        const cSust = row.SUST ?? 0;
 
         const total = Number(
           (
-            cCost * (pesosAplicados.COST / 100) +
-            cLogi * (pesosAplicados.LOGI / 100) +
-            cComm * (pesosAplicados.COMM / 100) +
-            cEcon * (pesosAplicados.ECON / 100) +
-            cPoli * (pesosAplicados.POLI / 100) +
-            cCult * (pesosAplicados.CULT / 100) +
-            cSust * (pesosAplicados.SUST / 100)
+            row.COST * (pesosAplicados.COST / 100) +
+            row.LOGI * (pesosAplicados.LOGI / 100) +
+            row.COMM * (pesosAplicados.COMM / 100) +
+            row.ECON * (pesosAplicados.ECON / 100) +
+            row.POLI * (pesosAplicados.POLI / 100) +
+            row.CULT * (pesosAplicados.CULT / 100) +
+            row.SUST * (pesosAplicados.SUST / 100)
           ).toFixed(2)
         );
 
         return {
+
           ...row,
+
           TOTAL: total,
+
           Paises: row.pais,
+
           "1. Cost (COST)": row.COST,
+
           "2. Logistical (LOGI)": row.LOGI,
+
           "3. Commercial (COMM)": row.COMM,
+
           "4. Economic (ECON)": row.ECON,
+
           "5. Political (POLI)": row.POLI,
+
           "6. Cultura (CULT)": row.CULT,
+
           "7. Sostenibilidad (SUST)": row.SUST,
+
           "Puntaje Total": total,
+
           "Puntaje Global – TOTAL": total
+
         };
+
       })
       .sort((a, b) => b.TOTAL - a.TOTAL);
 
   }, [
-    datosCosto,
-    datosLogi,
-    datosComm,
-    datosEcon,
-    datosPoli,
-    datosCult,
-    datosSust,
-    pesosAplicados
-  ]);
+  datosCosto,
+  datosLogi,
+  datosComm,
+  datosEcon,
+  datosPoli,
+  datosCult,
+  datosSust,
+  pesosAplicados
+]);
 
-  // Sincronizar datos consolidados hacia afuera si el componente padre lo requiere
   useEffect(() => {
+
     if (onDatosActualizados) {
       onDatosActualizados(datosFinales);
     }
+
   }, [datosFinales, onDatosActualizados]);
 
   return (
+
     <div className="space-y-10 text-slate-100 font-sans">
-      
-      {/* MÓDULO DE AJUSTE DE PESOS */}
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
-        <div 
-          className="flex justify-between items-center cursor-pointer select-none" 
-          onClick={() => setEsVisible(!esVisible)}
-        >
+        <div className="flex justify-between items-center cursor-pointer" onClick={() => setEsVisible(!esVisible)}>
           <div>
             <span className="text-xs uppercase tracking-wider text-sky-400 font-semibold">Módulo de Ponderación</span>
             <h3 className="text-xl font-bold text-white mt-1">
               Ajuste manual de ponderaciones (IMSFE)
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              {esVisible ? "Haz clic para ocultar el ajuste de pesos." : "Haz clic para ajustar los pesos de cada categoría de evaluación."}
+              {esVisible ? "Haz clic para ocultar el ajuste de pesos." : "Haz clic para ajustar los pesos de cada categoría."}
             </p>
           </div>
-          <button className="text-sky-400 font-bold text-sm bg-[#1b2230] px-3 py-1 rounded border border-[#2d3748]">
-            {esVisible ? "Ocultar ▲" : "Configurar ▼"}
-          </button>
+          <button className="text-sky-400 font-bold">{esVisible ? "▲" : "▼"}</button>
         </div>
 
         {esVisible && (
-          <div className="space-y-4 pt-2 border-t border-[#1b2230]">
+          <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[
                 { label: "COST (%)", cat: "COST" },
@@ -227,6 +282,7 @@ export default function TabTablaTotal({
                 { label: "CULT (%)", cat: "CULT" },
                 { label: "SUST (%)", cat: "SUST" }
               ].map(({ label, cat }) => (
+
                 <div
                   key={cat}
                   className="bg-[#0d1017] border border-[#1b2230] rounded-lg p-3"
@@ -273,26 +329,29 @@ export default function TabTablaTotal({
 
             {sumaPesos !== 100 ? (
               <div className="bg-red-950/40 border border-red-900/50 rounded p-3 text-red-400 text-xs">
-                La suma actual de los pesos es <span className="font-bold">{sumaPesos.toFixed(1)}%</span>. Debe ser exactamente 100% para procesar correctamente.
+                La suma actual es {sumaPesos.toFixed(1)}%.
+                Debe ser exactamente 100%.
               </div>
             ) : (
               <div className="bg-emerald-950/40 border border-emerald-900/50 rounded p-3 text-emerald-400 text-xs">
-                Ponderaciones configuradas correctamente (Suma total exacta: 100%).
+                Ponderaciones válidas (100%).
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
                   if (sumaPesos !== 100) {
-                    alert("Las ponderaciones deben sumar exactamente 100%");
+                    alert(
+                      "Las ponderaciones deben sumar exactamente 100%"
+                    );
                     return;
                   }
                   setPesosAplicados({ ...pesosCat });
                 }}
                 className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer shadow"
               >
-                Aplicar y Calcular
+                Calcular
               </button>
               <button
                 onClick={() => {
@@ -310,24 +369,25 @@ export default function TabTablaTotal({
                 }}
                 className="bg-[#1b2230] hover:bg-[#252f44] text-slate-200 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#2d3748]"
               >
-                Restablecer Valores
+                Reiniciar
               </button>
             </div>
-          </div>
+          </>
         )}
       </div>
 
-      {/* TABLA GENERAL DE EVALUACIÓN */}
+      {/* TABLA GENERAL */}
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h2 className="text-lg font-bold text-white">
             Tabla General de Evaluación de Países
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Consolidación automática y matricial de COST, LOGI, COMM, ECON, POLI, CULT y SUST
+            Consolidación automática de COST,
+            LOGI, COMM, ECON, POLI, CULT y SUST
           </p>
         </div>
-        <div className="overflow-y-auto max-h-[450px] border border-[#1b2230] rounded-xl">
+        <div className="overflow-y-auto h-[450px] border border-[#1b2230] rounded-xl">
           <table className="w-full text-xs text-slate-300 border-collapse">
             <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
               <tr>
@@ -353,13 +413,13 @@ export default function TabTablaTotal({
                   <td className="p-3 font-semibold text-white flex items-center gap-2">
                     {renderPaisConBandera(row.pais)}
                   </td>
-                  <td className="p-3">{row.COST !== null ? row.COST.toFixed(2) : '-'}</td>
-                  <td className="p-3">{row.LOGI !== null ? row.LOGI.toFixed(2) : '-'}</td>
-                  <td className="p-3">{row.COMM !== null ? row.COMM.toFixed(2) : '-'}</td>
-                  <td className="p-3">{row.ECON !== null ? row.ECON.toFixed(2) : '-'}</td>
-                  <td className="p-3">{row.POLI !== null ? row.POLI.toFixed(2) : '-'}</td>
-                  <td className="p-3">{row.CULT !== null ? row.CULT.toFixed(2) : '-'}</td>
-                  <td className="p-3">{row.SUST !== null ? row.SUST.toFixed(2) : '-'}</td>
+                  <td className="p-3">{row.COST.toFixed(2)}</td>
+                  <td className="p-3">{row.LOGI.toFixed(2)}</td>
+                  <td className="p-3">{row.COMM.toFixed(2)}</td>
+                  <td className="p-3">{row.ECON.toFixed(2)}</td>
+                  <td className="p-3">{row.POLI.toFixed(2)}</td>
+                  <td className="p-3">{row.CULT.toFixed(2)}</td>
+                  <td className="p-3">{row.SUST.toFixed(2)}</td>
                   <td className="p-3 font-bold text-sky-400">{row.TOTAL.toFixed(2)}</td>
                 </tr>
               ))}
@@ -368,15 +428,15 @@ export default function TabTablaTotal({
         </div>
       </div>
 
-      {/* TABLA RESUMEN — RANKING FINAL */}
+      {/* RANKING */}
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h2 className="text-lg font-bold text-white">
             Tabla Resumen — Puntaje Total
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Ranking consolidado final ordenado por puntaje global</p>
+          <p className="text-xs text-slate-400 mt-1">Ranking consolidado final por país</p>
         </div>
-        <div className="overflow-y-auto max-h-[450px] border border-[#1b2230] rounded-xl">
+        <div className="overflow-y-auto h-[450px] border border-[#1b2230] rounded-xl">
           <table className="w-full text-xs text-slate-300 border-collapse">
             <thead className="bg-[#0d1017] text-slate-200 uppercase text-[10px] tracking-wider border-b border-[#1b2230] sticky top-0 z-10">
               <tr>
@@ -402,7 +462,6 @@ export default function TabTablaTotal({
           </table>
         </div>
       </div>
-
     </div>
   );
 }
