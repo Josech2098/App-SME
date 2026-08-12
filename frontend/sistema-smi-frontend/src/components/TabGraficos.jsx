@@ -28,7 +28,7 @@ ChartJS.register(
   Legend
 );
 
-export default function TabGraficos({ datosTotales = [] }) {
+export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
   const [isMounted, setIsMounted] = useState(false);
   const [datosConsolidados, setDatosConsolidados] = useState(datosTotales);
   const [cargando, setCargando] = useState(false);
@@ -38,6 +38,13 @@ export default function TabGraficos({ datosTotales = [] }) {
     setIsMounted(true);
   }, []);
 
+  // Sincronizar datos entrantes
+  useEffect(() => {
+    if (datosTotales && datosTotales.length > 0) {
+      setDatosConsolidados(datosTotales);
+    }
+  }, [datosTotales]);
+
   useEffect(() => {
     async function cargarDatosAutomaticos() {
       if (!datosTotales || datosTotales.length === 0) {
@@ -46,7 +53,7 @@ export default function TabGraficos({ datosTotales = [] }) {
           const { data, error } = await supabase
             .from('indicepenetracion')
             .select('*')
-            .range(0, 49);
+            .range(0, 99);
 
           if (error) throw error;
 
@@ -66,8 +73,6 @@ export default function TabGraficos({ datosTotales = [] }) {
         } finally {
           setCargando(false);
         }
-      } else {
-        setDatosConsolidados(datosTotales);
       }
     }
 
@@ -92,6 +97,11 @@ export default function TabGraficos({ datosTotales = [] }) {
     );
   }
 
+  const limpiarTexto = (str) => {
+    if (!str) return '';
+    return str.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  };
+
   let datosValidos = [];
   try {
     datosValidos = (datosConsolidados || []).map(item => {
@@ -109,11 +119,16 @@ export default function TabGraficos({ datosTotales = [] }) {
     console.error("Error procesando datos válidos:", e);
   }
 
+  // 🛡️ FILTRO CLAVE: Excluir el país de origen seleccionado (Ej. Argentina) de los destinos graficados
+  if (paisOrigen) {
+    datosValidos = datosValidos.filter(item => limpiarTexto(item.Paises) !== limpiarTexto(paisOrigen));
+  }
+
   if (datosValidos.length === 0) {
     return (
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-8 text-center text-slate-400 space-y-2 shadow-sm font-sans">
         <h3 className="text-lg font-bold text-white">Visualización de Gráficos Comparativos</h3>
-        <p className="text-xs">No hay datos suficientes para mostrar. Visita primero la pestaña de tablas globales o genera registros.</p>
+        <p className="text-xs">No hay datos suficientes para mostrar o el país de origen coincide con el único destino disponible.</p>
       </div>
     );
   }
@@ -132,7 +147,7 @@ export default function TabGraficos({ datosTotales = [] }) {
     "7. Sostenibilidad (SUST)",
     "Puntaje Total"
   ];
-  const coloresG1 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494'];
+  const coloresG1 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#00BFFF'];
 
   const dataGrafico1 = {
     labels: top10.map(d => d.Paises),
@@ -155,7 +170,7 @@ export default function TabGraficos({ datosTotales = [] }) {
     },
     plugins: {
       legend: { position: 'top', labels: { color: 'white', font: { size: 12 } } },
-      title: { display: true, text: 'Comparación de Puntajes (Top 10 Países)', color: 'white', font: { size: 16 } }
+      title: { display: true, text: `Comparación de Puntajes (Top 10 Países - Desde: ${paisOrigen || 'General'})`, color: 'white', font: { size: 16 } }
     },
     scales: {
       x: { ticks: { color: 'white', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
@@ -284,7 +299,7 @@ export default function TabGraficos({ datosTotales = [] }) {
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Gráficos Analíticos</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Gráficos Comparativos</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Visualización interactiva técnica SMIPEM con animaciones avanzadas.
+          Visualización interactiva técnica SMIPEM con animaciones avanzadas. {paisOrigen ? `(Origen seleccionado: ${paisOrigen})` : ''}
         </p>
       </div>
 
