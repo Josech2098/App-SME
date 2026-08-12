@@ -169,10 +169,10 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         return Number(((10 * minimo) / num).toFixed(4));
       };
 
-      // Porcentajes de ponderación oficiales solicitados: ICV 30%, IAN 30%, TAD 40%
-      const P_ICV = 0.30;
-      const P_INAN = 0.30;
-      const P_TAD = 0.40;
+      // Porcentajes de ponderación oficiales: ICV 33%, IAN 31.5%, TAD 35.5%
+      const P_ICV = 0.3300;
+      const P_INAN = 0.3150;
+      const P_TAD = 0.3550;
 
       const dfNorm = dfEcon.map(item => {
         // Verificar si el país tiene todos los datos completos
@@ -286,7 +286,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA DE NORMALIZACIÓN ECONÓMICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla de Normalización Económica (ECON)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: ICV = 30% | IAN = 30% | TAD = 40% (Normalización Inversa)</p>
+        <p className="text-xs text-slate-400">Ponderaciones: ICV = 33% | IAN = 31.5% | TAD = 35.5% (Normalización Inversa)</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -294,9 +294,9 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
               <tr>
                 <th className="p-3 w-12 bg-[#151824]">#</th>
                 <th className="p-3 bg-[#151824]">País</th>
-                <th className="p-3 bg-[#151824]">ICV Norm (30%)</th>
-                <th className="p-3 bg-[#151824]">IAN Norm (30%)</th>
-                <th className="p-3 bg-[#151824]">TAD Norm (40%)</th>
+                <th className="p-3 bg-[#151824]">ICV Norm (33%)</th>
+                <th className="p-3 bg-[#151824]">IAN Norm (31.5%)</th>
+                <th className="p-3 bg-[#151824]">TAD Norm (35.5%)</th>
                 <th className="p-3 bg-[#151824]">Puntaje ECON Normalizado</th>
               </tr>
             </thead>
