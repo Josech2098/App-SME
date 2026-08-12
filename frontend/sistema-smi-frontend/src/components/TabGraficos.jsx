@@ -145,14 +145,13 @@ export default function TabGraficos({ datosTotales = [] }) {
     }))
   };
 
-  // Opciones con animación fluida en cascada (delay basado en el índice del elemento)
   const optionsGrafico1 = {
     responsive: true,
     maintainAspectRatio: false,
     animation: {
       duration: 1500,
       easing: 'easeInOutQuart',
-      delay: (context) => context.dataIndex * 80, // Efecto cascada por barra
+      delay: (context) => context.dataIndex * 80,
     },
     plugins: {
       legend: { position: 'top', labels: { color: 'white', font: { size: 12 } } },
@@ -180,7 +179,7 @@ export default function TabGraficos({ datosTotales = [] }) {
     maintainAspectRatio: false,
     animation: {
       duration: 1800,
-      easing: 'easeOutBounce', // Efecto rebote moderno al cargar
+      easing: 'easeOutBounce',
       delay: (context) => context.dataIndex * 40,
     },
     plugins: {
@@ -189,7 +188,13 @@ export default function TabGraficos({ datosTotales = [] }) {
     },
     scales: {
       x: { ticks: { color: 'white', font: { size: 10 }, maxRotation: 90, minRotation: 90 }, grid: { display: false } },
-      y: { ticks: { color: 'white', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.2)', borderDash: [5, 5] }, title: { display: true, text: 'Puntaje Total', color: 'white' } }
+      y: { 
+        min: 0, 
+        max: 10, 
+        ticks: { color: 'white', font: { size: 11 } }, 
+        grid: { color: 'rgba(255,255,255,0.2)', borderDash: [5, 5] }, 
+        title: { display: true, text: 'Puntaje Total (0-10)', color: 'white' } 
+      }
     }
   };
 
@@ -245,7 +250,7 @@ export default function TabGraficos({ datosTotales = [] }) {
     maintainAspectRatio: false,
     animation: {
       duration: 2000,
-      easing: 'easeInOutExpo', // Animación fluida combinada para barras y líneas
+      easing: 'easeInOutExpo',
       delay: (context) => context.dataIndex * 50,
     },
     plugins: {
