@@ -2,32 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 import { renderPaisConBandera } from './banderas.jsx';
 
-// 🧠 Diccionario maestro de correspondencia exacta de categorías para el catálogo cerrado
-const categoriaProductoMap = {
-  // Bebidas
-  'Agua (1,5 litros)': 'Bebidas',
-  'Botella de Vino (Calidad media)': 'Bebidas',
-  'Cerveza nacional (0,5 litros)': 'Bebidas',
-  'La cerveza importada (33 cl)': 'Bebidas',
-  // Lácteos
-  'Leche (1 litro)': 'Lacteos',
-  'Queso fresco (1 kg)': 'Lacteos',
-  // Verduras
-  'Cebollas (1kg)': 'Verduras',
-  'Lechuga (1 unidad)': 'Verduras',
-  'Patatas (1 kg)': 'Verduras',
-  'Tomates (1 kg)': 'Verduras',
-  // Frutas
-  'Manzanas (1 kg)': 'Frutas',
-  'Naranjas (1 kg)': 'Frutas',
-  'Plátanos (1kg)': 'Frutas',
-  // Carnes
-  'Pechugas de pollo (1 kg)': 'Carnes',
-  'Ternera (cadera o similar) (1kg)': 'Carnes',
-  // Básicos / Otros
-  'Una docena de huevos': 'Basicos',
-  'Arroz (1kg)': 'Basicos',
-  'Un kilo de pan (1 kg)': 'Basicos'
+// 🗺️ Mapa maestro de correspondencia exacta entre el nombre del producto y su código arancelario de categoría
+const mapaProductosCategoria = {
+  // Bebidas (2202, 2204, 2203)
+  'Agua (1,5 litros)': '2202',
+  'Agua (botella de 33 cl)': '2202',
+  'Botella de Vino (Calidad media)': '2204',
+  'Cerveza nacional (0,5 litros)': '2203',
+  'La cerveza importada (33 cl)': '2203',
+  'Cerveza importada (botella de 33cl)': '2203',
+
+  // Lácteos y Quesos (0401, 0406)
+  'Leche (1 litro)': '0401',
+  'Queso fresco (1 kg)': '0406',
+
+  // Huevos y Básicos (0407, 1006, 1905, 0901)
+  'Una docena de huevos': '0407',
+  'Arroz (1kg)': '1006',
+  'Un kilo de pan (1 kg)': '1905',
+  'Café Cappuccino': '0901',
+
+  // Frutas (0808, 0805, 0803)
+  'Manzanas (1 kg)': '0808',
+  'Naranjas (1 kg)': '0805',
+  'Plátanos (1kg)': '0803',
+
+  // Verduras (0701, 0703, 0705)
+  'Patatas (1 kg)': '0701',
+  'Cebollas (1kg)': '0703',
+  'Lechuga (1 unidad)': '0705',
+  'Tomates (1 kg)': '0701', // Asignado a patatas/hortalizas o según corresponda
+
+  // Carnes (0207, 0201)
+  'Pechugas de pollo (1 kg)': '0207',
+  'Ternera (cadera o similar) (1kg)': '0201'
 };
 
 export default function TablaProductos({
@@ -75,19 +83,17 @@ export default function TablaProductos({
     return isNaN(num) ? 0 : num;
   };
 
-  // 🔍 Lógica de Filtrado Directa y Confiable basada en el Diccionario Maestro
+  // 🔍 Lógica de Filtrado Precisa basada en el Mapa de Códigos Arancelarios
   const productosFiltrados = productos.filter((p) => {
     const nombre = p.nombre || p.producto || '';
     
-    // 1. Filtro por categoría usando el diccionario exacto
+    // 1. Filtro por categoría utilizando el código arancelario exacto
     if (categoria && categoria !== 'Todos') {
-      const categoriaAsignada = categoriaProductoMap[nombre];
-      const categoriaFiltroStr = String(categoria).toLowerCase();
-      
-      const coincideDiccionario = categoriaAsignada && categoriaFiltroStr.includes(String(categoriaAsignada).toLowerCase());
-      const coincideTextoNombre = nombre.toLowerCase().includes(categoriaFiltroStr);
+      const codigoCategoriaFiltro = String(categoria).split(' ')[0].trim();
+      const codigoAsignadoAlProducto = mapaProductosCategoria[nombre];
 
-      if (!coincideDiccionario && !coincideTextoNombre) {
+      // Validamos si el código del mapa coincide con el código seleccionado en el selector
+      if (codigoAsignadoAlProducto !== codigoCategoriaFiltro) {
         return false;
       }
     }
@@ -103,10 +109,10 @@ export default function TablaProductos({
     // 3. Filtro por nombre escrito manualmente
     if (searchNombre && !nombre.toLowerCase().includes(searchNombre.toLowerCase())) return false;
     
-    // 4. Filtro por código de categoría
+    // 4. Filtro por código de categoría manual
     if (searchCodigo) {
-      const categoriaAsignada = categoriaProductoMap[nombre] || '';
-      if (!categoriaAsignada.toLowerCase().includes(searchCodigo.toLowerCase()) && !nombre.toLowerCase().includes(searchCodigo.toLowerCase())) {
+      const codigoAsignadoAlProducto = mapaProductosCategoria[nombre] || '';
+      if (!codigoAsignadoAlProducto.includes(searchCodigo) && !nombre.toLowerCase().includes(searchCodigo.toLowerCase())) {
         return false;
       }
     }
