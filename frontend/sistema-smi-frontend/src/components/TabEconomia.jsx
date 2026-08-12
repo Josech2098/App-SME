@@ -175,6 +175,21 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       const P_TAD = 0.40;
 
       const dfNorm = dfEcon.map(item => {
+        // Verificar si el país tiene todos los datos completos
+        const completosNorm = item.ICV !== null && item.INAN !== null && item.TAD !== null;
+
+        // Si faltan datos, se excluyen de la normalización asignando null
+        if (!completosNorm) {
+          return {
+            Paises: item.Paises,
+            ICV_norm: null,
+            INAN_norm: null,
+            TAD_norm: null,
+            Puntaje_ECON_Normalizado: null,
+            completos: false
+          };
+        }
+
         const icvNorm = normInversa(item.ICV, minIcv);
         const inanNorm = normInversa(item.INAN, minInan);
         const tadNorm = normInversa(item.TAD, minTad);
@@ -185,21 +200,20 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           (tadNorm !== null ? tadNorm : 0) * P_TAD
         ).toFixed(4));
 
-        const completosNorm = icvNorm !== null && inanNorm !== null && tadNorm !== null;
-
         return {
           Paises: item.Paises,
           ICV_norm: icvNorm,
           INAN_norm: inanNorm,
           TAD_norm: tadNorm,
           Puntaje_ECON_Normalizado: puntajeEcon,
-          completos: completosNorm
+          completos: true
         };
       });
 
+      // Ordenar para que los completos aparezcan primero y los incompletos al final
       dfNorm.sort((a, b) => {
         if (b.completos !== a.completos) return b.completos ? 1 : -1;
-        return b.Puntaje_ECON_Normalizado - a.Puntaje_ECON_Normalizado;
+        return (b.Puntaje_ECON_Normalizado || 0) - (a.Puntaje_ECON_Normalizado || 0);
       });
 
       setDatosEconNormalizados(dfNorm);
@@ -293,10 +307,10 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                   <td className="p-3 font-medium text-white flex items-center gap-2">
                     {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
                   </td>
-                  <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : '-'}</td>
-                  <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : '-'}</td>
-                  <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : '-'}</td>
-                  <td className="p-3 font-bold text-emerald-400">{row.Puntaje_ECON_Normalizado}</td>
+                  <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
+                  <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
+                  <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
+                  <td className="p-3 font-bold text-emerald-400">{row.Puntaje_ECON_Normalizado !== null ? row.Puntaje_ECON_Normalizado : <span className="text-slate-600 italic">-</span>}</td>
                 </tr>
               ))}
             </tbody>
