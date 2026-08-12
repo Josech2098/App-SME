@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
+import { renderPaisConBandera } from './banderas.jsx';
 
 // --- Helper: Cálculo de distancia geográfica mediante Haversine ---
 function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
@@ -15,7 +15,7 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
 
   if (isNaN(l1) || isNaN(ln1) || isNaN(l2) || isNaN(ln2)) return 0;
 
-  const R = 6371; // Radio de la Tierra en km
+  const R = 6371; 
   const dLat = (l2 - l1) * (Math.PI / 180);
   const dLon = (ln2 - ln1) * (Math.PI / 180);
 
@@ -30,7 +30,7 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- Helper: Limpiar el formato del precio (admite 0, pero descarta null/undefined/vacíos) ---
+// --- Helper: Limpiar el formato del precio ---
 function limpiarPrecio(val) {
   if (val === null || val === undefined) return null;
   if (typeof val === 'number') return val;
@@ -45,7 +45,7 @@ function limpiarPrecio(val) {
   return isNaN(numero) ? null : numero;
 }
 
-// --- Helper: Normalizar texto (quitar tildes, minúsculas, códigos numéricos) ---
+// --- Helper: Normalizar texto ---
 function normalizarTexto(texto) {
   if (!texto) return '';
   return String(texto)
@@ -55,8 +55,6 @@ function normalizarTexto(texto) {
     .replace(/^\d+[\s-]*/, '')
     .trim();
 }
-
-// --- Componente Principal ---
 
 export default function TabCosto({ productoActivo, categoria, subcategoria, busqueda, paisOrigen, onDatosActualizados }) {
   const [paisBase, setPaisBase] = useState(paisOrigen || 'España');
@@ -69,9 +67,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const prevDatosRef = useRef('');
 
   useEffect(() => {
-    if (paisOrigen) {
-      setPaisBase(paisOrigen);
-    }
+    if (paisOrigen) setPaisBase(paisOrigen);
   }, [paisOrigen]);
 
   useEffect(() => {
@@ -95,7 +91,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         return;
       }
 
-      // 🔹 Consultar la tabla puertos para obtener latitud y longitud marítima real
       const { data: dbPuertos, error: errPuertos } = await supabase.from('puertos').select('*');
       if (errPuertos) console.warn("Aviso en Puertos:", errPuertos);
 
@@ -113,16 +108,12 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
       const palabrasCategoria =
         categoria && categoria !== 'Todos'
-          ? (categoriasKeywords || [])
-              .filter(k => String(k.categoria_codigo) === String(categoria))
-              .map(k => String(k.palabra_clave || '').toLowerCase())
+          ? (categoriasKeywords || []).filter(k => String(k.categoria_codigo) === String(categoria)).map(k => String(k.palabra_clave || '').toLowerCase())
           : [];
 
       const palabrasSubcategoria =
         subcategoria && subcategoria !== 'Todos'
-          ? (categoriasKeywords || [])
-              .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
-              .map(k => String(k.palabra_clave || '').toLowerCase())
+          ? (categoriasKeywords || []).filter(k => String(k.subcategoria_codigo) === String(subcategoria)).map(k => String(k.palabra_clave || '').toLowerCase())
           : [];
 
       let nombreProductoBuscado = '';
@@ -131,51 +122,24 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       } else if (productoActivo && typeof productoActivo === 'object') {
         nombreProductoBuscado = productoActivo.nombre ?? productoActivo.producto ?? productoActivo.titulo ?? '';
       }
-      if (!nombreProductoBuscado) {
-        nombreProductoBuscado = busqueda ?? '';
-      }
+      if (!nombreProductoBuscado) nombreProductoBuscado = busqueda ?? '';
 
       let mapaPreciosTemp = {}; 
 
       if (dbProds) {
         dbProds.forEach(item => {
-          const nombreProd = (
-            item.producto ||
-            item.nombre ||
-            item.titulo ||
-            item.descripcion ||
-            ''
-          ).toLowerCase();
-
-          const coincideCategoria =
-            categoria === 'Todos' ||
-            palabrasCategoria.length === 0 ||
-            palabrasCategoria.some(p => nombreProd.includes(p));
-
-          const coincideSubcategoria =
-            subcategoria === 'Todos' ||
-            palabrasSubcategoria.length === 0 ||
-            palabrasSubcategoria.some(p => nombreProd.includes(p));
-
+          const nombreProd = (item.producto || item.nombre || item.titulo || item.descripcion || '').toLowerCase();
+          const coincideCategoria = categoria === 'Todos' || palabrasCategoria.length === 0 || palabrasCategoria.some(p => nombreProd.includes(p));
+          const coincideSubcategoria = subcategoria === 'Todos' || palabrasSubcategoria.length === 0 || palabrasSubcategoria.some(p => nombreProd.includes(p));
           const cumpleFiltroBusqueda = !nombreProductoBuscado || normalizarTexto(nombreProd).includes(normalizarTexto(nombreProductoBuscado));
 
-          if (
-            coincideCategoria &&
-            coincideSubcategoria &&
-            cumpleFiltroBusqueda
-          ) {
+          if (coincideCategoria && coincideSubcategoria && cumpleFiltroBusqueda) {
             const paisItem = item.pais || item.Pais || item.country;
-
             if (paisItem) {
               const nombrePaisKey = String(paisItem).trim().toLowerCase();
-              const precioRaw = item.precio ?? item.price ?? item.costo;
-              const precioLim = limpiarPrecio(precioRaw);
-              
-              // Se permite registrar el precio si es un número válido (incluyendo 0, se descarta solo si es null)
+              const precioLim = limpiarPrecio(item.precio ?? item.price ?? item.costo);
               if (precioLim !== null) {
-                if (!mapaPreciosTemp[nombrePaisKey]) {
-                  mapaPreciosTemp[nombrePaisKey] = [];
-                }
+                if (!mapaPreciosTemp[nombrePaisKey]) mapaPreciosTemp[nombrePaisKey] = [];
                 mapaPreciosTemp[nombrePaisKey].push(precioLim);
               }
             }
@@ -186,11 +150,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       let mapaPreciosPorPais = {};
       Object.keys(mapaPreciosTemp).forEach(pais => {
         const precios = mapaPreciosTemp[pais];
-        const promedio = precios.reduce((acc, curr) => acc + curr, 0) / precios.length;
-        mapaPreciosPorPais[pais] = promedio;
+        mapaPreciosPorPais[pais] = precios.reduce((acc, curr) => acc + curr, 0) / precios.length;
       });
 
-      // 🔹 Buscar el puerto principal (o el primero disponible) del país base de origen
       const puertoBaseObj = (dbPuertos || []).find(
         (p) => String(p.pais).trim().toLowerCase() === paisBase.trim().toLowerCase()
       ) || (dbPuertos || [])[0];
@@ -198,42 +160,37 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const latBase = puertoBaseObj?.latitud;
       const lonBase = puertoBaseObj?.longitud;
 
-      const datosConsolidados = dbPaises
-        .map((p) => {
-          const nombreKey = p.nombre.trim().toLowerCase();
-          // Si no hay precio registrado, se mantiene null
-          const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : null;
+      const datosConsolidados = dbPaises.map((p) => {
+        const nombreKey = p.nombre.trim().toLowerCase();
+        const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : null;
 
-          const cicMatch = (dbCostoImportacion || []).find(
-            (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
-          );
-          
-          let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
-          if (cicVal !== null && isNaN(cicVal)) cicVal = null;
+        const cicMatch = (dbCostoImportacion || []).find(
+          (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
+        );
+        let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
+        if (cicVal !== null && isNaN(cicVal)) cicVal = null;
 
-          // 🔹 Buscar el puerto correspondiente al país de destino actual en el bucle
-          const puertoDestinoObj = (dbPuertos || []).find(
-            (pt) => String(pt.pais).trim().toLowerCase() === nombreKey
-          );
+        const puertoDestinoObj = (dbPuertos || []).find(
+          (pt) => String(pt.pais).trim().toLowerCase() === nombreKey
+        );
 
-          let ctiVal = null;
-          if (latBase && lonBase && puertoDestinoObj?.latitud && puertoDestinoObj?.longitud) {
-            const distKm = calcularDistanciaKm(latBase, lonBase, puertoDestinoObj.latitud, puertoDestinoObj.longitud);
-            const distanciaMaritima = distKm * 1.6;
-            // Si la distancia calcula 0 o más, se procesa (incluso si da 0 exacto)
-            ctiVal = !isNaN(distanciaMaritima) ? Number((distanciaMaritima * 0.38).toFixed(2)) : null;
-          }
+        let ctiVal = null;
+        if (latBase && lonBase && puertoDestinoObj?.latitud && puertoDestinoObj?.longitud) {
+          const distKm = calcularDistanciaKm(latBase, lonBase, puertoDestinoObj.latitud, puertoDestinoObj.longitud);
+          const distanciaMaritima = distKm * 1.6;
+          ctiVal = !isNaN(distanciaMaritima) ? Number((distanciaMaritima * 0.38).toFixed(2)) : null;
+        }
 
-          return {
-            id: p.id,
-            pais_nombre: p.nombre,
-            latitud: p.latitud,
-            longitud: p.longitud,
-            ppd: ppdVal,
-            cti: ctiVal,
-            cic: cicVal
-          };
-        });
+        return {
+          id: p.id,
+          pais_nombre: p.nombre,
+          latitud: p.latitud,
+          longitud: p.longitud,
+          ppd: ppdVal,
+          cti: ctiVal,
+          cic: cicVal
+        };
+      });
 
       setDatosProductos(datosConsolidados);
     } catch (err) {
@@ -254,48 +211,41 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const PESO_CIC = 0.22;
   const PUNTAJE_MAXIMO = 10;
 
-  const { maxPpd, minCti, minCic } = useMemo(() => {
-    // Se admiten valores >= 0 para que el 0 sea detectado correctamente
-    const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && !isNaN(v));
-    const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && !isNaN(v));
-    const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && !isNaN(v));
+  // Obtener rangos min y max para aplicar Min-Max Scaling correctamente
+  const rangosMetricas = useMemo(() => {
+    const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && !isNaN(v));
+    const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && !isNaN(v));
+    const cicVals = datosProductos.map(d => d.cic).filter(v => v !== null && !isNaN(v));
 
     return {
-      maxPpd: ppdVals.length > 0 ? Math.max(...ppdVals) : null,
-      minCti: ctiVals.length > 0 ? Math.min(...ctiVals) : null,
-      minCic: cicValsValidos.length > 0 ? Math.min(...cicValsValidos) : null
+      minPpd: ppdVals.length ? Math.min(...ppdVals) : 0,
+      maxPpd: ppdVals.length ? Math.max(...ppdVals) : 0,
+      minCti: ctiVals.length ? Math.min(...ctiVals) : 0,
+      maxCti: ctiVals.length ? Math.max(...ctiVals) : 0,
+      minCic: cicVals.length ? Math.min(...cicVals) : 0,
+      maxCic: cicVals.length ? Math.max(...cicVals) : 0,
     };
   }, [datosProductos]);
 
-  const calcularNormalizadoDirecto = (val, maxVal) => {
-    if (val === null || val === undefined || isNaN(val) || maxVal === null || maxVal === undefined) return null;
-    if (maxVal === 0) return 0; // Evitar división por cero si el máximo global es 0
-    const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
-    return Number(resultado.toFixed(2));
-  };
-
-  const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined || isNaN(val) || minVal === null || minVal === undefined) return null;
-    if (val === 0) return PUNTAJE_MAXIMO; // Si el costo es 0 (óptimo absoluto), obtiene el puntaje máximo
-    if (minVal === 0) {
-      // Si el mínimo es 0 pero el valor actual es mayor a 0, se le asigna un puntaje menor proporcional o se maneja de forma segura
-      return Number((PUNTAJE_MAXIMO / (1 + val)).toFixed(2));
-    }
-    const resultado = (PUNTAJE_MAXIMO * minVal) / val;
-    return Number(resultado.toFixed(2));
+  // 🔹 Normalización Inversa Min-Max (Para costos: menor costo = mayor puntaje de 0 a 10)
+  const normalizarInversoMinMax = (val, minVal, maxVal) => {
+    if (val === null || val === undefined || isNaN(val)) return null;
+    if (maxVal === minVal) return PUNTAJE_MAXIMO; // Si todos tienen el mismo valor
+    
+    // Fórmula Min-Max Inversa: 10 * (1 - (val - min) / (max - min))
+    const normalizado = PUNTAJE_MAXIMO * (1 - (val - minVal) / (maxVal - minVal));
+    return Number(Math.max(0, Math.min(PUNTAJE_MAXIMO, normalizado)).toFixed(2));
   };
 
   const matrizCalculadaCompleta = useMemo(() => {
+    const { minPpd, maxPpd, minCti, maxCti, minCic, maxCic } = rangosMetricas;
+
     const calculada = datosProductos.map(row => {
-      const valPpd = row.ppd ?? null;
-      const valCti = row.cti ?? null; 
-      const valCic = row.cic ?? null;
+      // Como el precio/costo es mejor cuanto más bajo es, usamos normalización inversa para los tres (PPD, CTI, CIC)
+      const ppdNorm = normalizarInversoMinMax(row.ppd, minPpd, maxPpd);
+      const ctiNorm = normalizarInversoMinMax(row.cti, minCti, maxCti);
+      const cicNorm = normalizarInversoMinMax(row.cic, minCic, maxCic);
 
-      const ppdNorm = calcularNormalizadoDirecto(valPpd, maxPpd);
-      const ctiNorm = calcularNormalizadoInverso(valCti, minCti);
-      const cicNorm = calcularNormalizadoInverso(valCic, minCic);
-
-      // Si alguna métrica clave es null, determinamos que tiene datos incompletos
       const tieneNulos = ppdNorm === null || ctiNorm === null || cicNorm === null;
 
       const p1 = ppdNorm ?? 0;
@@ -316,19 +266,14 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       };
     });
 
-    // 🔹 Ordenamiento estricto: Primero los que NO tienen nulos y mayor puntaje
     calculada.sort((a, b) => {
-      if (a.__tieneNulos !== b.__tieneNulos) {
-        return a.__tieneNulos ? 1 : -1; // Los que tienen nulos van al final
-      }
-      if (a.__faltantes !== b.__faltantes) {
-        return a.__faltantes - b.__faltantes;
-      }
+      if (a.__tieneNulos !== b.__tieneNulos) return a.__tieneNulos ? 1 : -1;
+      if (a.__faltantes !== b.__faltantes) return a.__faltantes - b.__faltantes;
       return b.aporteFactorCosto - a.aporteFactorCosto; 
     });
 
     return calculada;
-  }, [datosProductos, maxPpd, minCti, minCic]);
+  }, [datosProductos, rangosMetricas]);
 
   const matrizFiltrada = matrizCalculadaCompleta;
 
@@ -356,8 +301,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
 
   return (
     <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
-      
-      {/* SELECTOR DE PAÍS BASE Y DESCRIPCIÓN */}
       <div className="bg-[#121620] border border-[#1e2536] rounded-xl p-4 space-y-3">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
           <div>
@@ -381,14 +324,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               className="w-full bg-[#0b0e14] border border-[#1e2536] rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-500 appearance-none cursor-pointer"
             >
               {listaPaises.map((p) => (
-                <option key={p.id || p.nombre} value={p.nombre}>
-                  {p.nombre}
-                </option>
+                <option key={p.id || p.nombre} value={p.nombre}>{p.nombre}</option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 text-xs">
-              ▼
-            </div>
           </div>
         </div>
       </div>
@@ -402,12 +340,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       {/* 2. TABLA DE COSTOS BASE */}
       <div className="space-y-2">
         <div className="flex justify-between items-center px-1">
-          <h3 className="text-sm font-bold text-white">
-            Listado de Costos Base <span className="text-xs font-normal text-slate-500">(Haz clic en una fila para seleccionarla)</span>
-          </h3>
-          <span className="text-xs text-slate-400 font-mono">
-            Mostrando <strong className="text-slate-200">{matrizFiltrada.length}</strong> registros
-          </span>
+          <h3 className="text-sm font-bold text-white">Listado de Costos Base</h3>
+          <span className="text-xs text-slate-400 font-mono">Mostrando <strong className="text-slate-200">{matrizFiltrada.length}</strong> registros</span>
         </div>
 
         <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
@@ -424,9 +358,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               </thead>
               <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
                 {loading ? (
-                  <tr>
-                    <td colSpan="5" className="py-6 text-center text-slate-500 font-sans">Cargando datos...</td>
-                  </tr>
+                  <tr><td colSpan="5" className="py-6 text-center text-slate-500 font-sans">Cargando datos...</td></tr>
                 ) : matrizFiltrada.length > 0 ? (
                   matrizFiltrada.map((row) => (
                     <tr 
@@ -440,15 +372,11 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       </td>
                       <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd !== null ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right">{row.cti !== null ? `$${row.cti.toFixed(2)}` : 'Sin datos'}</td>
-                      <td className="py-3 px-4 text-right pr-6">
-                        {row.cic !== null ? `$${row.cic.toFixed(2)}` : 'Sin datos'}
-                      </td>
+                      <td className="py-3 px-4 text-right pr-6">{row.cic !== null ? `$${row.cic.toFixed(2)}` : 'Sin datos'}</td>
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="5" className="py-8 text-center text-slate-500 font-sans">No hay registros disponibles.</td>
-                  </tr>
+                  <tr><td colSpan="5" className="py-8 text-center text-slate-500 font-sans">No hay registros disponibles.</td></tr>
                 )}
               </tbody>
             </table>
@@ -459,9 +387,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       {/* 3. TABLA DE NORMALIZACIÓN Y PONDERACIÓN FINAL */}
       <div className="space-y-2 pt-2">
         <div className="flex justify-between items-center px-1">
-          <h3 className="text-sm font-bold text-white">
-            Normalización y Ponderación Final (Factor Costo)
-          </h3>
+          <h3 className="text-sm font-bold text-white">Normalización y Ponderación Final (Factor Costo)</h3>
         </div>
 
         <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
@@ -479,9 +405,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               </thead>
               <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
                 {loading ? (
-                  <tr>
-                    <td colSpan="6" className="py-6 text-center text-slate-500 font-sans">Calculando...</td>
-                  </tr>
+                  <tr><td colSpan="6" className="py-6 text-center text-slate-500 font-sans">Calculando...</td></tr>
                 ) : matrizFiltrada.length > 0 ? (
                   matrizFiltrada.map((row) => (
                     <tr 
@@ -500,9 +424,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                     </tr>
                   ))
                 ) : (
-                  <tr>
-                    <td colSpan="6" className="py-8 text-center text-slate-500 font-sans">No hay datos normalizados disponibles.</td>
-                  </tr>
+                  <tr><td colSpan="6" className="py-8 text-center text-slate-500 font-sans">No hay datos normalizados disponibles.</td></tr>
                 )}
               </tbody>
             </table>
