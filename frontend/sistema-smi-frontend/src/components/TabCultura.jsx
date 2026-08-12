@@ -137,23 +137,20 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       const P_CUDI = 0.20;
 
       const dfNorm = dfCultura.map(item => {
-        // Validar estrictamente si posee datos en todas las columnas requeridas
+        // Se calculan las normalizaciones individuales siempre que cada valor exista por separado
+        const glinNorm = item.GLIN !== null && maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
+        const cpciNorm = item.CPCI !== null && maxCPCI > 0 ? Number(((A3 * item.CPCI) / maxCPCI).toFixed(2)) : null;
+        const cudiNorm = item.CUDI !== null && item.CUDI > 0 && minCUDI > 0 ? Number(((A3 * minCUDI) / item.CUDI).toFixed(2)) : null;
+
+        // Verificamos si tiene TODOS los datos para calcular el puntaje final
         const tieneTodosLosDatos = item.GLIN !== null && item.CPCI !== null && item.CUDI !== null;
 
-        let glinNorm = null;
-        let cpciNorm = null;
-        let cudiNorm = null;
-        let puntajeCult = 0;
-
+        let puntajeCult = null;
         if (tieneTodosLosDatos) {
-          glinNorm = maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
-          cpciNorm = maxCPCI > 0 ? Number(((A3 * item.CPCI) / maxCPCI).toFixed(2)) : null;
-          cudiNorm = item.CUDI > 0 && minCUDI > 0 ? Number(((A3 * minCUDI) / item.CUDI).toFixed(2)) : null;
-
           puntajeCult = Number((
-            (glinNorm !== null ? glinNorm : 0) * P_GLIN +
-            (cpciNorm !== null ? cpciNorm : 0) * P_CPCI +
-            (cudiNorm !== null ? cudiNorm : 0) * P_CUDI
+            (glinNorm * P_GLIN) +
+            (cpciNorm * P_CPCI) +
+            (cudiNorm * P_CUDI)
           ).toFixed(2));
         }
 
@@ -164,14 +161,14 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
           GLIN_norm: glinNorm,
           CPCI_norm: cpciNorm,
           CUDI_norm: cudiNorm,
-          Puntaje_CULT_Normalizado: tieneTodosLosDatos ? puntajeCult : 0,
+          Puntaje_CULT_Normalizado: puntajeCult,
           _faltantes: faltantesNorm
         };
       });
 
       dfNorm.sort((a, b) => {
         if (a._faltantes !== b._faltantes) return a._faltantes - b._faltantes;
-        return b.Puntaje_CULT_Normalizado - a.Puntaje_CULT_Normalizado;
+        return (b.Puntaje_CULT_Normalizado || 0) - (a.Puntaje_CULT_Normalizado || 0);
       });
 
       setDatosCulturaNormalizados(dfNorm);
@@ -277,7 +274,9 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
                   <td className="p-3">{item.GLIN_norm !== null ? item.GLIN_norm : '-'}</td>
                   <td className="p-3">{item.CPCI_norm !== null ? item.CPCI_norm : '-'}</td>
                   <td className="p-3">{item.CUDI_norm !== null ? item.CUDI_norm : '-'}</td>
-                  <td className="p-3 font-bold text-sky-400">{item.Puntaje_CULT_Normalizado}</td>
+                  <td className="p-3 font-bold text-sky-400">
+                    {item.Puntaje_CULT_Normalizado !== null ? item.Puntaje_CULT_Normalizado : '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>
