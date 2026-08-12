@@ -499,6 +499,7 @@ export default function App() {
           <div className={activeTab === 9 ? 'block' : 'hidden'}>
             <TabGraficosComparativos 
               datosTotales={datosTablaTotal} 
+              paisOrigen={paisOrigen} 
             />
           </div>
         </div>
