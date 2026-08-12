@@ -63,13 +63,9 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const [loading, setLoading] = useState(true);
   const [errorLog, setErrorLog] = useState(null);
   
-  // Estado para manejar la selección de filas
   const [filaSeleccionada, setFilaSeleccionada] = useState(null);
-
-  // Referencia para evitar bucles infinitos con onDatosActualizados
   const prevDatosRef = useRef('');
 
-  // 🔹 Sincronizar el estado local cuando la propiedad paisOrigen cambie desde App.jsx
   useEffect(() => {
     if (paisOrigen) {
       setPaisBase(paisOrigen);
@@ -96,6 +92,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         setLoading(false);
         return;
       }
+
+      // 🔹 Consultar la tabla puertos para obtener latitud y longitud marítima real
+      const { data: dbPuertos, error: errPuertos } = await supabase.from('puertos').select('*');
+      if (errPuertos) console.warn("Aviso en Puertos:", errPuertos);
 
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) console.warn("Aviso en CIC:", errCIC);
@@ -187,12 +187,13 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         mapaPreciosPorPais[pais] = promedio;
       });
 
-      const objetoPaisBase = dbPaises.find(
-        (p) => p.nombre.trim().toLowerCase() === paisBase.trim().toLowerCase()
-      ) || dbPaises[0];
+      // 🔹 Buscar el puerto principal (o el primero disponible) del país base de origen
+      const puertoBaseObj = (dbPuertos || []).find(
+        (p) => String(p.pais).trim().toLowerCase() === paisBase.trim().toLowerCase()
+      ) || (dbPuertos || [])[0];
 
-      const latBase = objetoPaisBase?.latitud;
-      const lonBase = objetoPaisBase?.longitud;
+      const latBase = puertoBaseObj?.latitud;
+      const lonBase = puertoBaseObj?.longitud;
 
       const datosConsolidados = dbPaises
         .map((p) => {
@@ -206,8 +207,19 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : 0;
           if (isNaN(cicVal)) cicVal = 0;
 
-          const distKm = calcularDistanciaKm(latBase, lonBase, p.latitud, p.longitud);
-          const ctiVal = distKm > 0 ? Number((distKm * 0.38).toFixed(2)) : 0;
+          // 🔹 Buscar el puerto correspondiente al país de destino actual en el bucle
+          const puertoDestinoObj = (dbPuertos || []).find(
+            (pt) => String(pt.pais).trim().toLowerCase() === nombreKey
+          );
+
+          let ctiVal = 0;
+          if (latBase && lonBase && puertoDestinoObj?.latitud && puertoDestinoObj?.longitud) {
+            // Calcular distancia lineal entre puertos
+            const distKm = calcularDistanciaKm(latBase, lonBase, puertoDestinoObj.latitud, puertoDestinoObj.longitud);
+            // Aplicar factor de corrección de ruta marítima real (1.6)
+            const distanciaMaritima = distKm * 1.6;
+            ctiVal = distanciaMaritima > 0 ? Number((distanciaMaritima * 0.38).toFixed(2)) : 0;
+          }
 
           return {
             id: p.id,
