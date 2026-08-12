@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
 
-export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [], onDatosActualizados}) {
+export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen, datosCostoDeVida = [], onDatosActualizados }) {
   const [econOverrides, setEconOverrides] = useState([]);
 
   // Estados procesados
@@ -46,7 +46,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           setListaDesempleoDB(desData);
         }
 
-        // 4. Consultar inflación (si aplica tabla independiente)
+        // 4. Consultar inflación
         const { data: infData, error: infError } = await supabase.from('inflacionanual').select('*').range(0, 999);
         if (!infError && infData) {
           setListaInflacionDB(infData);
@@ -75,10 +75,8 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           .trim();
       };
 
-      // Si la tabla de países de Supabase tiene datos, úsela como base maestra
       let listaBasePaises = listaPaisesDB.length > 0 ? listaPaisesDB : (listaCostoVidaDB.length > 0 ? listaCostoVidaDB : datosCostoDeVida);
 
-      // Crear mapas rápidos para cruce de datos
       const mapaCostoVida = {};
       listaCostoVidaDB.forEach(item => {
         const nombre = item.pais || item.País || item.PAIS || item.paises || item.Paises || item.nombre;
@@ -96,7 +94,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       const mapaInflacion = {};
       listaInflacionDB.forEach(item => {
         const nombre = item.pais || item.País || item.PAIS || item.paises || item.Paises || item.nombre;
-        const val = item.inflacionanual ?? item.inflacion_anual ?? item.Inflacion_Anual ?? item.inflacion ??item.inan ?? item.INAN;
+        const val = item.inflacionanual ?? item.inflacion_anual ?? item.Inflacion_Anual ?? item.inflacion ?? item.inan ?? item.INAN;
         if (nombre) mapaInflacion[limpiarTexto(nombre)] = val !== null && !isNaN(Number(val)) ? Number(val) : null;
       });
 
@@ -110,7 +108,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         const paisKey = limpiarTexto(nombrePais);
 
         const valorICV = mapaCostoVida[paisKey] !== undefined ? mapaCostoVida[paisKey] : (item.costo_de_vida ?? item.icv ?? item.ICV ?? null);
-        const valorIAN = mapaInflacion[paisKey] !== undefined ? mapaInflacion[paisKey] : (item.inflacionanual ?? item.inflacion_anual?? item.ina ?? item.INAN ?? item.inflacion ?? null);
+        const valorIAN = mapaInflacion[paisKey] !== undefined ? mapaInflacion[paisKey] : (item.inflacionanual ?? item.inflacion_anual ?? item.ina ?? item.INAN ?? item.inflacion ?? null);
         const valorTAD = mapaDesempleo[paisKey] !== undefined ? mapaDesempleo[paisKey] : (item.tasadesempleo ?? item.tasa_desempleo ?? item.tad ?? null);
 
         return {
@@ -121,7 +119,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         };
       });
 
-      // Filtrar por paisesDestino opcionalmente si se encuentra definido
       if (paisesDestino && paisesDestino.length > 0) {
         const nombresDestino = paisesDestino.map(p => typeof p === 'string' ? p : p.nombre);
         dfEcon = dfEcon.filter(item => 
@@ -129,7 +126,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         );
       }
 
-      // Aplicar Overrides del usuario
       econOverrides.forEach(ovr => {
         const index = dfEcon.findIndex(item => limpiarTexto(item.Paises) === limpiarTexto(ovr.Paises));
         if (index !== -1) {
@@ -153,7 +149,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
 
       setDatosEconConsolidados(dfEcon);
 
-      // ================= NORMALIZACIÓN CON PONDERACIONES EXACTAS =================
+      // ================= NORMALIZACIÓN CON PONDERACIONES Y 16% GLOBAL =================
       const valoresIcvPositivos = dfEcon.map(i => i.ICV).filter(v => v !== null && v > 0);
       const valoresInanPositivos = dfEcon.map(i => i.INAN).filter(v => v !== null && v > 0);
       const valoresTadPositivos = dfEcon.map(i => i.TAD).filter(v => v !== null && v > 0);
@@ -169,16 +165,17 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         return Number(((10 * minimo) / num).toFixed(4));
       };
 
-      // Porcentajes de ponderación oficiales: ICV 33%, IAN 31.5%, TAD 35.5%
+      // Ponderaciones internas del bloque ECON (suman 100%)
       const P_ICV = 0.3300;
       const P_INAN = 0.3150;
       const P_TAD = 0.3550;
 
+      // Peso global del Factor Económico en la calificación total (16%)
+      const PESO_FACTOR_ECONOMICO = 0.16;
+
       const dfNorm = dfEcon.map(item => {
-        // Verificar si el país tiene todos los datos completos
         const completosNorm = item.ICV !== null && item.INAN !== null && item.TAD !== null;
 
-        // Si faltan datos, se excluyen de la normalización asignando null
         if (!completosNorm) {
           return {
             Paises: item.Paises,
@@ -186,6 +183,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
             INAN_norm: null,
             TAD_norm: null,
             Puntaje_ECON_Normalizado: null,
+            aporteFactorEcon: null,
             completos: false
           };
         }
@@ -194,26 +192,28 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         const inanNorm = normInversa(item.INAN, minInan);
         const tadNorm = normInversa(item.TAD, minTad);
 
-        const puntajeEcon = Number((
+        const puntajeEconInterno = (
           (icvNorm !== null ? icvNorm : 0) * P_ICV +
           (inanNorm !== null ? inanNorm : 0) * P_INAN +
           (tadNorm !== null ? tadNorm : 0) * P_TAD
-        ).toFixed(4));
+        );
+
+        const aporteFactorEcon = Number((puntajeEconInterno * PESO_FACTOR_ECONOMICO).toFixed(4));
 
         return {
           Paises: item.Paises,
           ICV_norm: icvNorm,
           INAN_norm: inanNorm,
           TAD_norm: tadNorm,
-          Puntaje_ECON_Normalizado: puntajeEcon,
+          Puntaje_ECON_Normalizado: Number(puntajeEconInterno.toFixed(4)),
+          aporteFactorEcon: aporteFactorEcon,
           completos: true
         };
       });
 
-      // Ordenar para que los completos aparezcan primero y los incompletos al final
       dfNorm.sort((a, b) => {
         if (b.completos !== a.completos) return b.completos ? 1 : -1;
-        return (b.Puntaje_ECON_Normalizado || 0) - (a.Puntaje_ECON_Normalizado || 0);
+        return (b.aporteFactorEcon || 0) - (a.aporteFactorEcon || 0);
       });
 
       setDatosEconNormalizados(dfNorm);
@@ -236,7 +236,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="border-b border-[#1b1f2e] pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas de Supabase.
+          Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas de Supabase (Ponderación Global: 16%).
         </p>
       </div>
 
@@ -286,7 +286,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA DE NORMALIZACIÓN ECONÓMICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla de Normalización Económica (ECON)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: ICV = 33% | IAN = 31.5% | TAD = 35.5% (Normalización Inversa)</p>
+        <p className="text-xs text-slate-400">Ponderaciones internas: ICV = 33% | IAN = 31.5% | TAD = 35.5% (Aporte Global Factor ECON: 16%)</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -297,7 +297,8 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 <th className="p-3 bg-[#151824]">ICV Norm (33%)</th>
                 <th className="p-3 bg-[#151824]">IAN Norm (31.5%)</th>
                 <th className="p-3 bg-[#151824]">TAD Norm (35.5%)</th>
-                <th className="p-3 bg-[#151824]">Puntaje ECON Normalizado</th>
+                <th className="p-3 bg-[#151824]">Puntaje ECON (10 pts)</th>
+                <th className="p-3 bg-[#151824] text-cyan-400">Aporte ECON (16%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
@@ -310,7 +311,8 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                   <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
                   <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
                   <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
-                  <td className="p-3 font-bold text-emerald-400">{row.Puntaje_ECON_Normalizado !== null ? row.Puntaje_ECON_Normalizado : <span className="text-slate-600 italic">-</span>}</td>
+                  <td className="p-3 font-semibold text-slate-200">{row.Puntaje_ECON_Normalizado !== null ? row.Puntaje_ECON_Normalizado : <span className="text-slate-600 italic">-</span>}</td>
+                  <td className="p-3 font-bold text-cyan-400">{row.aporteFactorEcon !== null ? row.aporteFactorEcon : <span className="text-slate-600 italic">-</span>}</td>
                 </tr>
               ))}
             </tbody>
