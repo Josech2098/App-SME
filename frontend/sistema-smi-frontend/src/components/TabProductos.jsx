@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { renderPaisConBandera } from './banderas.jsx'; // 👈 Importación de banderas
+import { renderPaisConBandera } from './banderas.jsx';
 
 export default function TablaProductos({
   paisDestino,
@@ -31,6 +31,7 @@ export default function TablaProductos({
     if (error) {
       console.error('Error cargando productos:', error);
     } else if (dataProductos) {
+      console.log('Ejemplo de producto cargado de Supabase:', dataProductos[0]); // 👈 Útil para ver las columnas reales
       setProductos(dataProductos);
     }
 
@@ -49,7 +50,6 @@ export default function TablaProductos({
 
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
 
-  // Función auxiliar para extraer el valor numérico del precio para el ordenamiento
   const obtenerPrecioNumerico = (p) => {
     const precioRaw = p.precio ?? p.Precio;
     if (precioRaw === undefined || precioRaw === null || precioRaw === '') return 0;
@@ -58,50 +58,54 @@ export default function TablaProductos({
     return isNaN(num) ? 0 : num;
   };
 
-  // 🔍 Lógica de Filtrado Estricta y Corregida
+  // 🔍 Lógica de Filtrado Directa por Nombre o Código (Sin depender de keywords erróneas)
   const productosFiltrados = productos.filter((p) => {
     const nombreProducto = String(p.nombre || p.producto || '').toLowerCase();
     
-    // 1. Filtro por categoría
+    // 1. Filtro por categoría inteligente
     if (categoria && categoria !== 'Todos') {
-      const catProducto = String(p.categoria_codigo || p.categoria || '').trim();
-      const coincideCodigoDirecto = catProducto === String(categoria) || catProducto.startsWith(String(categoria).substring(0, 4));
+      const categoriaFiltroLimpia = String(categoria).toLowerCase();
+      // Extraemos los primeros dígitos si el string viene como "0407 - Descripción..."
+      const codigoExtraido = categoriaFiltroLimpia.split(' ')[0].trim();
 
-      const palabrasCategoriaActual = keywordsCategoria
-        .filter(k => String(k.categoria_codigo) === String(categoria))
+      const catProductoCodigo = String(p.categoria_codigo || p.categoria || '').toLowerCase().trim();
+      
+      // Verificamos si coincide el código o si el nombre del producto contiene la categoría seleccionada
+      const coincideCodigo = catProductoCodigo.includes(codigoExtraido);
+      
+      // Buscamos si hay keywords válidas en Supabase para este código
+      const palabrasClave = keywordsCategoria
+        .filter(k => String(k.categoria_codigo).toLowerCase().includes(codigoExtraido))
         .map(k => String(k.palabra_clave || '').toLowerCase().trim())
         .filter(Boolean);
 
-      const coincideKeyword = palabrasCategoriaActual.some(palabra => nombreProducto.includes(palabra));
+      const coincideKeyword = palabrasClave.some(palabra => nombreProducto.includes(palabra));
 
-      // Si el producto tiene un código explícito y no coincide, lo filtramos.
-      if (catProducto && catProducto !== '' && !coincideCodigoDirecto) {
-        if (!coincideKeyword) return false;
-      } 
-      // Si hay palabras clave para esta categoría, exigimos que el producto cumpla alguna para evitar que se cuelen productos erróneos (como agua o pan).
-      else if (palabrasCategoriaActual.length > 0) {
-        if (!coincideKeyword && !coincideCodigoDirecto) return false;
+      // Si no coincide ni por código de base de datos ni por palabras clave reales, se descarta
+      if (!coincideCodigo && palabrasClave.length > 0 && !coincideKeyword) {
+        return false;
+      }
+      
+      // Si el producto no tiene código asignado y tampoco hay keywords, filtramos por similitud en el texto del nombre
+      if (!catProductoCodigo && palabrasClave.length === 0) {
+        const terminosFiltro = categoriaFiltroLimpia.replace(/[^a-z0-9\s]/gi, '').split(' ');
+        const matchParcial = terminosFiltro.some(term => term.length > 3 && nombreProducto.includes(term));
+        if (!matchParcial) return false;
       }
     }
     
     // 2. Filtro por subcategoría
     if (subcategoria && subcategoria !== 'Todos') {
-      const palabrasSubcategoriaActual = keywordsCategoria
-        .filter(k => String(k.subcategoria_codigo) === String(subcategoria))
+      const subcatFiltro = String(subcategoria).toLowerCase().trim();
+      const subcatProducto = String(p.subcategoria_codigo || p.subcategoria || p.subcodigo || '').toLowerCase().trim();
+      
+      const palabrasSub = keywordsCategoria
+        .filter(k => String(k.subcategoria_codigo).toLowerCase().includes(subcatFiltro))
         .map(k => String(k.palabra_clave || '').toLowerCase().trim())
         .filter(Boolean);
 
-      const subcatProducto = String(p.subcategoria_codigo || p.subcategoria || p.subcodigo || '').trim();
-      const subcatFiltro = String(subcategoria).trim();
-
-      const coincideSubExacto = subcatProducto === subcatFiltro;
-      const coincideKeywordSub = palabrasSubcategoriaActual.some(palabra => nombreProducto.includes(palabra));
-
-      if (palabrasSubcategoriaActual.length > 0) {
-        if (!coincideSubExacto && !coincideKeywordSub) {
-          return false;
-        }
-      }
+      const coincideSub = subcatProducto.includes(subcatFiltro) || palabrasSub.some(pText => nombreProducto.includes(pText));
+      if (!coincideSub && palabrasSub.length > 0) return false;
     }
     
     // 3. Filtro por nombre escrito manualmente
@@ -114,9 +118,8 @@ export default function TablaProductos({
         .map(k => String(k.palabra_clave || '').toLowerCase().trim())
         .filter(Boolean);
 
-      const coincideCodigo = palabrasCodigo.some(palabra => nombreProducto.includes(palabra));
-
-      if (palabrasCodigo.length > 0 && !coincideCodigo) return false;
+      const coincideCodigoSearch = palabrasCodigo.some(palabra => nombreProducto.includes(palabra));
+      if (palabrasCodigo.length > 0 && !coincideCodigoSearch) return false;
     }
     
     // 5. Filtro por subcódigo
@@ -124,12 +127,10 @@ export default function TablaProductos({
     if (searchSubcodigo && (!subcodigoVal || !subcodigoVal.toString().includes(searchSubcodigo))) return false;
 
     return true;
-  }).sort((a, b) => obtenerPrecioNumerico(a) - obtenerPrecioNumerico(b)); // 👈 Ordenamiento de menor a mayor por precio
+  }).sort((a, b) => obtenerPrecioNumerico(a) - obtenerPrecioNumerico(b));
 
   return (
     <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
-
-      {/* 📊 TABLA DE RESULTADOS PRINCIPAL */}
       <div className="space-y-2">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-sm font-bold text-white">
@@ -214,7 +215,6 @@ export default function TablaProductos({
           </div>
         </div>
       </div>
-
     </div>
   );
 }
