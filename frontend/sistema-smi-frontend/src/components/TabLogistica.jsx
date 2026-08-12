@@ -52,6 +52,8 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     return puertosData.filter(p => normalizarTexto(p.pais) === normalizarTexto(paisLlegadaCalc));
   }, [puertosData, paisLlegadaCalc]);
 
+  // Cálculo de distancia náutica con factor de corrección marítima internacional básico 
+  // (para evitar líneas rectas terrestres imposibles entre continentes)
   const calcularDistanciaNautica = (lat1, lon1, lat2, lon2) => {
     if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return 0;
     const R = 3440.06; 
@@ -63,7 +65,11 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               Math.sin(dLon / 2) * Math.sin(dLon / 2);
               
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    let distanciaDirecta = R * c;
+
+    // Factor corrector geográfico aproximado para rutas marítimas reales vs línea recta por tierra
+    const factorMaritimo = (Math.abs(lon1 - lon2) > 30 || Math.abs(lat1 - lat2) > 30) ? 1.35 : 1.15;
+    return distanciaDirecta * factorMaritimo;
   };
 
   const calcularTtiEntrePuertos = (pO, pD, vel = 18.50) => {
@@ -103,7 +109,6 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
     const resultado = calcularTtiEntrePuertos(puertoO, puertoD, Number(velocidadBuque) || 18.50);
     if (!resultado) return '-';
 
-    // Se cambió a 2 decimales para evitar colisiones idénticas en el redondeo
     return `${resultado.dias.toFixed(2)} días`;
   }, [paisSalidaCalc, puertoSalidaCalc, puertosData, velocidadBuque, resultadoManualFijado]);
 
@@ -222,7 +227,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
 
       const idlNorm = (idl !== null && idl > 0 && MAX_IDL) ? Number((A3 * idl / MAX_IDL).toFixed(2)) : null;
       
-      // Normalización logarítmica para CCP
+      // Normalización logarítmica para CCP (evita distorsión por kilómetros totales)
       const ccpNorm = (ccp !== null && ccp > 0 && MAX_CCP) 
         ? Number((A3 * (Math.log(ccp + 1) / Math.log(MAX_CCP + 1))).toFixed(2)) 
         : null;
