@@ -155,8 +155,8 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
             return {
               id: item.id,
               Paises: nombrePais,
-              'Índice de Desempeño Logístico (IDL)': item.lpi !== null ? item.lpi : 0,
-              'Calidad de las carreteras por país (CCP)': item.cfr !== null ? item.cfr : 0,
+              'Índice de Desempeño Logístico (IDL)': item.lpi !== null && item.lpi !== undefined ? item.lpi : null,
+              'Calidad de las carreteras por país (CCP)': item.cfr !== null && item.cfr !== undefined ? item.cfr : null,
               'Tiempo de tránsito del Transporte Internacional (TTI)': '-'
             };
           });
@@ -195,32 +195,41 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
   }, [tablaLogi, calcularTtiParaFila]);
 
   const MIN_TTI = useMemo(() => {
-    return ttiValoresValidos.length > 0 ? Math.min(...ttiValoresValidos) : 1.0;
+    return ttiValoresValidos.length > 0 ? Math.min(...ttiValoresValidos) : null;
   }, [ttiValoresValidos]);
 
   const tablaProcesadaFinal = useMemo(() => {
     if (tablaLogi.length === 0) return [];
 
-    const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v > 0);
-    const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v > 0);
+    // Filtrar únicamente valores estrictamente mayores a 0 y no nulos para calcular los máximos de normalización
+    const idkVals = tablaLogi.map(d => Number(d['Índice de Desempeño Logístico (IDL)'])).filter(v => v !== null && !isNaN(v) && v > 0);
+    const ccpVals = tablaLogi.map(d => Number(d['Calidad de las carreteras por país (CCP)'])).filter(v => v !== null && !isNaN(v) && v > 0);
 
-    const MAX_IDL = idkVals.length > 0 ? Math.max(...idkVals) : 5.0;
-    const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : 300000000;
+    const MAX_IDL = idkVals.length > 0 ? Math.max(...idkVals) : null;
+    const MAX_CCP = ccpVals.length > 0 ? Math.max(...ccpVals) : null;
     const A3 = 10;
 
     const procesada = tablaLogi.map(row => {
-      const idl = Number(row['Índice de Desempeño Logístico (IDL)']) || 0;
-      const ccp = Number(row['Calidad de las carreteras por país (CCP)']) || 0;
+      const rawIdl = row['Índice de Desempeño Logístico (IDL)'];
+      const rawCcp = row['Calidad de las carreteras por país (CCP)'];
+
+      const idl = rawIdl !== null && rawIdl !== undefined ? Number(rawIdl) : null;
+      const ccp = rawCcp !== null && rawCcp !== undefined ? Number(rawCcp) : null;
       
       const ttiStr = String(calcularTtiParaFila(row.Paises) || '0').replace(/días|dias|-/gi, '').trim();
       const ttiVal = Number(ttiStr);
       const tieneTtiValido = !isNaN(ttiVal) && ttiVal > 0;
 
-      const idlNorm = idl ? Number((A3 * idl / MAX_IDL).toFixed(2)) : 0;
-      const ccpNorm = ccp ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : 0;
-      const ttiNorm = tieneTtiValido ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : 0;
+      // Si algún parámetro principal es null, nulo o 0, el valor normalizado y el total se marcan como inválidos/null
+      const idlNorm = (idl !== null && idl > 0 && MAX_IDL) ? Number((A3 * idl / MAX_IDL).toFixed(2)) : null;
+      const ccpNorm = (ccp !== null && ccp > 0 && MAX_CCP) ? Number((A3 * ccp / MAX_CCP).toFixed(2)) : null;
+      const ttiNorm = (tieneTtiValido && MIN_TTI) ? Number((A3 * MIN_TTI / ttiVal).toFixed(2)) : null;
 
-      const costoTotal = Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
+      const tieneNulosOIncompletos = idlNorm === null || ccpNorm === null || ttiNorm === null;
+
+      const costoTotal = tieneNulosOIncompletos 
+        ? null 
+        : Number((0.185 * idlNorm + 0.185 * ccpNorm + 0.63 * ttiNorm).toFixed(2));
 
       return { 
         ...row, 
@@ -228,22 +237,19 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         idlNorm, 
         ccpNorm, 
         ttiNorm, 
-        costoTotal 
+        costoTotal,
+        __tieneNulos: tieneNulosOIncompletos
       };
     });
 
-    // Ordenamiento por completitud de datos y nombre
+    // Ordenamiento estricto: Primero los que NO tienen nulos y mayor puntaje, al final los que tienen datos incompletos
     procesada.sort((a, b) => {
-      const ttiA = calcularTtiParaFila(a.Paises);
-      const ttiB = calcularTtiParaFila(b.Paises);
-      const idlA = Number(a['Índice de Desempeño Logístico (IDL)']) || 0;
-      const idlB = Number(b['Índice de Desempeño Logístico (IDL)']) || 0;
-
-      const tieneDatosA = ttiA !== '-' && idlA > 0;
-      const tieneDatosB = ttiB !== '-' && idlB > 0;
-
-      if (tieneDatosA && !tieneDatosB) return -1;
-      if (!tieneDatosA && tieneDatosB) return 1;
+      if (a.__tieneNulos !== b.__tieneNulos) {
+        return a.__tieneNulos ? 1 : -1;
+      }
+      if (!a.__tieneNulos && !b.__tieneNulos) {
+        return b.costoTotal - a.costoTotal;
+      }
       return a.Paises.localeCompare(b.Paises);
     });
 
@@ -416,14 +422,16 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
                 {tablaProcesadaFinal.map((row, index) => {
                   const ttiMostrado = row['Tiempo de tránsito del Transporte Internacional (TTI)'];
+                  const idlVal = row['Índice de Desempeño Logístico (IDL)'];
+                  const ccpVal = row['Calidad de las carreteras por país (CCP)'];
                   return (
                     <tr key={row.id || index} className="hover:bg-[#151824] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
                       <td className="p-3 font-medium text-white flex items-center gap-2">
                         {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
                       </td>
-                      <td className="p-3">{row['Índice de Desempeño Logístico (IDL)']}</td>
-                      <td className="p-3">{row['Calidad de las carreteras por país (CCP)']}</td>
+                      <td className="p-3">{idlVal !== null && idlVal !== undefined ? idlVal : 'Sin datos'}</td>
+                      <td className="p-3">{ccpVal !== null && ccpVal !== undefined ? ccpVal : 'Sin datos'}</td>
                       <td className={`p-3 font-medium ${ttiMostrado === '-' ? 'text-slate-500' : 'text-emerald-400'}`}>
                         {ttiMostrado}
                       </td>
@@ -458,17 +466,16 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
               </thead>
               <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
                 {tablaProcesadaFinal.map((row, index) => {
-                  const tieneTtiValido = row.ttiNorm > 0;
                   return (
                     <tr key={row.id || index} className="hover:bg-[#151824] transition-colors">
                       <td className="p-3 text-slate-500">{index + 1}</td>
                       <td className="p-3 font-medium text-white flex items-center gap-2">
                         {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
                       </td>
-                      <td className="p-3 text-slate-300">{row.idlNorm}</td>
-                      <td className="p-3 text-slate-300">{row.ccpNorm}</td>
-                      <td className="p-3 text-slate-300">{tieneTtiValido ? row.ttiNorm : '-'}</td>
-                      <td className="p-3 font-bold text-indigo-400">{row.costoTotal}</td>
+                      <td className="p-3 text-slate-300">{row.idlNorm !== null ? row.idlNorm : '-'}</td>
+                      <td className="p-3 text-slate-300">{row.ccpNorm !== null ? row.ccpNorm : '-'}</td>
+                      <td className="p-3 text-slate-300">{row.ttiNorm !== null ? row.ttiNorm : '-'}</td>
+                      <td className="p-3 font-bold text-indigo-400">{row.costoTotal !== null ? row.costoTotal : '-'}</td>
                     </tr>
                   );
                 })}
