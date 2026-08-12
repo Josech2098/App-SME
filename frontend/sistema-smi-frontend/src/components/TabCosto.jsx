@@ -30,17 +30,19 @@ function calcularDistanciaKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// --- Helper: Limpiar el formato del precio (ej. "8,97 €" -> 8.97) ---
+// --- Helper: Limpiar el formato del precio (admite 0, pero descarta null/undefined/vacíos) ---
 function limpiarPrecio(val) {
-  if (val === null || val === undefined) return 0;
-  if (typeof val === 'number') return val > 0 ? val : 0;
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') return val;
   
   const str = String(val).trim();
-  if (str.toLowerCase().includes('no encontrado') || str === '' || str === '0' || str === '$0.00') return 0;
+  if (str === '' || str.toLowerCase().includes('no encontrado')) return null;
 
   const limpio = str.replace(/[^\d,.-]/g, '').replace(',', '.');
+  if (limpio === '') return null;
+  
   const numero = parseFloat(limpio);
-  return isNaN(numero) || numero <= 0 ? 0 : numero;
+  return isNaN(numero) ? null : numero;
 }
 
 // --- Helper: Normalizar texto (quitar tildes, minúsculas, códigos numéricos) ---
@@ -169,7 +171,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
               const precioRaw = item.precio ?? item.price ?? item.costo;
               const precioLim = limpiarPrecio(precioRaw);
               
-              if (precioLim > 0) {
+              // Se permite registrar el precio si es un número válido (incluyendo 0, se descarta solo si es null)
+              if (precioLim !== null) {
                 if (!mapaPreciosTemp[nombrePaisKey]) {
                   mapaPreciosTemp[nombrePaisKey] = [];
                 }
@@ -198,7 +201,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const datosConsolidados = dbPaises
         .map((p) => {
           const nombreKey = p.nombre.trim().toLowerCase();
-          // Si no hay precio registrado, asignar null en lugar de 0 para evitar falsos positivos
+          // Si no hay precio registrado, se mantiene null
           const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : null;
 
           const cicMatch = (dbCostoImportacion || []).find(
@@ -217,7 +220,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           if (latBase && lonBase && puertoDestinoObj?.latitud && puertoDestinoObj?.longitud) {
             const distKm = calcularDistanciaKm(latBase, lonBase, puertoDestinoObj.latitud, puertoDestinoObj.longitud);
             const distanciaMaritima = distKm * 1.6;
-            ctiVal = distanciaMaritima > 0 ? Number((distanciaMaritima * 0.38).toFixed(2)) : null;
+            // Si la distancia calcula 0 o más, se procesa (incluso si da 0 exacto)
+            ctiVal = !isNaN(distanciaMaritima) ? Number((distanciaMaritima * 0.38).toFixed(2)) : null;
           }
 
           return {
@@ -251,9 +255,10 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   const PUNTAJE_MAXIMO = 10;
 
   const { maxPpd, minCti, minCic } = useMemo(() => {
-    const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && v > 0);
-    const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && v > 0);
-    const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && v > 0);
+    // Se admiten valores >= 0 para que el 0 sea detectado correctamente
+    const ppdVals = datosProductos.map(d => d.ppd).filter(v => v !== null && v !== undefined && !isNaN(v));
+    const ctiVals = datosProductos.map(d => d.cti).filter(v => v !== null && v !== undefined && !isNaN(v));
+    const cicValsValidos = datosProductos.map(d => d.cic).filter(v => v !== null && v !== undefined && !isNaN(v));
 
     return {
       maxPpd: ppdVals.length > 0 ? Math.max(...ppdVals) : null,
@@ -263,13 +268,19 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   }, [datosProductos]);
 
   const calcularNormalizadoDirecto = (val, maxVal) => {
-    if (val === null || val === undefined || val <= 0 || !maxVal) return null;
+    if (val === null || val === undefined || isNaN(val) || maxVal === null || maxVal === undefined) return null;
+    if (maxVal === 0) return 0; // Evitar división por cero si el máximo global es 0
     const resultado = (PUNTAJE_MAXIMO * val) / maxVal;
     return Number(resultado.toFixed(2));
   };
 
   const calcularNormalizadoInverso = (val, minVal) => {
-    if (val === null || val === undefined || val <= 0 || !minVal || minVal <= 0) return null;
+    if (val === null || val === undefined || isNaN(val) || minVal === null || minVal === undefined) return null;
+    if (val === 0) return PUNTAJE_MAXIMO; // Si el costo es 0 (óptimo absoluto), obtiene el puntaje máximo
+    if (minVal === 0) {
+      // Si el mínimo es 0 pero el valor actual es mayor a 0, se le asigna un puntaje menor proporcional o se maneja de forma segura
+      return Number((PUNTAJE_MAXIMO / (1 + val)).toFixed(2));
+    }
     const resultado = (PUNTAJE_MAXIMO * minVal) / val;
     return Number(resultado.toFixed(2));
   };
@@ -427,7 +438,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                       <td className="py-3 px-4 font-sans font-medium text-slate-200 flex items-center gap-2">
                         {renderPaisConBandera ? renderPaisConBandera(row.pais_nombre) : row.pais_nombre}
                       </td>
-                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd !== null && row.ppd > 0 ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
+                      <td className="py-3 px-4 text-right text-emerald-400 font-semibold">{row.ppd !== null ? `$${row.ppd.toFixed(2)}` : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right">{row.cti !== null ? `$${row.cti.toFixed(2)}` : 'Sin datos'}</td>
                       <td className="py-3 px-4 text-right pr-6">
                         {row.cic !== null ? `$${row.cic.toFixed(2)}` : 'Sin datos'}
