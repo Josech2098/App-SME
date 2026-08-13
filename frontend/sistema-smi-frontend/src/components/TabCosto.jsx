@@ -97,8 +97,30 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const { data: dbCostoImportacion, error: errCIC } = await supabase.from('costo_importacion').select('*');
       if (errCIC) console.warn("Aviso en CIC:", errCIC);
 
-      const { data: dbProds, error: errProds } = await supabase.from('productos').select('*');
-      if (errProds) throw errProds;
+      // CARGA PAGINADA DE PRODUCTOS (Para evitar el límite de 1000 filas de Supabase)
+      let dbProds = [];
+      let offset = 0;
+      const limiteBloque = 1000;
+      let continuarCargando = true;
+
+      while (continuarCargando) {
+        const { data: bloqueProds, error: errProds } = await supabase
+          .from('productos')
+          .select('*')
+          .range(offset, offset + limiteBloque - 1);
+
+        if (errProds) throw errProds;
+
+        if (bloqueProds && bloqueProds.length > 0) {
+          dbProds = [...dbProds, ...bloqueProds];
+          offset += limiteBloque;
+          if (bloqueProds.length < limiteBloque) {
+            continuarCargando = false;
+          }
+        } else {
+          continuarCargando = false;
+        }
+      }
 
       const { data: categoriasKeywords, error: errCategorias } = await supabase
         .from('productos_categoria')
@@ -136,7 +158,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
           if (coincideCategoria && coincideSubcategoria && cumpleFiltroBusqueda) {
             const paisItem = item.pais || item.Pais || item.country;
             if (paisItem) {
-              const nombrePaisKey = String(paisItem).trim().toLowerCase();
+              const nombrePaisKey = normalizarTexto(paisItem);
               const precioLim = limpiarPrecio(item.precio ?? item.price ?? item.costo);
               if (precioLim !== null) {
                 if (!mapaPreciosTemp[nombrePaisKey]) mapaPreciosTemp[nombrePaisKey] = [];
@@ -154,24 +176,24 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       });
 
       const puertoBaseObj = (dbPuertos || []).find(
-        (p) => String(p.pais).trim().toLowerCase() === paisBase.trim().toLowerCase()
+        (p) => normalizarTexto(p.pais) === normalizarTexto(paisBase)
       ) || (dbPuertos || [])[0];
 
       const latBase = puertoBaseObj?.latitud;
       const lonBase = puertoBaseObj?.longitud;
 
       const datosConsolidados = dbPaises.map((p) => {
-        const nombreKey = p.nombre.trim().toLowerCase();
+        const nombreKey = normalizarTexto(p.nombre);
         const ppdVal = mapaPreciosPorPais[nombreKey] !== undefined ? mapaPreciosPorPais[nombreKey] : null;
 
         const cicMatch = (dbCostoImportacion || []).find(
-          (c) => String(c.pais || c.pais_nombre || '').trim().toLowerCase() === nombreKey
+          (c) => normalizarTexto(c.pais || c.pais_nombre || '') === nombreKey
         );
         let cicVal = cicMatch ? Number(cicMatch.valor ?? cicMatch.cic ?? 0) : null;
         if (cicVal !== null && isNaN(cicVal)) cicVal = null;
 
         const puertoDestinoObj = (dbPuertos || []).find(
-          (pt) => String(pt.pais).trim().toLowerCase() === nombreKey
+          (pt) => normalizarTexto(pt.pais) === nombreKey
         );
 
         let ctiVal = null;
@@ -250,7 +272,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const p2 = ctiNorm ?? 0;
       const p3 = cicNorm ?? 0;
 
-      // CORRECCIÓN: El puntaje del factor se calcula únicamente con sus 3 % internos (44%, 34%, 22%) sobre base 10
       const puntajeFactorCosto = tieneNulos ? 0 : Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2));
       const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
 
