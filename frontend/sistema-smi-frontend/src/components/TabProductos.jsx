@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 import { renderPaisConBandera } from './banderas.jsx';
 
+// 🗺️ Mapa maestro de correspondencia
 const mapaProductosCategoria = {
   'Agua (1,5 litros)': '2202',
   'Agua (botella de 33 cl)': '2202',
@@ -39,37 +40,24 @@ export default function TablaProductos({
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Normalizador para ignorar tildes, mayúsculas y espacios al comparar
+  const limpiar = (str) => String(str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
   useEffect(() => {
+    async function cargarDatos() {
+      setLoading(true);
+      const { data, error } = await supabase.from('productos').select('*').range(0, 4999);
+      if (error) console.error('Error:', error);
+      else setProductos(data || []);
+      setLoading(false);
+    }
     cargarDatos();
   }, []);
 
-  async function cargarDatos() {
-    setLoading(true);
-    // Traemos el total de registros disponibles
-    const { data, error } = await supabase
-      .from('productos')
-      .select('*')
-      .range(0, 2500); 
-
-    if (error) console.error('Error cargando productos:', error);
-    else setProductos(data || []);
-    setLoading(false);
-  }
-
-  // Normalizador reforzado: maneja nulos, tildes, mayúsculas y caracteres especiales
-  const limpiar = (str) => {
-    if (!str) return '';
-    return String(str)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
+  const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
   const obtenerPrecioNumerico = (p) => {
-    const precioRaw = p.precio ?? p.Precio;
-    const num = Number(String(precioRaw || 0).replace('€', '').trim().replace(',', '.'));
+    const pr = p.precio ?? p.Precio ?? 0;
+    const num = Number(String(pr).replace('€', '').trim().replace(',', '.'));
     return isNaN(num) ? 0 : num;
   };
 
@@ -78,19 +66,19 @@ export default function TablaProductos({
     const pais = p.pais || p.Pais || '';
     const subcatVal = p.subcategoria_codigo || p.subcategoria || p.subcodigo || '';
 
-    // 1. FILTRO PAÍS: Normalización estricta
+    // 1. FILTRO PAÍS (Añadido)
     if (paisDestino && paisDestino !== 'Todos' && paisDestino !== '') {
       if (limpiar(pais) !== limpiar(paisDestino)) return false;
     }
 
-    // 2. FILTRO CATEGORÍA
+    // 2. FILTRO CATEGORÍA (Normalizado para que coincida aunque el nombre tenga variaciones)
     if (categoria && categoria !== 'Todos') {
       const codFiltro = String(categoria).split(' ')[0].trim();
-      const claveMapa = Object.keys(mapaProductosCategoria).find(k => limpiar(nombre).includes(limpiar(k)));
-      if (!claveMapa || mapaProductosCategoria[claveMapa] !== codFiltro) return false;
+      const claveEncontrada = Object.keys(mapaProductosCategoria).find(key => limpiar(nombre).includes(limpiar(key)));
+      if (!claveEncontrada || mapaProductosCategoria[claveEncontrada] !== codFiltro) return false;
     }
 
-    // 3. FILTRO SUBCATEGORÍA, NOMBRE Y CÓDIGOS
+    // 3. OTROS FILTROS
     if (subcategoria && subcategoria !== 'Todos' && !limpiar(subcatVal).includes(limpiar(subcategoria))) return false;
     if (searchNombre && !limpiar(nombre).includes(limpiar(searchNombre))) return false;
     if (searchCodigo && !limpiar(nombre).includes(limpiar(searchCodigo))) return false;
@@ -100,9 +88,10 @@ export default function TablaProductos({
   }).sort((a, b) => obtenerPrecioNumerico(a) - obtenerPrecioNumerico(b));
 
   return (
-    <div className="space-y-6 text-[#94a3b8] font-sans">
+    <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
       <div className="flex justify-between items-center px-1">
-        <h3 className="text-sm font-bold text-white">Listado de Productos ({productosFiltrados.length})</h3>
+        <h3 className="text-sm font-bold text-white">Listado de Productos</h3>
+        <span className="text-xs text-slate-400">Mostrando {productosFiltrados.length} registros</span>
       </div>
 
       <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
@@ -117,15 +106,11 @@ export default function TablaProductos({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#182030] text-slate-300">
-              {loading ? (
-                <tr><td colSpan="4" className="py-8 text-center">Cargando registros...</td></tr>
-              ) : productosFiltrados.map((item) => (
-                <tr 
-                  key={item.id || item.ID} 
-                  onClick={() => onSeleccionarProducto?.(item)}
-                  className={`cursor-pointer hover:bg-[#161c29] ${String(productoSeleccionadoId) === String(item.id || item.ID) ? 'bg-emerald-500/10' : ''}`}
-                >
-                  <td className="py-3 px-4">{item.id || item.ID}</td>
+              {loading ? <tr><td colSpan="4" className="py-8 text-center">Cargando...</td></tr> : 
+               productosFiltrados.map((item) => (
+                <tr key={getProductoId(item)} onClick={() => onSeleccionarProducto?.(item)}
+                    className={`cursor-pointer hover:bg-[#161c29] ${String(productoSeleccionadoId) === String(getProductoId(item)) ? 'bg-emerald-500/10' : ''}`}>
+                  <td className="py-3 px-4">{getProductoId(item)}</td>
                   <td className="py-3 px-4 font-medium">{renderPaisConBandera?.(item.pais || item.Pais) || (item.pais || item.Pais)}</td>
                   <td className="py-3 px-4">{item.nombre || item.producto}</td>
                   <td className="py-3 px-4 text-right text-emerald-400 font-semibold pr-6">{obtenerPrecioNumerico(item).toFixed(2)} €</td>
