@@ -256,6 +256,7 @@ export default function TabLogistica({ productoActivo, paisesDestino, paisOrigen
         ccpNorm, 
         ttiNorm, 
         costoTotal,
+        LOGI: costoTotal, // 👈 Propiedad añadida para que la tabla general la reconozca
         __tieneNulos: tieneNulosOIncompletos
       };
     });
