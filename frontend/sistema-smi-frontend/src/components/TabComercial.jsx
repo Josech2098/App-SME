@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { renderPaisConBandera } from './banderas'; // <--- Importamos el helper de banderas
+import { renderPaisConBandera } from './banderas';
 
 export default function TabComercial({
   productoActivo,
@@ -166,8 +166,6 @@ export default function TabComercial({
       const [iempMin, iempMax] = getMinMax(dfComm, 'Índice de penetración en el mercado de exportación (IEMP)');
       const [ioefMin, ioefMax] = getMinMax(dfComm, 'Índice de Libertad Económica (IOEF)');
 
-      const PESO_GLOBAL_COMM = 0.205; // 20.50%
-
       const dfNorm = dfComm.map(item => {
         const ctcoVal = item['Aranceles aduaneros por país de origen (CTCO)'];
         const iempVal = item['Índice de penetración en el mercado de exportación (IEMP)'];
@@ -177,8 +175,8 @@ export default function TabComercial({
         const iempNorm = (iempMax !== iempMin) ? Number((A3 * (iempVal - iempMin) / (iempMax - iempMin)).toFixed(2)) : 0;
         const ioefNorm = (ioefMax !== ioefMin) ? Number((A3 * (ioefVal - ioefMin) / (ioefMax - ioefMin)).toFixed(2)) : 0;
 
-        const subtotalPonderado = (ctcoNorm * 0.4650 + iempNorm * 0.2500 + ioefNorm * 0.2850);
-        const commTotal = Number((subtotalPonderado * PESO_GLOBAL_COMM).toFixed(2));
+        // CÁLCULO CORREGIDO: Suma ponderada de variables (46.5%, 25%, 28.5%)
+        const commTotal = Number((ctcoNorm * 0.4650 + iempNorm * 0.2500 + ioefNorm * 0.2850).toFixed(2));
 
         return {
           Paises: item.Paises,
@@ -203,13 +201,11 @@ export default function TabComercial({
 
   return (
     <div className="space-y-8 text-slate-100 font-sans">
-      
-      {/* HEADER */}
       <div className="border-b border-[#1b1f2e] pb-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
         <div>
           <h2 className="text-xl font-bold text-white">3. Comercial (COMM)</h2>
           <p className="text-xs text-slate-400 mt-1">
-            Cruce y normalización ponderada (46.50% Aranceles, 25.00% Penetración, 28.50% Libertad Económica) con Ponderación Global del 20.50%.
+            Cruce y normalización ponderada de variables internas (46.50% Aranceles, 25.00% Penetración, 28.50% Libertad Económica).
           </p>
         </div>
       </div>
@@ -225,11 +221,8 @@ export default function TabComercial({
 
       {errorProceso && <div className="bg-red-950 p-3 rounded text-xs text-red-400 border border-red-800">{errorProceso}</div>}
 
-      {/* TABLA COMERCIAL CONSOLIDADA */}
       <div className="space-y-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Consolidada (COMM)</h3>
-        <p className="text-xs text-slate-400">Datos consolidados de aranceles, penetración e índice de libertad económica.</p>
-        
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
             <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
@@ -246,7 +239,7 @@ export default function TabComercial({
                 datosCommConsolidados.map((row, index) => (
                   <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{renderPaisConBandera(row.Paises)}</td> {/* <--- Aplicado aquí */}
+                    <td className="p-3 font-medium text-white">{renderPaisConBandera(row.Paises)}</td>
                     <td className="p-3">{row['Aranceles aduaneros por país de origen (CTCO)']}</td>
                     <td className="p-3 font-semibold text-emerald-400">{row['Índice de penetración en el mercado de exportación (IEMP)']}</td>
                     <td className="p-3 font-semibold text-emerald-400">{row['Índice de Libertad Económica (IOEF)']}</td>
@@ -262,11 +255,8 @@ export default function TabComercial({
         </div>
       </div>
 
-      {/* TABLA COMERCIAL NORMALIZADA */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Comercial Normalizada (COMM)</h3>
-        <p className="text-xs text-slate-400">Valores normalizados y costo total ponderado comercial.</p>
-
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
             <thead className="bg-[#151824] text-slate-400 uppercase text-[10px] tracking-wider border-b border-[#1b1f2e] sticky top-0 z-10">
@@ -276,7 +266,7 @@ export default function TabComercial({
                 <th className="p-3 bg-[#151824]">CTCO Norm (46.50%)</th>
                 <th className="p-3 bg-[#151824]">IEMP Norm (25.00%)</th>
                 <th className="p-3 bg-[#151824]">IOEF Norm (28.50%)</th>
-                <th className="p-3 bg-[#151824]">COMM Total (20.50%)</th>
+                <th className="p-3 bg-[#151824]">COMM Total (Base 10)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
@@ -284,7 +274,7 @@ export default function TabComercial({
                 datosCommNormalizados.map((row, index) => (
                   <tr key={index} className="hover:bg-[#151824] transition-colors">
                     <td className="p-3 text-slate-500">{index + 1}</td>
-                    <td className="p-3 font-medium text-white">{renderPaisConBandera(row.Paises)}</td> {/* <--- Aplicado aquí */}
+                    <td className="p-3 font-medium text-white">{renderPaisConBandera(row.Paises)}</td>
                     <td className="p-3">{row.CTCO_norm}</td>
                     <td className="p-3">{row.IEMP_norm}</td>
                     <td className="p-3">{row.IOEF_norm}</td>
@@ -300,7 +290,6 @@ export default function TabComercial({
           </table>
         </div>
       </div>
-
     </div>
   );
 }
