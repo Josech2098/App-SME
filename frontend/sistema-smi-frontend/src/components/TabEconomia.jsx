@@ -150,9 +150,12 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       setDatosEconConsolidados(dfEcon);
 
       // ================= NORMALIZACIÓN CON PONDERACIONES Y 16% GLOBAL =================
-      const valoresIcvPositivos = dfEcon.map(i => i.ICV).filter(v => v !== null && v > 0);
-      const valoresInanPositivos = dfEcon.map(i => i.INAN).filter(v => v !== null && v > 0);
-      const valoresTadPositivos = dfEcon.map(i => i.TAD).filter(v => v !== null && v > 0);
+      // Filtramos solo los valores positivos de países completos para los mínimos de normalización
+      const paisesCompletosParaMin = dfEcon.filter(i => i.completos);
+
+      const valoresIcvPositivos = paisesCompletosParaMin.map(i => i.ICV).filter(v => v !== null && v > 0);
+      const valoresInanPositivos = paisesCompletosParaMin.map(i => i.INAN).filter(v => v !== null && v > 0);
+      const valoresTadPositivos = paisesCompletosParaMin.map(i => i.TAD).filter(v => v !== null && v > 0);
 
       const minIcv = valoresIcvPositivos.length > 0 ? Math.min(...valoresIcvPositivos) : null;
       const minInan = valoresInanPositivos.length > 0 ? Math.min(...valoresInanPositivos) : null;
@@ -165,17 +168,15 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         return Number(((10 * minimo) / num).toFixed(4));
       };
 
-      // Ponderaciones internas del bloque ECON (suman 100%)
       const P_ICV = 0.3300;
       const P_INAN = 0.3150;
       const P_TAD = 0.3550;
-
-      // Peso global del Factor Económico en la calificación total (16%)
       const PESO_FACTOR_ECONOMICO = 0.16;
 
       const dfNorm = dfEcon.map(item => {
-        const completosNorm = item.ICV !== null && item.INAN !== null && item.TAD !== null;
+        const completosNorm = item.completos;
 
+        // Si no está completo en todas las columnas, omitimos la normalización
         if (!completosNorm) {
           return {
             Paises: item.Paises,
@@ -272,8 +273,8 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                     <td className="p-3 font-medium text-white flex items-center gap-2">
                       {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
                     </td>
-                    <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : '-'}</td>
-                    <td className="p-3">{row.INAN !== null ? row.INAN : <span className="text-slate-600 italic">sin datos</span>}</td>
+                    <td className="p-3 text-emerald-400 font-semibold">{row.ICV !== null ? row.ICV : <span className="text-slate-600 italic">sin datos</span>}</td>
+                    <td className="p-3 text-emerald-400 font-semibold">{row.INAN !== null ? row.INAN : <span className="text-slate-600 italic">sin datos</span>}</td>
                     <td className="p-3 text-emerald-400 font-semibold">{row.TAD !== null ? row.TAD : <span className="text-slate-600 italic">sin datos</span>}</td>
                   </tr>
                 ))}
@@ -286,7 +287,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA DE NORMALIZACIÓN ECONÓMICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla de Normalización Económica (ECON)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones internas: ICV = 33% | IAN = 31.5% | TAD = 35.5% (Aporte Global Factor ECON: 16%)</p>
+        <p className="text-xs text-slate-400">Ponderaciones internas: ICV = 33% | IAN = 31.5% | TAD = 35.5% (Aporte Global Factor ECON: 16%). Los países incompletos no se normalizan.</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -307,10 +308,18 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                   <td className="p-3 font-medium text-white flex items-center gap-2">
                     {renderPaisConBandera ? renderPaisConBandera(row.Paises) : row.Paises}
                   </td>
-                  <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
-                  <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
-                  <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
-                  <td className="p-3 font-bold text-cyan-400">{row.aporteFactorEcon !== null ? row.aporteFactorEcon : <span className="text-slate-600 italic">-</span>}</td>
+                  <td className="p-3">
+                    {row.ICV_norm !== null ? row.ICV_norm : <span className="text-amber-500/80 italic">No normalizado (datos incompletos)</span>}
+                  </td>
+                  <td className="p-3">
+                    {row.INAN_norm !== null ? row.INAN_norm : <span className="text-amber-500/80 italic">-</span>}
+                  </td>
+                  <td className="p-3">
+                    {row.TAD_norm !== null ? row.TAD_norm : <span className="text-amber-500/80 italic">-</span>}
+                  </td>
+                  <td className="p-3 font-bold text-cyan-400">
+                    {row.aporteFactorEcon !== null ? row.aporteFactorEcon : <span className="text-slate-600 italic">Incompleto</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
