@@ -82,7 +82,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
     }
   }
 
-  const PESO_FACTOR_SOST = 0.055; 
+  // Ponderaciones internas de las variables (Suman 100%)
   const PESO_EDC = 0.30; 
   const PESO_RPG = 0.30; 
   const PESO_ISG = 0.40; 
@@ -92,23 +92,24 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
   const rpgVals = datosProductos.map(d => d.rpg).filter(v => v !== null && v > 0);
   const isgVals = datosProductos.map(d => d.isg).filter(v => v !== null && v > 0);
 
-  // CAMBIO CLAVE: Usar Math.max en lugar de Math.min para EDC si las emisiones están en escala de eficiencia/desempeño directo,
-  // o aplicar normalización directa si un número mayor de EDC representa mejores prácticas ambientales.
   const maxEdc = edcVals.length > 0 ? Math.max(...edcVals) : null; 
   const minRpg = rpgVals.length > 0 ? Math.min(...rpgVals) : null; 
   const maxIsg = isgVals.length > 0 ? Math.max(...isgVals) : null;
   
-  // Si EDC ahora es directo (a mayor valor, mejor desempeño ambiental):
   const calcularNormalizadoDirecto = (val, maxVal) => (val === null || val <= 0 || !maxVal) ? null : Number(((PUNTAJE_MAXIMO * val) / maxVal).toFixed(2));
   const calcularNormalizadoInverso = (val, minVal) => (val === null || val <= 0 || !minVal) ? null : Number(((PUNTAJE_MAXIMO * minVal) / val).toFixed(2));
 
   const datosSustNormalizados = datosProductos.map(row => {
-    // Si tu columna EDC ahora representa eficiencia (directo) en vez de volumen total bruto (inverso):
     const edcNorm = calcularNormalizadoDirecto(row.edc, maxEdc);
     const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
     const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
 
-    const aporte = (row.tieneDatos) ? Number((((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2)) : 0;
+    // Puntaje TOTAL en base 10 utilizando exclusivamente la ponderación interna de sus variables
+    const aporte = (row.tieneDatos) ? Number((
+      (PESO_EDC * (edcNorm || 0)) + 
+      (PESO_RPG * (rpgNorm || 0)) + 
+      (PESO_ISG * (isgNorm || 0))
+    ).toFixed(2)) : 0;
     
     return { Paises: row.pais_nombre, aporteFactorSostenibilidad: aporte };
   });
@@ -155,18 +156,32 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
 
       {/* TABLA 2: NORMALIZADA */}
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-[#1b2230]"><h3 className="text-xs font-bold text-slate-200">Normalización y Ponderación Final</h3></div>
+        <div className="p-4 border-b border-[#1b2230]">
+          <h3 className="text-xs font-bold text-slate-200">Normalización y Ponderación Final (Base 10)</h3>
+          <p className="text-[10px] text-slate-400 mt-0.5">Ponderaciones: EDC = 30.00% | RPG = 30.00% | ISG = 40.00%</p>
+        </div>
         <div className="max-h-[300px] overflow-y-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#0d1017] text-slate-400 uppercase text-[10px] border-b border-[#1b2230]">
-              <tr><th className="p-3">#</th><th className="p-3">País</th><th className="p-3 text-right">EDC Norm</th><th className="p-3 text-right">RPG Norm</th><th className="p-3 text-right">ISG Norm</th><th className="p-3 text-right">TOTAL</th></tr>
+              <tr>
+                <th className="p-3">#</th>
+                <th className="p-3">País</th>
+                <th className="p-3 text-right">EDC Norm (30%)</th>
+                <th className="p-3 text-right">RPG Norm (30%)</th>
+                <th className="p-3 text-right">ISG Norm (40%)</th>
+                <th className="p-3 text-right">TOTAL (Base 10)</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
               {datosProductos.map((row, idx) => {
                 const edcNorm = calcularNormalizadoDirecto(row.edc, maxEdc);
                 const rpgNorm = calcularNormalizadoInverso(row.rpg, minRpg);
                 const isgNorm = calcularNormalizadoDirecto(row.isg, maxIsg);
-                const total = row.tieneDatos ? Number((((PESO_EDC * (edcNorm || 0)) + (PESO_RPG * (rpgNorm || 0)) + (PESO_ISG * (isgNorm || 0))) * PESO_FACTOR_SOST).toFixed(2)) : '-';
+                const total = row.tieneDatos ? Number((
+                  (PESO_EDC * (edcNorm || 0)) + 
+                  (PESO_RPG * (rpgNorm || 0)) + 
+                  (PESO_ISG * (isgNorm || 0))
+                ).toFixed(2)) : '-';
                 return (
                   <tr key={row.id} className="hover:bg-[#181f2d]">
                     <td className="p-3 text-slate-500">{idx + 1}</td>
