@@ -168,7 +168,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       const P_ICV = 0.3300;
       const P_INAN = 0.3150;
       const P_TAD = 0.3550;
-      const PESO_FACTOR_ECONOMICO = 0.16;
 
       const dfNorm = dfEcon.map(item => {
         // Normalizamos cada columna de forma independiente si tiene valor
@@ -180,7 +179,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
         const completosNorm = item.completos;
 
         let puntajeEconInterno = null;
-        let aporteFactorEcon = null;
 
         if (completosNorm) {
           puntajeEconInterno = (
@@ -188,7 +186,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
             inanNorm * P_INAN +
             tadNorm * P_TAD
           );
-          aporteFactorEcon = Number((puntajeEconInterno * PESO_FACTOR_ECONOMICO).toFixed(4));
         }
 
         return {
@@ -197,14 +194,13 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
           INAN_norm: inanNorm,
           TAD_norm: tadNorm,
           Puntaje_ECON_Normalizado: puntajeEconInterno !== null ? Number(puntajeEconInterno.toFixed(4)) : null,
-          aporteFactorEcon: aporteFactorEcon,
           completos: completosNorm
         };
       });
 
       dfNorm.sort((a, b) => {
         if (b.completos !== a.completos) return b.completos ? 1 : -1;
-        return (b.aporteFactorEcon || 0) - (a.aporteFactorEcon || 0);
+        return (b.Puntaje_ECON_Normalizado || 0) - (a.Puntaje_ECON_Normalizado || 0);
       });
 
       setDatosEconNormalizados(dfNorm);
@@ -227,7 +223,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       <div className="border-b border-[#1b1f2e] pb-3">
         <h2 className="text-xl font-bold text-white">4. Economía (ECON)</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas de Supabase (Ponderación Global: 16%).
+          Gestión y normalización de indicadores macroeconómicos obtenidos de las tablas de Supabase (Suma ponderada exclusiva de variables sobre base 10).
         </p>
       </div>
 
@@ -277,7 +273,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA DE NORMALIZACIÓN ECONÓMICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla de Normalización Económica (ECON)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones internas: ICV = 33% | IAN = 31.5% | TAD = 35.5% (Aporte Global Factor ECON: 16%)</p>
+        <p className="text-xs text-slate-400">Ponderaciones de variables: ICV = 33.00% | IAN = 31.50% | TAD = 35.50%</p>
 
         <div className="overflow-x-auto max-h-[380px] overflow-y-auto border border-[#1b1f2e] rounded-lg shadow-lg">
           <table className="w-full text-left text-xs text-slate-300 relative">
@@ -285,10 +281,10 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
               <tr>
                 <th className="p-3 w-12 bg-[#151824]">#</th>
                 <th className="p-3 bg-[#151824]">País</th>
-                <th className="p-3 bg-[#151824]">ICV Norm (33%)</th>
-                <th className="p-3 bg-[#151824]">IAN Norm (31.5%)</th>
-                <th className="p-3 bg-[#151824]">TAD Norm (35.5%)</th>
-                <th className="p-3 bg-[#151824] text-cyan-400">Aporte ECON (16%)</th>
+                <th className="p-3 bg-[#151824]">ICV Norm (33.00%)</th>
+                <th className="p-3 bg-[#151824]">IAN Norm (31.50%)</th>
+                <th className="p-3 bg-[#151824]">TAD Norm (35.50%)</th>
+                <th className="p-3 bg-[#151824] text-cyan-400">Puntaje ECON Total (Base 10)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1b1f2e]/60 bg-[#10121b]">
@@ -308,7 +304,7 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                     {row.TAD_norm !== null ? row.TAD_norm : <span className="text-slate-600 italic">sin datos</span>}
                   </td>
                   <td className="p-3 font-bold text-cyan-400">
-                    {row.aporteFactorEcon !== null ? row.aporteFactorEcon : <span className="text-slate-600 italic">Incompleto</span>}
+                    {row.Puntaje_ECON_Normalizado !== null ? row.Puntaje_ECON_Normalizado : <span className="text-slate-600 italic">Incompleto</span>}
                   </td>
                 </tr>
               ))}
