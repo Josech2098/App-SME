@@ -44,14 +44,41 @@ export default function TablaProductos({
   const limpiar = (str) => String(str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
   useEffect(() => {
-    async function cargarDatos() {
+    async function cargarTodosLosDatos() {
       setLoading(true);
-      const { data, error } = await supabase.from('productos').select('*').range(0, 4999);
-      if (error) console.error('Error:', error);
-      else setProductos(data || []);
+      let todosLosRegistros = [];
+      let offset = 0;
+      const limite = 1000;
+      let continuar = true;
+
+      // Carga paginada para saltar el límite de 1000 de Supabase
+      while (continuar) {
+        const { data, error } = await supabase
+          .from('productos')
+          .select('*')
+          .range(offset, offset + limite - 1);
+
+        if (error) {
+          console.error('Error cargando bloque de productos:', error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          todosLosRegistros = [...todosLosRegistros, ...data];
+          offset += limite;
+          if (data.length < limite) {
+            continuar = false; // Ya no hay más registros que consultar
+          }
+        } else {
+          continuar = false;
+        }
+      }
+
+      setProductos(todosLosRegistros);
       setLoading(false);
     }
-    cargarDatos();
+
+    cargarTodosLosDatos();
   }, []);
 
   const getProductoId = (p) => p.id ?? p.id_producto ?? p.ID;
@@ -66,12 +93,12 @@ export default function TablaProductos({
     const pais = p.pais || p.Pais || '';
     const subcatVal = p.subcategoria_codigo || p.subcategoria || p.subcodigo || '';
 
-    // 1. FILTRO PAÍS (Añadido)
+    // 1. FILTRO PAÍS
     if (paisDestino && paisDestino !== 'Todos' && paisDestino !== '') {
       if (limpiar(pais) !== limpiar(paisDestino)) return false;
     }
 
-    // 2. FILTRO CATEGORÍA (Normalizado para que coincida aunque el nombre tenga variaciones)
+    // 2. FILTRO CATEGORÍA
     if (categoria && categoria !== 'Todos') {
       const codFiltro = String(categoria).split(' ')[0].trim();
       const claveEncontrada = Object.keys(mapaProductosCategoria).find(key => limpiar(nombre).includes(limpiar(key)));
@@ -91,7 +118,7 @@ export default function TablaProductos({
     <div className="space-y-6 text-[#94a3b8] font-sans antialiased">
       <div className="flex justify-between items-center px-1">
         <h3 className="text-sm font-bold text-white">Listado de Productos</h3>
-        <span className="text-xs text-slate-400">Mostrando {productosFiltrados.length} registros</span>
+        <span className="text-xs text-slate-400">Mostrando {productosFiltrados.length} registros (Total cargados: {productos.length})</span>
       </div>
 
       <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
@@ -106,7 +133,7 @@ export default function TablaProductos({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#182030] text-slate-300">
-              {loading ? <tr><td colSpan="4" className="py-8 text-center">Cargando...</td></tr> : 
+              {loading ? <tr><td colSpan="4" className="py-8 text-center">Cargando todos los registros...</td></tr> : 
                productosFiltrados.map((item) => (
                 <tr key={getProductoId(item)} onClick={() => onSeleccionarProducto?.(item)}
                     className={`cursor-pointer hover:bg-[#161c29] ${String(productoSeleccionadoId) === String(getProductoId(item)) ? 'bg-emerald-500/10' : ''}`}>
