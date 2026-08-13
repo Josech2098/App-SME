@@ -38,7 +38,6 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     setIsMounted(true);
   }, []);
 
-  // Sincronizar datos entrantes
   useEffect(() => {
     if (datosTotales && datosTotales.length > 0) {
       setDatosConsolidados(datosTotales);
@@ -112,14 +111,21 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
       return {
         ...item,
         Paises: item.Paises || item.pais || item.nombre || 'Desconocido',
-        "Puntaje Total": isNaN(puntaje) ? 0 : puntaje
+        "Puntaje Total": isNaN(puntaje) ? 0 : puntaje,
+        // Mapeo estricto de las 7 dimensiones según la estructura de la aplicación
+        "1. Cost (COST)": Number(item["1. Cost (COST)"] || item.COST || 0),
+        "2. Logistical (LOGI)": Number(item["2. Logistical (LOGI)"] || item.LOGI || 0),
+        "3. Commercial (COMM)": Number(item["3. Commercial (COMM)"] || item.COMM || 0),
+        "4. Economic (ECON)": Number(item["4. Economic (ECON)"] || item.ECON || 0),
+        "5. Political (POLI)": Number(item["5. Political (POLI)"] || item.Puntaje_POLI_Normalizado || item.POLI || 0),
+        "6. Sostenibilidad (SUST)": Number(item["6. Sostenibilidad (SUST)"] || item.SUST || 0),
+        "7. Cultura (CULT)": Number(item["7. Cultura (CULT)"] || item.CULT || 0)
       };
     }).filter(item => !isNaN(item["Puntaje Total"]));
   } catch (e) {
     console.error("Error procesando datos válidos:", e);
   }
 
-  // 🛡️ FILTRO CLAVE: Excluir el país de origen seleccionado de los destinos graficados
   if (paisOrigen) {
     datosValidos = datosValidos.filter(item => limpiarTexto(item.Paises) !== limpiarTexto(paisOrigen));
   }
@@ -136,16 +142,18 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
   const datosOrdenados = [...datosValidos].sort((a, b) => b["Puntaje Total"] - a["Puntaje Total"]);
   const top10 = datosOrdenados.slice(0, 10);
 
+  // 🛡️ Las 7 dimensiones exactas en orden correcto
   const categoriasG1 = [
     "1. Cost (COST)",
     "2. Logistical (LOGI)",
     "3. Commercial (COMM)",
     "4. Economic (ECON)",
     "5. Political (POLI)",
-    "6. Cultura (CULT)",
-    "7. Sostenibilidad (SUST)",
+    "6. Sostenibilidad (SUST)",
+    "7. Cultura (CULT)",
     "Puntaje Total"
   ];
+  
   const coloresG1 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#00BFFF'];
 
   const dataGrafico1 = {
@@ -168,12 +176,12 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
       delay: (context) => context.dataIndex * 80,
     },
     plugins: {
-      legend: { position: 'top', labels: { color: 'white', font: { size: 12 } } },
+      legend: { position: 'top', labels: { color: 'white', font: { size: 11 } } },
       title: { display: true, text: `Comparación de Puntajes (Top 10 Países - Desde: ${paisOrigen || 'General'})`, color: 'white', font: { size: 16 } }
     },
     scales: {
-      x: { ticks: { color: 'white', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-      y: { ticks: { color: 'white', font: { size: 12 } }, grid: { color: 'rgba(255,255,255,0.1)' }, title: { display: true, text: 'Puntaje Real', color: 'white' } }
+      x: { ticks: { color: 'white', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: 'white', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.1)' }, title: { display: true, text: 'Puntaje', color: 'white' } }
     }
   };
 
@@ -191,24 +199,13 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
   const optionsGrafico2 = {
     responsive: true,
     maintainAspectRatio: false,
-    animation: {
-      duration: 1800,
-      easing: 'easeOutBounce',
-      delay: (context) => context.dataIndex * 40,
-    },
     plugins: {
       legend: { display: false },
       title: { display: true, text: 'Ranking — Puntaje Total (Top 10 países)', color: 'white', font: { size: 16 } }
     },
     scales: {
       x: { ticks: { color: 'white', font: { size: 10 }, maxRotation: 90, minRotation: 90 }, grid: { display: false } },
-      y: { 
-        min: 0, 
-        max: 10, 
-        ticks: { color: 'white', font: { size: 11 } }, 
-        grid: { color: 'rgba(255,255,255,0.2)', borderDash: [5, 5] }, 
-        title: { display: true, text: 'Puntaje Total (0-10)', color: 'white' } 
-      }
+      y: { min: 0, max: 10, ticks: { color: 'white', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.2)', borderDash: [5, 5] }, title: { display: true, text: 'Puntaje Total (0-10)', color: 'white' } }
     }
   };
 
@@ -218,8 +215,8 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     "3. Commercial (COMM)",
     "4. Economic (ECON)",
     "5. Political (POLI)",
-    "6. Cultura (CULT)",
-    "7. Sostenibilidad (SUST)"
+    "6. Sostenibilidad (SUST)",
+    "7. Cultura (CULT)"
   ];
 
   const estilosLineas = [
@@ -228,8 +225,8 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     { color: '#6A9EFF', borderDash: [4, 4] },
     { color: '#00D4FF', borderDash: [2, 2] },
     { color: '#E6A84F', borderDash: [5, 5] },
-    { color: '#CFCFCF', borderDash: [4, 4] },
-    { color: '#FF6EC7', borderDash: [3, 3] }
+    { color: '#FF6EC7', borderDash: [3, 3] },
+    { color: '#CFCFCF', borderDash: [4, 4] }
   ];
 
   const dataGrafico3 = {
@@ -262,14 +259,9 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
   const optionsGrafico3 = {
     responsive: true,
     maintainAspectRatio: false,
-    animation: {
-      duration: 2000,
-      easing: 'easeInOutExpo',
-      delay: (context) => context.dataIndex * 50,
-    },
     plugins: {
-      legend: { position: 'top', labels: { color: 'white', font: { size: 11 } } },
-      title: { display: true, text: 'Comparativo IMSFE — Puntaje Total + Dimensiones (Top 10 Países)', color: 'white', font: { size: 16 } }
+      legend: { position: 'top', labels: { color: 'white', font: { size: 10 } } },
+      title: { display: true, text: 'Comparativo General — Puntaje Total + Dimensiones (Top 10 Países)', color: 'white', font: { size: 16 } }
     },
     scales: {
       x: { ticks: { color: 'white', font: { size: 10 }, maxRotation: 90, minRotation: 90 }, grid: { display: false } },
@@ -298,14 +290,22 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
         <span className="text-xs uppercase tracking-wider text-red-400 font-semibold">Módulo de Gráficos Analíticos</span>
         <h2 className="text-2xl font-bold text-white mt-1">Visualización de Gráficos Comparativos</h2>
         <p className="text-xs text-slate-400 mt-1">
-          Visualización interactiva técnica SMIPEM con animaciones avanzadas. {paisOrigen ? `(Origen seleccionado: ${paisOrigen})` : ''}
+          Visualización interactiva técnica con todas las dimensiones integradas. {paisOrigen ? `(Origen seleccionado: ${paisOrigen})` : ''}
         </p>
       </div>
 
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <h3 className="text-lg font-bold text-white">Comparativo de países mejor posicionados</h3>
-        <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[500px]">
+        <h3 className="text-lg font-bold text-white">Comparativo de países mejor posicionados (Dimensiones y Total)</h3>
+        <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
           <Bar id="canvas-grafico-1" data={dataGrafico1} options={optionsGrafico1} />
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={() => handleDescargarGraficoCanvas('canvas-grafico-1', 'Grafico_Dimensiones_Top10.png')}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded border border-slate-700 transition-colors cursor-pointer"
+          >
+            Descargar Gráfico 1 (PNG)
+          </button>
         </div>
       </div>
 
@@ -325,13 +325,13 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
       </div>
 
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <h3 className="text-lg font-bold text-white">Comparativo SMIPEM — Dimensiones y Puntaje Total (Top 10 Países)</h3>
+        <h3 className="text-lg font-bold text-white">Comparativo General — Puntaje Total + Líneas de Dimensiones</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
           <Bar id="canvas-grafico-3" data={dataGrafico3} options={optionsGrafico3} />
         </div>
         <div className="flex justify-end">
           <button
-            onClick={() => handleDescargarGraficoCanvas('canvas-grafico-3', 'Grafico_IMSFE.png')}
+            onClick={() => handleDescargarGraficoCanvas('canvas-grafico-3', 'Grafico_General_Lineas.png')}
             className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded border border-slate-700 transition-colors cursor-pointer"
           >
             Descargar Gráfico 3 (PNG)
