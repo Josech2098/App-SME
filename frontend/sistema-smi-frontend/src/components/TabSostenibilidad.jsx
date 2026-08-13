@@ -135,7 +135,7 @@ export default function TabSostenibilidad({ productoActivo, categoria, subcatego
         <div className="max-h-[300px] overflow-y-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 bg-[#0d1017] text-slate-400 uppercase text-[10px] border-b border-[#1b2230]">
-              <tr><th className="p-3">#</th><th className="p-3">País</th><th className="p-3 text-right">EDC</th><th className="p-3 text-right">RPG</th><th className="p-3 text-right">ISG</th></tr>
+              <tr><th className="p-3">#</th><th className="p-3">País</th><th className="p-3 text-right">Emisiones Dióxido Carbono (EDC)</th><th className="p-3 text-right">Riesgo País Global (RPG)</th><th className="p-3 text-right">Índice Sostenibilidad Global (ISG)</th></tr>
             </thead>
             <tbody className="divide-y divide-[#1b2230] font-mono text-slate-300">
               {datosProductos.map((row, idx) => (
