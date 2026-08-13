@@ -112,7 +112,10 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
       return {
         ...item,
         Paises: item.Paises || item.pais || item.nombre || 'Desconocido',
-        "Puntaje Total": isNaN(puntaje) ? 0 : puntaje
+        "Puntaje Total": isNaN(puntaje) ? 0 : puntaje,
+        // Asegurar correspondencia exacta de nombres de dimensiones
+        "6. Sostenibilidad (SUST)": Number(item["6. Sostenibilidad (SUST)"] || item.SUST || 0),
+        "7. Cultura (CULT)": Number(item["7. Cultura (CULT)"] || item.CULT || 0)
       };
     }).filter(item => !isNaN(item["Puntaje Total"]));
   } catch (e) {
@@ -142,8 +145,8 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     "3. Commercial (COMM)",
     "4. Economic (ECON)",
     "5. Political (POLI)",
-    "6. Cultura (CULT)",
-    "7. Sostenibilidad (SUST)",
+    "6. Sostenibilidad (SUST)",
+    "7. Cultura (CULT)",
     "Puntaje Total"
   ];
   const coloresG1 = ['#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f', '#e5c494', '#00BFFF'];
@@ -218,8 +221,8 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     "3. Commercial (COMM)",
     "4. Economic (ECON)",
     "5. Political (POLI)",
-    "6. Cultura (CULT)",
-    "7. Sostenibilidad (SUST)"
+    "6. Sostenibilidad (SUST)",
+    "7. Cultura (CULT)"
   ];
 
   const estilosLineas = [
@@ -228,8 +231,8 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     { color: '#6A9EFF', borderDash: [4, 4] },
     { color: '#00D4FF', borderDash: [2, 2] },
     { color: '#E6A84F', borderDash: [5, 5] },
-    { color: '#CFCFCF', borderDash: [4, 4] },
-    { color: '#FF6EC7', borderDash: [3, 3] }
+    { color: '#FF6EC7', borderDash: [3, 3] },
+    { color: '#CFCFCF', borderDash: [4, 4] }
   ];
 
   const dataGrafico3 = {
