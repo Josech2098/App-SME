@@ -16,7 +16,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
   const [datosCulturaConsolidados, setDatosCulturaConsolidados] = useState([]);
   const [datosCulturaNormalizados, setDatosCulturaNormalizados] = useState([]);
 
-  // 1. Cargar tablas independientes desde Supabase (paises, indiceglobalizacion, indiceCorrupcion)
+  // 1. Cargar tablas independientes desde Supabase
   useEffect(() => {
     async function cargarTablasCultura() {
       setCargando(true);
@@ -49,13 +49,12 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
     cargarTablasCultura();
   }, []);
 
-  // Procesamiento unificado combinando la tabla 'paises' + 'indiceglobalizacion' + 'indiceCorrupcion'
+  // Procesamiento unificado combinando las tablas
   useEffect(() => {
     if (listaPaises.length === 0) return;
 
     setCargando(true);
     try {
-      // Normalizar paisesDestino independientemente de si vienen objetos o cadenas simples
       const nombresDestino = (paisesDestino || []).map(p => typeof p === 'string' ? p : p.nombre);
 
       const listaPaisesBase = nombresDestino.length > 0
@@ -94,7 +93,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
         };
       });
 
-      // Aplicar Overrides del usuario (si existieran)
+      // Aplicar Overrides del usuario
       cultOverrides.forEach(ovr => {
         const index = dfCultura.findIndex(item => item.Paises.toLowerCase() === ovr.Paises.toLowerCase());
         if (index !== -1) {
@@ -120,7 +119,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       dfCultura.sort((a, b) => a._faltantes - b._faltantes);
       setDatosCulturaConsolidados(dfCultura);
 
-      // ================= NORMALIZACIÓN =================
+      // ================= NORMALIZACIÓN Y PONDERACIONES =================
       const A3 = 10;
       
       const glinValidos = dfCultura.map(d => d.GLIN).filter(v => v !== null && v > 0);
@@ -132,17 +131,16 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       const cudiValidos = dfCultura.map(d => d.CUDI).filter(v => v !== null && v > 0);
       const minCUDI = cudiValidos.length > 0 ? Math.min(...cudiValidos) : 0;
 
-      const P_GLIN = 0.30;
-      const P_CPCI = 0.50;
-      const P_CUDI = 0.20;
+      // Ponderaciones actualizadas según requerimiento (Suman 100%)
+      const P_GLIN = 0.30; // 30%
+      const P_CPCI = 0.32; // 32%
+      const P_CUDI = 0.38; // 38%
 
       const dfNorm = dfCultura.map(item => {
-        // Se calculan las normalizaciones individuales siempre que cada valor exista por separado
         const glinNorm = item.GLIN !== null && maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
         const cpciNorm = item.CPCI !== null && maxCPCI > 0 ? Number(((A3 * item.CPCI) / maxCPCI).toFixed(2)) : null;
         const cudiNorm = item.CUDI !== null && item.CUDI > 0 && minCUDI > 0 ? Number(((A3 * minCUDI) / item.CUDI).toFixed(2)) : null;
 
-        // Verificamos si tiene TODOS los datos para calcular el puntaje final
         const tieneTodosLosDatos = item.GLIN !== null && item.CPCI !== null && item.CUDI !== null;
 
         let puntajeCult = null;
@@ -249,7 +247,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla Cultural Normalizada (CULT)</h3>
-          <p className="text-xs text-slate-400 mt-1">Ponderaciones: GLIN = 30% | CPCI = 50% | CUDI = 20%</p>
+          <p className="text-xs text-slate-400 mt-1">Ponderaciones: GLIN = 30% | CPCI = 32% | CUDI = 38%</p>
         </div>
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
@@ -258,9 +256,9 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
               <tr>
                 <th className="p-3">#</th>
                 <th className="p-3">Paises</th>
-                <th className="p-3">GLIN_norm</th>
-                <th className="p-3">CPCI_norm</th>
-                <th className="p-3">CUDI_norm</th>
+                <th className="p-3">GLIN_norm (30%)</th>
+                <th className="p-3">CPCI_norm (32%)</th>
+                <th className="p-3">CUDI_norm (38%)</th>
                 <th className="p-3 font-bold text-sky-400">Puntaje_CULT_Normalizado</th>
               </tr>
             </thead>
