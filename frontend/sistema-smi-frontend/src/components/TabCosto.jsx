@@ -205,7 +205,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     cargarYCalcularMatriz();
   }, [cargarYCalcularMatriz]);
 
-  const PESO_FACTOR_COSTO = 0.215;
+  // Porcentajes internos del factor Costo (Suman 100% de esta pestaña)
   const PESO_PPD = 0.44;
   const PESO_CTI = 0.34;
   const PESO_CIC = 0.22;
@@ -230,9 +230,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
   // 🔹 Normalización Inversa Min-Max (Para costos: menor costo = mayor puntaje de 0 a 10)
   const normalizarInversoMinMax = (val, minVal, maxVal) => {
     if (val === null || val === undefined || isNaN(val)) return null;
-    if (maxVal === minVal) return PUNTAJE_MAXIMO; // Si todos tienen el mismo valor
+    if (maxVal === minVal) return PUNTAJE_MAXIMO; 
     
-    // Fórmula Min-Max Inversa: 10 * (1 - (val - min) / (max - min))
     const normalizado = PUNTAJE_MAXIMO * (1 - (val - minVal) / (maxVal - minVal));
     return Number(Math.max(0, Math.min(PUNTAJE_MAXIMO, normalizado)).toFixed(2));
   };
@@ -241,7 +240,6 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
     const { minPpd, maxPpd, minCti, maxCti, minCic, maxCic } = rangosMetricas;
 
     const calculada = datosProductos.map(row => {
-      // Como el precio/costo es mejor cuanto más bajo es, usamos normalización inversa para los tres (PPD, CTI, CIC)
       const ppdNorm = normalizarInversoMinMax(row.ppd, minPpd, maxPpd);
       const ctiNorm = normalizarInversoMinMax(row.cti, minCti, maxCti);
       const cicNorm = normalizarInversoMinMax(row.cic, minCic, maxCic);
@@ -252,7 +250,8 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       const p2 = ctiNorm ?? 0;
       const p3 = cicNorm ?? 0;
 
-      const aporteFactorCosto = tieneNulos ? 0 : Number((((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)) * PESO_FACTOR_COSTO).toFixed(2));
+      // CORRECCIÓN: El puntaje del factor se calcula únicamente con sus 3 % internos (44%, 34%, 22%) sobre base 10
+      const puntajeFactorCosto = tieneNulos ? 0 : Number(((PESO_PPD * p1) + (PESO_CTI * p2) + (PESO_CIC * p3)).toFixed(2));
       const faltantes = [ppdNorm, ctiNorm, cicNorm].filter(v => v === null).length;
 
       return {
@@ -260,7 +259,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
         ppdNorm,
         ctiNorm,
         cicNorm,
-        aporteFactorCosto,
+        aporteFactorCosto: puntajeFactorCosto, 
         __faltantes: faltantes,
         __tieneNulos: tieneNulos
       };
@@ -387,7 +386,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
       {/* 3. TABLA DE NORMALIZACIÓN Y PONDERACIÓN FINAL */}
       <div className="space-y-2 pt-2">
         <div className="flex justify-between items-center px-1">
-          <h3 className="text-sm font-bold text-white">Normalización y Ponderación Final (Factor Costo)</h3>
+          <h3 className="text-sm font-bold text-white">Normalización y Ponderación de Pestaña (Factor Costo)</h3>
         </div>
 
         <div className="bg-[#121620] border border-[#1e2536] rounded-xl overflow-hidden shadow-sm">
@@ -400,7 +399,7 @@ export default function TabCosto({ productoActivo, categoria, subcategoria, busq
                   <th className="py-3 px-4 text-right font-medium">PPD Norm (44%)</th>
                   <th className="py-3 px-4 text-right font-medium">CTI Norm (34%)</th>
                   <th className="py-3 px-4 text-right font-medium">CIC Norm (22%)</th>
-                  <th className="py-3 px-4 text-right font-bold text-emerald-400 pr-6">Total Factor (21.5%)</th>
+                  <th className="py-3 px-4 text-right font-bold text-emerald-400 pr-6">Puntaje Factor (0 - 10)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#182030] font-mono text-slate-300">
