@@ -119,7 +119,7 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     console.error("Error procesando datos válidos:", e);
   }
 
-  // 🛡️ FILTRO CLAVE: Excluir el país de origen seleccionado (Ej. Argentina) de los destinos graficados
+  // 🛡️ FILTRO CLAVE: Excluir el país de origen seleccionado de los destinos graficados
   if (paisOrigen) {
     datosValidos = datosValidos.filter(item => limpiarTexto(item.Paises) !== limpiarTexto(paisOrigen));
   }
@@ -135,7 +135,6 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
 
   const datosOrdenados = [...datosValidos].sort((a, b) => b["Puntaje Total"] - a["Puntaje Total"]);
   const top10 = datosOrdenados.slice(0, 10);
-  const top30 = datosOrdenados.slice(0, 30);
 
   const categoriasG1 = [
     "1. Cost (COST)",
@@ -234,12 +233,12 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
   ];
 
   const dataGrafico3 = {
-    labels: top30.map(d => d.Paises),
+    labels: top10.map(d => d.Paises),
     datasets: [
       {
         type: 'bar',
         label: 'Puntaje Total',
-        data: top30.map(d => Number(d["Puntaje Total"] || 0)),
+        data: top10.map(d => Number(d["Puntaje Total"] || 0)),
         backgroundColor: '#00BFFF',
         borderColor: 'white',
         borderWidth: 1,
@@ -248,7 +247,7 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
       ...columnasDim.map((col, idx) => ({
         type: 'line',
         label: col,
-        data: top30.map(d => Number(d[col] || 0)),
+        data: top10.map(d => Number(d[col] || 0)),
         borderColor: estilosLineas[idx].color,
         backgroundColor: estilosLineas[idx].color,
         borderDash: estilosLineas[idx].borderDash,
@@ -270,7 +269,7 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
     },
     plugins: {
       legend: { position: 'top', labels: { color: 'white', font: { size: 11 } } },
-      title: { display: true, text: 'Comparativo IMSFE — Puntaje Total + Dimensiones', color: 'white', font: { size: 16 } }
+      title: { display: true, text: 'Comparativo IMSFE — Puntaje Total + Dimensiones (Top 10 Países)', color: 'white', font: { size: 16 } }
     },
     scales: {
       x: { ticks: { color: 'white', font: { size: 10 }, maxRotation: 90, minRotation: 90 }, grid: { display: false } },
@@ -326,7 +325,7 @@ export default function TabGraficos({ datosTotales = [], paisOrigen = '' }) {
       </div>
 
       <div className="bg-[#181a20] border border-slate-800 rounded-xl p-6 space-y-4 shadow-sm">
-        <h3 className="text-lg font-bold text-white">Comparativo SMIPEM — Dimensiones y Puntaje Total</h3>
+        <h3 className="text-lg font-bold text-white">Comparativo SMIPEM — Dimensiones y Puntaje Total (Top 10 Países)</h3>
         <div className="bg-[#0d1117] p-4 rounded-lg border border-slate-800 h-[520px]">
           <Bar id="canvas-grafico-3" data={dataGrafico3} options={optionsGrafico3} />
         </div>
