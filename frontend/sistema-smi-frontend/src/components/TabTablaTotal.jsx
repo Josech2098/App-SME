@@ -13,26 +13,18 @@ export default function TabTablaTotal({
   onDatosActualizados
 }) {
 
-  const [pesosCat, setPesosCat] = useState({
+  const pesosEstandar = {
     COST: 21.5,
     LOGI: 18.5,
     COMM: 20.5,
-    ECON: 16,
-    POLI: 13,
-    CULT: 5,
-    SUST: 5.5
-  });
+    ECON: 16.0,
+    POLI: 13.0,
+    SUST: 5.5,
+    CULT: 5.0
+  };
 
-  const [pesosAplicados, setPesosAplicados] = useState({
-    COST: 21.5,
-    LOGI: 18.5,
-    COMM: 20.5,
-    ECON: 16,
-    POLI: 13,
-    CULT: 5,
-    SUST: 5.5
-  });
-
+  const [pesosCat, setPesosCat] = useState(pesosEstandar);
+  const [pesosAplicados, setPesosAplicados] = useState(pesosEstandar);
   const [esVisible, setEsVisible] = useState(false);
 
   const handlePesoChange = (cat, valor) => {
@@ -57,8 +49,8 @@ export default function TabTablaTotal({
           COMM: 0,
           ECON: 0,
           POLI: 0,
-          CULT: 0,
-          SUST: 0
+          SUST: 0,
+          CULT: 0
         };
       }
       return mapa[pais];
@@ -109,21 +101,21 @@ export default function TabTablaTotal({
       }
     });
 
-    // CULT
-    datosCult.forEach(row => {
-      const pais = row.Paises || row.pais_nombre || row.pais;
-      const item = asegurarPais(pais);
-      if (item) {
-        item.CULT = Number(row.Puntaje_CULT_Normalizado || 0);
-      }
-    });
-
     // SUST
     datosSust.forEach(row => {
       const pais = row.Paises || row.pais_nombre || row.pais;
       const item = asegurarPais(pais);
       if (item) {
         item.SUST = Number(row.aporteFactorSostenibilidad || 0);
+      }
+    });
+
+    // CULT
+    datosCult.forEach(row => {
+      const pais = row.Paises || row.pais_nombre || row.pais;
+      const item = asegurarPais(pais);
+      if (item) {
+        item.CULT = Number(row.Puntaje_CULT_Normalizado || 0);
       }
     });
 
@@ -135,8 +127,8 @@ export default function TabTablaTotal({
           row.COMM * (pesosAplicados.COMM / 100) +
           row.ECON * (pesosAplicados.ECON / 100) +
           row.POLI * (pesosAplicados.POLI / 100) +
-          row.CULT * (pesosAplicados.CULT / 100) +
-          row.SUST * (pesosAplicados.SUST / 100)
+          row.SUST * (pesosAplicados.SUST / 100) +
+          row.CULT * (pesosAplicados.CULT / 100)
         ).toFixed(2)
       );
 
@@ -149,13 +141,13 @@ export default function TabTablaTotal({
         "3. Commercial (COMM)": row.COMM,
         "4. Economic (ECON)": row.ECON,
         "5. Political (POLI)": row.POLI,
-        "6. Cultura (CULT)": row.CULT,
-        "7. Sostenibilidad (SUST)": row.SUST,
+        "6. Sostenibilidad (SUST)": row.SUST,
+        "7. Cultura (CULT)": row.CULT,
         "Puntaje Total": total,
         "Puntaje Global – TOTAL": total
       };
     }).sort((a, b) => b.TOTAL - a.TOTAL);
-  }, [datosCosto, datosLogi, datosComm, datosEcon, datosPoli, datosCult, datosSust, pesosAplicados]);
+  }, [datosCosto, datosLogi, datosComm, datosEcon, datosPoli, datosSust, datosCult, pesosAplicados]);
 
   const datosFiltrados = useMemo(() => {
     if (!paisOrigen) return datosFinales;
@@ -191,8 +183,8 @@ export default function TabTablaTotal({
                 { label: "COMM (%)", cat: "COMM" },
                 { label: "ECON (%)", cat: "ECON" },
                 { label: "POLI (%)", cat: "POLI" },
-                { label: "CULT (%)", cat: "CULT" },
-                { label: "SUST (%)", cat: "SUST" }
+                { label: "SUST (%)", cat: "SUST" },
+                { label: "CULT (%)", cat: "CULT" }
               ].map(({ label, cat }) => (
                 <div key={cat} className="bg-[#0d1017] border border-[#1b2230] rounded-lg p-3">
                   <label className="block text-xs font-semibold mb-2 text-slate-300">{label}</label>
@@ -246,17 +238,8 @@ export default function TabTablaTotal({
               </button>
               <button
                 onClick={() => {
-                  const pesosOriginales = {
-                    COST: 21.5,
-                    LOGI: 18.5,
-                    COMM: 20.5,
-                    ECON: 16,
-                    POLI: 13,
-                    CULT: 5,
-                    SUST: 5.5
-                  };
-                  setPesosCat(pesosOriginales);
-                  setPesosAplicados(pesosOriginales);
+                  setPesosCat(pesosEstandar);
+                  setPesosAplicados(pesosEstandar);
                 }}
                 className="bg-[#1b2230] hover:bg-[#252f44] text-slate-200 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#2d3748]"
               >
@@ -271,7 +254,7 @@ export default function TabTablaTotal({
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h2 className="text-lg font-bold text-white">Tabla General de Evaluación de Países</h2>
-          <p className="text-xs text-slate-400 mt-1">Consolidación automática de COST, LOGI, COMM, ECON, POLI, CULT y SUST</p>
+          <p className="text-xs text-slate-400 mt-1">Consolidación automática de COST, LOGI, COMM, ECON, POLI, SUST y CULT</p>
         </div>
         <div className="overflow-y-auto h-[450px] border border-[#1b2230] rounded-xl">
           <table className="w-full text-xs text-slate-300 border-collapse">
@@ -284,8 +267,8 @@ export default function TabTablaTotal({
                 <th className="p-3">COMM</th>
                 <th className="p-3">ECON</th>
                 <th className="p-3">POLI</th>
-                <th className="p-3">CULT</th>
                 <th className="p-3">SUST</th>
+                <th className="p-3">CULT</th>
                 <th className="p-3 text-sky-400">TOTAL</th>
               </tr>
             </thead>
@@ -301,8 +284,8 @@ export default function TabTablaTotal({
                   <td className="p-3">{row.COMM.toFixed(2)}</td>
                   <td className="p-3">{row.ECON.toFixed(2)}</td>
                   <td className="p-3">{row.POLI.toFixed(2)}</td>
-                  <td className="p-3">{row.CULT.toFixed(2)}</td>
                   <td className="p-3">{row.SUST.toFixed(2)}</td>
+                  <td className="p-3">{row.CULT.toFixed(2)}</td>
                   <td className="p-3 font-bold text-sky-400">{row.TOTAL.toFixed(2)}</td>
                 </tr>
               ))}
