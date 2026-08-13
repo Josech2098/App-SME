@@ -119,7 +119,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       dfCultura.sort((a, b) => a._faltantes - b._faltantes);
       setDatosCulturaConsolidados(dfCultura);
 
-      // ================= NORMALIZACIÓN Y PONDERACIONES =================
+      // ================= NORMALIZACIÓN Y PONDERACIONES SOBRE BASE 10 =================
       const A3 = 10;
       
       const glinValidos = dfCultura.map(d => d.GLIN).filter(v => v !== null && v > 0);
@@ -131,13 +131,10 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       const cudiValidos = dfCultura.map(d => d.CUDI).filter(v => v !== null && v > 0);
       const minCUDI = cudiValidos.length > 0 ? Math.min(...cudiValidos) : 0;
 
-      // Ponderaciones internas (Suman 100%)
+      // Ponderaciones internas de las variables (Suman 100%)
       const P_GLIN = 0.30; // 30%
       const P_CPCI = 0.32; // 32%
       const P_CUDI = 0.38; // 38%
-
-      // Peso global del módulo de Cultura frente al total ponderado
-      const PESO_GLOBAL_CULTURA = 0.05; // 5%
 
       const dfNorm = dfCultura.map(item => {
         const glinNorm = item.GLIN !== null && maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
@@ -148,13 +145,12 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
 
         let puntajeCult = null;
         if (tieneTodosLosDatos) {
-          const puntajeBruto = (
+          // Puntaje CULT Normalizado basado únicamente en la suma ponderada de sus variables (Base 10)
+          puntajeCult = Number((
             (glinNorm * P_GLIN) +
             (cpciNorm * P_CPCI) +
             (cudiNorm * P_CUDI)
-          );
-          // Aplicación del 5% global para el total ponderado
-          puntajeCult = Number((puntajeBruto * PESO_GLOBAL_CULTURA).toFixed(4));
+          ).toFixed(2));
         }
 
         const faltantesNorm = [glinNorm, cpciNorm, cudiNorm].filter(v => v === null).length;
@@ -252,7 +248,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla Cultural Normalizada (CULT)</h3>
-          <p className="text-xs text-slate-400 mt-1">Ponderaciones internas: GLIN = 30% | CPCI = 32% | CUDI = 38% (Peso global del módulo: 5%)</p>
+          <p className="text-xs text-slate-400 mt-1">Ponderaciones de variables: GLIN = 30.00% | CPCI = 32.00% | CUDI = 38.00% (Base 10)</p>
         </div>
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
@@ -261,10 +257,10 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
               <tr>
                 <th className="p-3">#</th>
                 <th className="p-3">Paises</th>
-                <th className="p-3">GLIN_norm</th>
-                <th className="p-3">CPCI_norm</th>
-                <th className="p-3">CUDI_norm</th>
-                <th className="p-3 font-bold text-sky-400">Puntaje_CULT_Normalizado (5%)</th>
+                <th className="p-3">GLIN Norm (30.00%)</th>
+                <th className="p-3">CPCI Norm (32.00%)</th>
+                <th className="p-3">CUDI Norm (38.00%)</th>
+                <th className="p-3 font-bold text-sky-400">Puntaje CULT Total (Base 10)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1b2230]">
