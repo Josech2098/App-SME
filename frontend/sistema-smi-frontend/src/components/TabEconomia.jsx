@@ -297,7 +297,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                 <th className="p-3 bg-[#151824]">ICV Norm (33%)</th>
                 <th className="p-3 bg-[#151824]">IAN Norm (31.5%)</th>
                 <th className="p-3 bg-[#151824]">TAD Norm (35.5%)</th>
-                <th className="p-3 bg-[#151824]">Puntaje ECON (10 pts)</th>
                 <th className="p-3 bg-[#151824] text-cyan-400">Aporte ECON (16%)</th>
               </tr>
             </thead>
@@ -311,7 +310,6 @@ export default function TabEconomia({ productoActivo, paisesDestino, paisOrigen,
                   <td className="p-3">{row.ICV_norm !== null ? row.ICV_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
                   <td className="p-3">{row.INAN_norm !== null ? row.INAN_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
                   <td className="p-3">{row.TAD_norm !== null ? row.TAD_norm : <span className="text-slate-600 italic">sin normalizar</span>}</td>
-                  <td className="p-3 font-semibold text-slate-200">{row.Puntaje_ECON_Normalizado !== null ? row.Puntaje_ECON_Normalizado : <span className="text-slate-600 italic">-</span>}</td>
                   <td className="p-3 font-bold text-cyan-400">{row.aporteFactorEcon !== null ? row.aporteFactorEcon : <span className="text-slate-600 italic">-</span>}</td>
                 </tr>
               ))}
