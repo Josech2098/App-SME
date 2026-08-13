@@ -146,20 +146,7 @@ export default function TabTablaTotal({
         "Puntaje Total": total,
         "Puntaje Global – TOTAL": total
       };
-    }).sort((a, b) => {
-      // 🛡️ REGLA DE ORDENAMIENTO MEJORADA: 
-      // Si un país tiene ECON en 0 (indicando falta de datos o penalización), 
-      // lo mandamos al fondo de la tabla para que no aparezca de primero injustamente.
-      const aTieneEconZero = a.ECON === 0 ? 1 : 0;
-      const bTieneEconZero = b.ECON === 0 ? 1 : 0;
-
-      if (aTieneEconZero !== bTieneEconZero) {
-        return aTieneEconZero - bTieneEconZero; // Los que tienen 0 en ECON van después
-      }
-
-      // Si ambos tienen o no tienen 0, se ordenan normalmente por TOTAL descendente
-      return b.TOTAL - a.TOTAL;
-    });
+    }).sort((a, b) => b.TOTAL - a.TOTAL);
   }, [datosCosto, datosLogi, datosComm, datosEcon, datosPoli, datosSust, datosCult, pesosAplicados]);
 
   const datosFiltrados = useMemo(() => {
