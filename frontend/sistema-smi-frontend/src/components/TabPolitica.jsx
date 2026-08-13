@@ -103,7 +103,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
       dfPoli.sort((a, b) => a._faltantes - b._faltantes);
       setDatosPoliConsolidados(dfPoli);
 
-      // ================= NORMALIZACIÓN Y CÁLCULO DIRECTO AL 13.00% =================
+      // ================= NORMALIZACIÓN Y CÁLCULO DIRECTO DE VARIABLES SOBRE BASE 10 =================
       const A3 = 10;
       const FSI_min = 19.6;  
       const INRI_min = 1.7;  
@@ -112,20 +112,17 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
       const P_FSI = 0.355;
       const P_INRI = 0.350;
       const P_DEIN = 0.295;
-      const PESO_FACTOR_POLITICA = 0.13; // 13.00% peso global aplicado directamente al puntaje
 
       const dfNorm = dfPoli.map(item => {
         const fsiNorm = item.FSI !== null && item.FSI > 0 ? Number(((A3 * FSI_min) / item.FSI).toFixed(2)) : null;
         const inriNorm = item.INRI !== null && item.INRI > 0 ? Number(((A3 * INRI_min) / item.INRI).toFixed(2)) : null;
         const deinNorm = item.DEIN !== null && DEIN_max > 0 ? Number(((A3 * item.DEIN) / DEIN_max).toFixed(2)) : null;
 
-        // Puntaje POLI Normalizado ya multiplicado directamente por el 13.00%
+        // Puntaje POLI Normalizado basado únicamente en la suma ponderada de sus variables (Base 10)
         const puntajePoli = Number((
-          (
-            (fsiNorm !== null ? fsiNorm : 0) * P_FSI +
-            (inriNorm !== null ? inriNorm : 0) * P_INRI +
-            (deinNorm !== null ? deinNorm : 0) * P_DEIN
-          ) * PESO_FACTOR_POLITICA
+          (fsiNorm !== null ? fsiNorm : 0) * P_FSI +
+          (inriNorm !== null ? inriNorm : 0) * P_INRI +
+          (deinNorm !== null ? deinNorm : 0) * P_DEIN
         ).toFixed(2));
 
         const faltantesNorm = [fsiNorm, inriNorm, deinNorm].filter(v => v === null).length;
@@ -213,7 +210,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA DE NORMALIZACIÓN POLÍTICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Política Normalizada (POLI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones: IEF = 35.50% | IDR = 35.00% | IDE = 29.50% — (Puntaje global afectado al 13.00%)</p>
+        <p className="text-xs text-slate-400">Ponderaciones de variables: IEF = 35.50% | IDR = 35.00% | IDE = 29.50% (Base 10)</p>
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-[#222634] rounded-lg shadow-xl">
           <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
@@ -224,7 +221,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
                 <th className="p-3 bg-[#141824]">IEF Norm (35.50%)</th>
                 <th className="p-3 bg-[#141824]">IDR Norm (35.00%)</th>
                 <th className="p-3 bg-[#141824]">IDE Norm (29.50%)</th>
-                <th className="p-3 bg-[#141824]">Puntaje POLI Norm. (13.00%)</th>
+                <th className="p-3 bg-[#141824]">Puntaje POLI Total (Base 10)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#222634]/60 bg-[#0c0f17]">
