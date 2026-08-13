@@ -55,7 +55,6 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
 
     setCargando(true);
     try {
-      // Normalizar paisesDestino independientemente de si vienen objetos o cadenas simples
       const nombresDestino = (paisesDestino || []).map(p => typeof p === 'string' ? p : p.nombre);
 
       const listaPaisesBase = nombresDestino.length > 0
@@ -103,22 +102,49 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
       dfPoli.sort((a, b) => a._faltantes - b._faltantes);
       setDatosPoliConsolidados(dfPoli);
 
-      // ================= NORMALIZACIÓN Y CÁLCULO DIRECTO DE VARIABLES SOBRE BASE 10 =================
-      const A3 = 10;
-      const FSI_min = 19.6;  
-      const INRI_min = 1.7;  
-      const DEIN_max = 8.85; 
+      // ================= CÁLCULO DE MÁXIMOS Y MÍNIMOS PARA NORMALIZACIÓN ESTRICTA [0 - 10] =================
+      const valoresFSI = dfPoli.map(i => i.FSI).filter(v => v !== null && !isNaN(v));
+      const valoresINRI = dfPoli.map(i => i.INRI).filter(v => v !== null && !isNaN(v));
+      const valoresDEIN = dfPoli.map(i => i.DEIN).filter(v => v !== null && !isNaN(v));
+
+      const fsiMin = valoresFSI.length ? Math.min(...valoresFSI) : 0;
+      const fsiMax = valoresFSI.length ? Math.max(...valoresFSI) : 1;
+
+      const inriMin = valoresINRI.length ? Math.min(...valoresINRI) : 0;
+      const inriMax = valoresINRI.length ? Math.max(...valoresINRI) : 1;
+
+      const deinMin = valoresDEIN.length ? Math.min(...valoresDEIN) : 0;
+      const deinMax = valoresDEIN.length ? Math.max(...valoresDEIN) : 1;
 
       const P_FSI = 0.355;
       const P_INRI = 0.350;
       const P_DEIN = 0.295;
 
       const dfNorm = dfPoli.map(item => {
-        const fsiNorm = item.FSI !== null && item.FSI > 0 ? Number(((A3 * FSI_min) / item.FSI).toFixed(2)) : null;
-        const inriNorm = item.INRI !== null && item.INRI > 0 ? Number(((A3 * INRI_min) / item.INRI).toFixed(2)) : null;
-        const deinNorm = item.DEIN !== null && DEIN_max > 0 ? Number(((A3 * item.DEIN) / DEIN_max).toFixed(2)) : null;
+        // FSI e INRI: Menor valor es mejor (Inversión Min-Max para que oscilen estrictamente entre 0 y 10)
+        let fsiNorm = null;
+        if (item.FSI !== null && fsiMax !== fsiMin) {
+          fsiNorm = Number((10 * (fsiMax - item.FSI) / (fsiMax - fsiMin)).toFixed(2));
+        } else if (item.FSI !== null) {
+          fsiNorm = 10;
+        }
 
-        // Puntaje POLI Normalizado basado únicamente en la suma ponderada de sus variables (Base 10)
+        let inriNorm = null;
+        if (item.INRI !== null && inriMax !== inriMin) {
+          inriNorm = Number((10 * (inriMax - item.INRI) / (inriMax - inriMin)).toFixed(2));
+        } else if (item.INRI !== null) {
+          inriNorm = 10;
+        }
+
+        // DEIN: Mayor valor es mejor (Min-Max directo para rango 0 a 10)
+        let deinNorm = null;
+        if (item.DEIN !== null && deinMax !== deinMin) {
+          deinNorm = Number((10 * (item.DEIN - deinMin) / (deinMax - deinMin)).toFixed(2));
+        } else if (item.DEIN !== null) {
+          deinNorm = 10;
+        }
+
+        // Puntaje POLI Normalizado basado en la suma ponderada (Garantizado Máximo 10)
         const puntajePoli = Number((
           (fsiNorm !== null ? fsiNorm : 0) * P_FSI +
           (inriNorm !== null ? inriNorm : 0) * P_INRI +
@@ -210,7 +236,7 @@ export default function TabPolitica({ productoActivo, paisesDestino, paisOrigen,
       {/* ================= TABLA DE NORMALIZACIÓN POLÍTICA ================= */}
       <div className="space-y-2 pt-2">
         <h3 className="text-base font-bold text-white">Tabla Política Normalizada (POLI)</h3>
-        <p className="text-xs text-slate-400">Ponderaciones de variables: IEF = 35.50% | IDR = 35.00% | IDE = 29.50% (Base 10)</p>
+        <p className="text-xs text-slate-400">Ponderaciones de variables: IEF = 35.50% | IDR = 35.00% | IDE = 29.50% (Escala estricta Base 0 - 10)</p>
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto border border-[#222634] rounded-lg shadow-xl">
           <table className="w-full text-left text-xs text-slate-300 relative border-collapse">
