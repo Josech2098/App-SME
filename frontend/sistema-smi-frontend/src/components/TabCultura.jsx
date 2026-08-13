@@ -131,10 +131,13 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       const cudiValidos = dfCultura.map(d => d.CUDI).filter(v => v !== null && v > 0);
       const minCUDI = cudiValidos.length > 0 ? Math.min(...cudiValidos) : 0;
 
-      // Ponderaciones actualizadas según requerimiento (Suman 100%)
+      // Ponderaciones internas (Suman 100%)
       const P_GLIN = 0.30; // 30%
       const P_CPCI = 0.32; // 32%
       const P_CUDI = 0.38; // 38%
+
+      // Peso global del módulo de Cultura frente al total ponderado
+      const PESO_GLOBAL_CULTURA = 0.05; // 5%
 
       const dfNorm = dfCultura.map(item => {
         const glinNorm = item.GLIN !== null && maxGLIN > 0 ? Number(((A3 * item.GLIN) / maxGLIN).toFixed(2)) : null;
@@ -145,11 +148,13 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
 
         let puntajeCult = null;
         if (tieneTodosLosDatos) {
-          puntajeCult = Number((
+          const puntajeBruto = (
             (glinNorm * P_GLIN) +
             (cpciNorm * P_CPCI) +
             (cudiNorm * P_CUDI)
-          ).toFixed(2));
+          );
+          // Aplicación del 5% global para el total ponderado
+          puntajeCult = Number((puntajeBruto * PESO_GLOBAL_CULTURA).toFixed(4));
         }
 
         const faltantesNorm = [glinNorm, cpciNorm, cudiNorm].filter(v => v === null).length;
@@ -247,7 +252,7 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
       <div className="bg-[#121620] border border-[#1b2230] rounded-xl p-6 space-y-4 shadow-sm">
         <div>
           <h3 className="text-lg font-bold text-white">Tabla Cultural Normalizada (CULT)</h3>
-          <p className="text-xs text-slate-400 mt-1">Ponderaciones: GLIN = 30% | CPCI = 32% | CUDI = 38%</p>
+          <p className="text-xs text-slate-400 mt-1">Ponderaciones internas: GLIN = 30% | CPCI = 32% | CUDI = 38% (Peso global del módulo: 5%)</p>
         </div>
 
         <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
@@ -256,10 +261,10 @@ export default function TabCultura({ productoActivo, paisesDestino, paisOrigen, 
               <tr>
                 <th className="p-3">#</th>
                 <th className="p-3">Paises</th>
-                <th className="p-3">GLIN_norm (30%)</th>
-                <th className="p-3">CPCI_norm (32%)</th>
-                <th className="p-3">CUDI_norm (38%)</th>
-                <th className="p-3 font-bold text-sky-400">Puntaje_CULT_Normalizado</th>
+                <th className="p-3">GLIN_norm</th>
+                <th className="p-3">CPCI_norm</th>
+                <th className="p-3">CUDI_norm</th>
+                <th className="p-3 font-bold text-sky-400">Puntaje_CULT_Normalizado (5%)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#1b2230]">
