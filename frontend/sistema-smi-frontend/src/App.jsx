@@ -316,7 +316,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Sección: Búsquedas personalizadas */}
+        {/* Sección: Búsquedas personalizadas y créditos */}
         <div className="space-y-4 pt-2">
           <h2 className="text-base font-bold text-slate-100">Búsquedas personalizadas</h2>
 
@@ -352,6 +352,7 @@ export default function App() {
             />
           </div>
 
+          {/* Bloque unificado alineado a la izquierda */}
           <div className="mt-6 pt-4 border-t border-slate-700/50 text-slate-400 flex flex-col items-start space-y-3">
             <img 
               src={logoSmipem} 
@@ -367,26 +368,26 @@ export default function App() {
             <p className="text-xs mt-4 text-slate-500">
               Copyright © 2026
             </p>
+
+            {/* Nuevas imágenes institucionales y texto de financiación alineados */}
+            <div className="flex flex-col items-start pt-4 space-y-3 w-full">
+              <div className="flex items-center justify-start gap-4 flex-wrap">
+                <img 
+                  src={logoLarioja} 
+                  alt="Larioja.org Logo" 
+                  className="h-12 w-auto object-contain" 
+                />
+                <img 
+                  src={logoInstituto} 
+                  alt="Instituto" 
+                  className="h-12 w-auto object-contain" 
+                />
+              </div>
+              <p className="text-xs text-slate-400 text-left max-w-xs">
+                Prototipo financiado por Concesión de las Ayudas de Estudios Riojanos 2026 Referencia: 00860-2026/085699
+              </p>
+            </div>
           </div>
-        </div>
-        
-        {/* Nuevas imágenes institucionales y texto de financiación */}
-        <div className="flex flex-col items-center my-4 space-y-3">
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            <img 
-              src={logoLarioja} 
-              alt="Larioja.org Logo" 
-              className="h-12 w-auto object-contain" 
-            />
-            <img 
-              src={logoInstituto} 
-              alt="Instituto" 
-              className="h-12 w-auto object-contain" 
-            />
-          </div>
-          <p className="text-xs text-center text-slate-400 max-w-xs">
-            Prototipo financiado por Concesión de las Ayudas de Estudios Riojanos 2026 Referencia: 00860-2026/085699
-          </p>
         </div>
       </aside>
 
