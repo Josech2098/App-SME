@@ -12,6 +12,8 @@ import TabTablaTotal from './components/TabTablaTotal';
 import TabGraficosComparativos from './components/TabGraficos';
 import SplashScreen from "./components/SplashScreen";
 import logoSmipem from "./assets/SMIPEM.png";
+import logoLarioja from "./assets/larioga.jpeg";
+import logoInstituto from "./assets/Instituto.jpeg";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0);
@@ -368,24 +370,24 @@ export default function App() {
           </div>
         </div>
         
-            {/* Nuevas imágenes institucionales y texto de financiación */}
-            <div className="flex flex-col items-center my-4 space-y-3">
-              <div className="flex items-center justify-center gap-4 flex-wrap">
-                <img 
-                  src={logoLarioja} 
-                  alt="Larioja.org Logo" 
-                  className="h-12 w-auto object-contain" 
-                />
-                <img 
-                  src={logoInstituto} 
-                  alt="Instituto" 
-                  className="h-12 w-auto object-contain" 
-                />
-              </div>
-              <p className="text-xs text-center text-slate-400 max-w-xs">
-                Prototipo financiado por Concesión de las Ayudas de Estudios Riojanos 2026 Referencia: 00860-2026/085699
-              </p>
-            </div>
+        {/* Nuevas imágenes institucionales y texto de financiación */}
+        <div className="flex flex-col items-center my-4 space-y-3">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <img 
+              src={logoLarioja} 
+              alt="Larioja.org Logo" 
+              className="h-12 w-auto object-contain" 
+            />
+            <img 
+              src={logoInstituto} 
+              alt="Instituto" 
+              className="h-12 w-auto object-contain" 
+            />
+          </div>
+          <p className="text-xs text-center text-slate-400 max-w-xs">
+            Prototipo financiado por Concesión de las Ayudas de Estudios Riojanos 2026 Referencia: 00860-2026/085699
+          </p>
+        </div>
       </aside>
 
       {/* ---------------- ÁREA PRINCIPAL ---------------- */}
