@@ -93,6 +93,10 @@ export default function TablaProductos({
     const pais = p.pais || p.Pais || '';
     const subcatVal = p.subcategoria_codigo || p.subcategoria || p.subcodigo || '';
 
+    // Encontrar el código asociado a este producto usando el mapa
+    const claveEncontrada = Object.keys(mapaProductosCategoria).find(key => limpiar(nombre).includes(limpiar(key)));
+    const codigoAsociado = claveEncontrada ? mapaProductosCategoria[claveEncontrada] : '';
+
     // 1. FILTRO PAÍS
     if (paisDestino && paisDestino !== 'Todos' && paisDestino !== '') {
       if (limpiar(pais) !== limpiar(paisDestino)) return false;
@@ -101,14 +105,20 @@ export default function TablaProductos({
     // 2. FILTRO CATEGORÍA
     if (categoria && categoria !== 'Todos') {
       const codFiltro = String(categoria).split(' ')[0].trim();
-      const claveEncontrada = Object.keys(mapaProductosCategoria).find(key => limpiar(nombre).includes(limpiar(key)));
-      if (!claveEncontrada || mapaProductosCategoria[claveEncontrada] !== codFiltro) return false;
+      if (!claveEncontrada || codigoAsociado !== codFiltro) return false;
     }
 
-    // 3. OTROS FILTROS
+    // 3. OTROS FILTROS Y BÚSQUEDAS
     if (subcategoria && subcategoria !== 'Todos' && !limpiar(subcatVal).includes(limpiar(subcategoria))) return false;
     if (searchNombre && !limpiar(nombre).includes(limpiar(searchNombre))) return false;
-    if (searchCodigo && !limpiar(nombre).includes(limpiar(searchCodigo))) return false;
+    
+    // CORRECCIÓN: Validar el código contra el mapa o el texto del nombre directamente
+    if (searchCodigo) {
+      const coincideNombre = limpiar(nombre).includes(limpiar(searchCodigo));
+      const coincideCodigoMapa = codigoAsociado.includes(limpiar(searchCodigo));
+      if (!coincideNombre && !coincideCodigoMapa) return false;
+    }
+
     if (searchSubcodigo && !limpiar(subcatVal).includes(limpiar(searchSubcodigo))) return false;
 
     return true;
@@ -134,7 +144,7 @@ export default function TablaProductos({
             </thead>
             <tbody className="divide-y divide-[#182030] text-slate-300">
               {loading ? <tr><td colSpan="4" className="py-8 text-center">Cargando todos los registros...</td></tr> : 
-               productosFiltrados.map((item) => (
+                productosFiltrados.map((item) => (
                 <tr key={getProductoId(item)} onClick={() => onSeleccionarProducto?.(item)}
                     className={`cursor-pointer hover:bg-[#161c29] ${String(productoSeleccionadoId) === String(getProductoId(item)) ? 'bg-emerald-500/10' : ''}`}>
                   <td className="py-3 px-4">{getProductoId(item)}</td>
